@@ -10,9 +10,18 @@ function log(message){debug.textContent+='['+new Date().toLocaleTimeString('fa-I
 function faDigits(value){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}
 function numberText(number,decimals=0){if(!Number.isFinite(number))return '—';return faDigits(number.toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals}))}
 function priceText(item){let number;if(item.name==='oil_brent'||item.name==='ons')number=Number(item.p);else if((item.name==='crypto-tether-irr'||item.name==='crypto-tether')&&item.p_irr)number=Number(String(item.p_irr).replace(/,/g,''))/10;else number=Number(item.p)/10;const decimals=(item.name==='ons'||item.name==='oil_brent')?2:0;return numberText(number,decimals)}
-function getChange(item){const current=Number(item.p),reference=Number(item.o);if(!Number.isFinite(current)||!Number.isFinite(reference))return{className:'flat',symbol:''};if(current>reference)return{className:'up',symbol:'▲'};if(current<reference)return{className:'down',symbol:'▼'};return{className:'flat',symbol:'0'}}
+function getChange(item){
+ const direction=item.dt;
+ if(direction==='high')return{className:'up',symbol:'▲'};
+ if(direction==='low')return{className:'down',symbol:'▼'};
+ const current=Number(item.p),reference=Number(item.o);
+ if(!Number.isFinite(current)||!Number.isFinite(reference))return{className:'flat',symbol:''};
+ if(current>reference)return{className:'up',symbol:'▲'};
+ if(current<reference)return{className:'down',symbol:'▼'};
+ return{className:'flat',symbol:'0'};
+}
 function diffText(item){const percent=Number(item.dp);if(!Number.isFinite(percent))return '';return Math.abs(percent).toFixed(2)+'%'}
-function render(items){const map=new Map(items.map(item=>[item.name,item]));box.innerHTML=wanted.map(w=>{const item=map.get(w.slug);if(!item)return '<div class="row"><div class="name">'+w.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';const change=getChange(item),percent=diffText(item);log(w.name+': p='+item.p+' o='+item.o+' => '+change.className);return '<div class="row"><div class="name">'+w.name+'</div><div class="price '+change.className+'">'+priceText(item)+' <span style="font-size:10px;color:#888">'+w.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percent+'</span><span class="time">'+(item.t||'')+'</span></div></div>'}).join('')}
+function render(items){const map=new Map(items.map(item=>[item.name,item]));box.innerHTML=wanted.map(w=>{const item=map.get(w.slug);if(!item)return '<div class="row"><div class="name">'+w.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';const change=getChange(item),percent=diffText(item);log(w.name+': p='+item.p+' o='+item.o+' dt='+item.dt+' => '+change.className);return '<div class="row"><div class="name">'+w.name+'</div><div class="price '+change.className+'">'+priceText(item)+' <span style="font-size:10px;color:#888">'+w.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percent+'</span><span class="time">'+(item.t||'')+'</span></div></div>'}).join('')}
 async function load(){refreshBtn.disabled=true;refreshBtn.textContent='در حال بروزرسانی...';try{log('شروع دریافت اطلاعات از API رسمی TGJU');const response=await fetch(api,{cache:'no-store'});log('HTTP status='+response.status);if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();const items=data&&data.response&&Array.isArray(data.response.indicators)?data.response.indicators:[];log('تعداد داده‌ها: '+items.length);if(!items.length)throw new Error('No indicators');render(items);const now=new Date();lastRefresh.textContent='آخرین رفرش: '+now.toLocaleTimeString('fa-IR');log('جدول ساخته شد')}catch(error){log('ERROR: '+error.message);box.innerHTML='<div class="error">دریافت اطلاعات TGJU ناموفق بود.<br><br>دکمه بروزرسانی را بزنید.</div>'}finally{refreshBtn.disabled=false;refreshBtn.textContent='↻ بروزرسانی'}}
 debugToggle.onclick=function(){debug.style.display=debug.style.display==='none'?'block':'none'};refreshBtn.onclick=load;load();})();
 </script></main></body></html>
