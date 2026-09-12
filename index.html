@@ -8,17 +8,13 @@
     body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
     main{width:min(720px,94vw);background:#181818;border-radius:16px;padding:18px;box-sizing:border-box}
     h1{font-size:20px;margin:0 0 16px;text-align:center}
-    .tgju-widget{min-height:180px}
   </style>
 </head>
 <body>
   <main>
     <h1>قیمت بازار</h1>
-    <tgju type="market-data"
-      items="crypto-tether,ons,geram18,sekee,energy-brent-oil"
-      columns="dot,diff,time"
-      token="webservice"></tgju>
+    <div id="tgju-data"></div>
   </main>
-  <script src="https://api.tgju.org/v1/widget/v2" defer></script>
+  <script src="https://platform.tgju.org/fa/api/webservice-snippet/?token=webservice&items=crypto-tether,ons,geram18,sekee,oil_brent&opts=diff,time&placeholder=tgju-data"></script>
 </body>
 </html>
