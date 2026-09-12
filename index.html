@@ -1,386 +1,130 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>قیمت بازار TGJU</title>
-
-  <style>
-    /* ظاهر کلی صفحه */
-    body {
-      margin: 0;
-      background: #111;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-
-    /* کادر اصلی */
-    main {
-      width: min(720px, 94vw);
-      margin: 30px auto;
-      background: #181818;
-      border-radius: 16px;
-      padding: 18px;
-      box-sizing: border-box;
-    }
-
-    h1 {
-      text-align: center;
-      font-size: 20px;
-      margin-bottom: 18px;
-    }
-
-    /* هر ردیف بازار */
-    .row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 13px 4px;
-      border-bottom: 1px solid #2b2b2b;
-    }
-
-    .name {
-      min-width: 90px;
-      color: #ddd;
-      font-size: 14px;
-    }
-
-    /* خود مبلغ */
-    .price {
-      flex: 1;
-      text-align: center;
-      font-size: 17px;
-      font-weight: bold;
-      direction: ltr;
-    }
-
-    /* رنگ خود مبلغ بر اساس مقدار تغییر */
-    .price.up { color: #55c878; }
-    .price.down { color: #ef6666; }
-    .price.flat { color: white; }
-
-    .meta {
-      min-width: 120px;
-      text-align: left;
-      direction: ltr;
-      font-size: 11px;
-    }
-
-    .up { color: #55c878; }
-    .down { color: #ef6666; }
-    .flat { color: #999; }
-
-    .time {
-      display: block;
-      margin-top: 4px;
-      color: #888;
-      font-size: 10px;
-    }
-
-    .loading,
-    .error {
-      text-align: center;
-      color: #aaa;
-      padding: 30px;
-    }
-
-    .error { color: #e77; }
-
-    #debugToggle {
-      display: block;
-      margin: 14px auto 0;
-      background: none;
-      border: 0;
-      color: #777;
-      cursor: pointer;
-    }
-
-    #debug {
-      display: none;
-      margin-top: 10px;
-      padding: 10px;
-      background: #0b0b0b;
-      border: 1px solid #333;
-      border-radius: 8px;
-      color: #bbb;
-      font: 11px/1.7 monospace;
-      direction: ltr;
-      text-align: left;
-      white-space: pre-wrap;
-      max-height: 420px;
-      overflow: auto;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>قیمت بازار TGJU</title>
+<style>
+body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}
+main{width:min(720px,94vw);margin:30px auto;background:#181818;border-radius:16px;padding:18px;box-sizing:border-box}
+h1{text-align:center;font-size:20px;margin:0 0 18px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 4px;border-bottom:1px solid #2b2b2b}
+.name{min-width:90px;color:#ddd;font-size:14px}
+.price{flex:1;text-align:center;font-size:17px;font-weight:bold;direction:ltr}
+.price.up{color:#55c878}.price.down{color:#ef6666}.price.flat{color:white}
+.meta{min-width:120px;text-align:left;direction:ltr;font-size:11px}
+.up{color:#55c878}.down{color:#ef6666}.flat{color:#999}
+.time{display:block;margin-top:4px;color:#888;font-size:10px}
+.loading,.error{text-align:center;color:#aaa;padding:30px}.error{color:#e77}
+#debugToggle{display:block;margin:14px auto 0;background:none;border:0;color:#777;cursor:pointer}
+#debug{display:none;margin-top:10px;padding:10px;background:#0b0b0b;border:1px solid #333;border-radius:8px;color:#bbb;font:11px/1.7 monospace;direction:ltr;text-align:left;white-space:pre-wrap;max-height:420px;overflow:auto}
+</style>
 </head>
-
 <body>
 <main>
-  <h1>قیمت بازار</h1>
-
-  <div id="tgju-data">
-    <div class="loading">در حال دریافت اطلاعات...</div>
-  </div>
-
-  <button id="debugToggle" type="button">Debug</button>
-  <pre id="debug"></pre>
-
+<h1>قیمت بازار</h1>
+<div id="tgju-data"><div class="loading">در حال دریافت اطلاعات...</div></div>
+<button id="debugToggle" type="button">Debug</button>
+<pre id="debug"></pre>
 <script>
-(function () {
+(function(){
+/* API رسمی TGJU */
+const api='https://api.tgju.org/v1/widget/tmp?keys=price_dollar_rl,crypto-tether,ons,geram18,sekee,oil_brent';
 
-  /* =====================================================
-     1 ـ آدرس API رسمی TGJU
-     ===================================================== */
-  const api =
-    'https://api.tgju.org/v1/widget/tmp?keys=' +
-    'price_dollar_rl,' +
-    'crypto-tether,' +
-    'ons,' +
-    'geram18,' +
-    'sekee,' +
-    'oil_brent';
+/* ترتیب نمایش */
+const wanted=[
+ {slug:'price_dollar_rl',name:'دلار',unit:'تومان'},
+ {slug:'crypto-tether',name:'تتر',unit:'تومان'},
+ {slug:'ons',name:'انس طلا',unit:'USD'},
+ {slug:'geram18',name:'طلای ۱۸',unit:'تومان'},
+ {slug:'sekee',name:'سکه امامی',unit:'تومان'},
+ {slug:'oil_brent',name:'نفت برنت',unit:'USD'}
+];
 
+const box=document.getElementById('tgju-data');
+const debug=document.getElementById('debug');
+const debugToggle=document.getElementById('debugToggle');
 
-  /* =====================================================
-     2 ـ مواردی که در جدول می‌خواهیم
-     ===================================================== */
-  const wanted = [
-    { slug: 'price_dollar_rl', name: 'دلار', unit: 'تومان' },
-    { slug: 'crypto-tether',   name: 'تتر', unit: 'تومان' },
-    { slug: 'ons',             name: 'انس طلا', unit: 'USD' },
-    { slug: 'geram18',         name: 'طلای ۱۸', unit: 'تومان' },
-    { slug: 'sekee',           name: 'سکه امامی', unit: 'تومان' },
-    { slug: 'oil_brent',       name: 'نفت برنت', unit: 'USD' }
-  ];
+function log(message){debug.textContent+='['+new Date().toLocaleTimeString('fa-IR')+'] '+message+'\n'}
+function faDigits(value){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}
+function numberText(number,decimals=0){if(!Number.isFinite(number))return '—';return faDigits(number.toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals}))}
 
+/* تبدیل قیمت:
+   قیمت‌های داخلی TGJU ریال هستند و به تومان تقسیم بر ۱۰ می‌شوند.
+   انس و نفت برنت دلاری هستند و اصلاً تقسیم نمی‌شوند. */
+function priceText(item){
+ let number;
+ if(item.name==='oil_brent') number=Number(item.p);
+ else if(item.name==='ons') number=Number(item.p);
+ else if(item.name==='crypto-tether'&&item.p_irr) number=Number(String(item.p_irr).replace(/,/g,''))/10;
+ else number=Number(item.p)/10;
+ const decimals=(item.name==='ons'||item.name==='oil_brent')?2:0;
+ return numberText(number,decimals);
+}
 
-  /* عناصر صفحه */
-  const box = document.getElementById('tgju-data');
-  const debug = document.getElementById('debug');
-  const debugToggle = document.getElementById('debugToggle');
+/*
+  نکته مهم رنگ‌ها:
+  d در API فعلی TGJU برای این داده‌ها همیشه علامت جهت را نگه نمی‌دارد.
+  بنابراین برای تشخیص افزایش/کاهش، قیمت فعلی p را با قیمت مرجع o
+  مقایسه می‌کنیم. این همان جهت روزانه‌ای است که ویجت TGJU برای
+  افزایش/کاهش نشان می‌دهد.
+*/
+function getChange(item){
+ const current=Number(item.p);
+ const reference=Number(item.o);
+ if(!Number.isFinite(current)||!Number.isFinite(reference))return {className:'flat',symbol:''};
+ if(current>reference)return {className:'up',symbol:'▲'};
+ if(current<reference)return {className:'down',symbol:'▼'};
+ return {className:'flat',symbol:'0'};
+}
 
+/* درصد تغییر را از dp خود TGJU می‌گیریم. */
+function diffText(item){
+ const percent=Number(item.dp);
+ if(!Number.isFinite(percent))return '';
+ return Math.abs(percent).toFixed(2)+'%';
+}
 
-  /* =====================================================
-     3 ـ ابزار Debug
-     ===================================================== */
-  function log(message) {
-    debug.textContent +=
-      '[' + new Date().toLocaleTimeString('fa-IR') + '] ' +
-      message + '\n';
-  }
+function render(items){
+ const map=new Map(items.map(item=>[item.name,item]));
+ box.innerHTML=wanted.map(w=>{
+  const item=map.get(w.slug);
+  if(!item)return '<div class="row"><div class="name">'+w.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';
+  const change=getChange(item);
+  const percent=diffText(item);
+  log(w.name+': p='+item.p+' o='+item.o+' => '+change.className);
+  return '<div class="row">'+
+    '<div class="name">'+w.name+'</div>'+ 
+    '<div class="price '+change.className+'">'+priceText(item)+' <span style="font-size:10px;color:#888">'+w.unit+'</span></div>'+ 
+    '<div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percent+'</span><span class="time">'+(item.t||'')+'</span></div>'+ 
+    '</div>';
+ }).join('');
+}
 
+async function load(){
+ try{
+  log('شروع دریافت اطلاعات از API رسمی TGJU');
+  const response=await fetch(api,{cache:'no-store'});
+  log('HTTP status='+response.status);
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const data=await response.json();
+  const items=data&&data.response&&Array.isArray(data.response.indicators)?data.response.indicators:[];
+  log('تعداد داده‌ها: '+items.length);
+  if(!items.length)throw new Error('No indicators');
+  const oil=items.find(item=>item.name==='oil_brent');
+  if(oil)log('Brent raw p='+oil.p+' (NO DIVISION)');
+  render(items);
+  log('جدول ساخته شد');
+ }catch(error){
+  log('ERROR: '+error.message);
+  box.innerHTML='<div class="error">دریافت اطلاعات TGJU ناموفق بود.<br><br>صفحه را Refresh کنید.</div>';
+ }
+}
 
-  /* تبدیل اعداد انگلیسی به فارسی */
-  function faDigits(value) {
-    return String(value).replace(
-      /[0-9]/g,
-      digit => '۰۱۲۳۴۵۶۷۸۹'[digit]
-    );
-  }
-
-
-  /* نمایش عدد با جداکننده هزارگان */
-  function numberText(number, decimals = 0) {
-    if (!Number.isFinite(number)) return '—';
-
-    return faDigits(
-      number.toLocaleString('en-US', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-      })
-    );
-  }
-
-
-  /* =====================================================
-     4 ـ تبدیل قیمت برای نمایش
-
-     قیمت‌های داخلی TGJU به ریال هستند، پس به تومان تبدیل
-     می‌شوند. انس و نفت برنت دلار هستند و دست‌کاری نمی‌شوند.
-
-     مهم: نفت برنت اصلاً تقسیم بر ۱۰ نمی‌شود.
-     ===================================================== */
-  function priceText(item) {
-    let number;
-
-    if (item.name === 'oil_brent') {
-      // نفت برنت: دلار، بدون هیچ تبدیل
-      number = Number(item.p);
-    }
-    else if (item.name === 'ons') {
-      // انس طلا: دلار، بدون هیچ تبدیل
-      number = Number(item.p);
-    }
-    else if (item.name === 'crypto-tether' && item.p_irr) {
-      // تتر: p_irr ریال است، پس ریال به تومان
-      number = Number(String(item.p_irr).replace(/,/g, '')) / 10;
-    }
-    else {
-      // دلار، طلای ۱۸ و سکه: ریال به تومان
-      number = Number(item.p) / 10;
-    }
-
-    const decimals =
-      (item.name === 'ons' || item.name === 'oil_brent') ? 2 : 0;
-
-    return numberText(number, decimals);
-  }
-
-
-  /* =====================================================
-     5 ـ تشخیص افزایش / کاهش
-
-     d  = مقدار واقعی تغییر
-     dp = درصد تغییر
-
-     رنگ مبلغ را بر اساس d تعیین می‌کنیم، نه صرفاً dp.
-     ===================================================== */
-  function getChange(item) {
-    const change = Number(item.d);
-
-    if (!Number.isFinite(change)) {
-      return { className: 'flat', symbol: '' };
-    }
-
-    if (change > 0) {
-      return { className: 'up', symbol: '▲' };
-    }
-
-    if (change < 0) {
-      return { className: 'down', symbol: '▼' };
-    }
-
-    return { className: 'flat', symbol: '0' };
-  }
-
-
-  /* نمایش درصد تغییر */
-  function diffText(item) {
-    const percent = Number(item.dp);
-
-    if (!Number.isFinite(percent)) return '';
-
-    return Math.abs(percent).toFixed(2) + '%';
-  }
-
-
-  /* =====================================================
-     6 ـ ساخت جدول
-     ===================================================== */
-  function render(items) {
-    // داده‌ها را بر اساس نام TGJU سریع پیدا می‌کنیم.
-    const map = new Map(items.map(item => [item.name, item]));
-
-    box.innerHTML = wanted.map(wantedItem => {
-      const item = map.get(wantedItem.slug);
-
-      if (!item) {
-        return `
-          <div class="row">
-            <div class="name">${wantedItem.name}</div>
-            <div class="price">—</div>
-            <div class="meta">داده موجود نیست</div>
-          </div>
-        `;
-      }
-
-      const change = getChange(item);
-      const percent = diffText(item);
-
-      return `
-        <div class="row">
-          <div class="name">${wantedItem.name}</div>
-
-          <!-- خود مبلغ هم رنگ افزایش/کاهش می‌گیرد -->
-          <div class="price ${change.className}">
-            ${priceText(item)}
-            <span style="font-size:10px;color:#888">
-              ${wantedItem.unit}
-            </span>
-          </div>
-
-          <div class="meta">
-            <span class="${change.className}">
-              ${change.symbol} ${percent}
-            </span>
-
-            <span class="time">
-              ${item.t || ''}
-            </span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-
-  /* =====================================================
-     7 ـ دریافت اطلاعات از TGJU
-     ===================================================== */
-  async function load() {
-    try {
-      log('شروع دریافت اطلاعات');
-      log('Source: official TGJU API');
-
-      const response = await fetch(api, { cache: 'no-store' });
-
-      log('HTTP status=' + response.status);
-
-      if (!response.ok) {
-        throw new Error('HTTP ' + response.status);
-      }
-
-      const data = await response.json();
-
-      const items =
-        data &&
-        data.response &&
-        Array.isArray(data.response.indicators)
-          ? data.response.indicators
-          : [];
-
-      log('تعداد داده‌ها: ' + items.length);
-
-      if (!items.length) {
-        throw new Error('No indicators');
-      }
-
-      // برای کنترل نفت، مقدار خام آن را در Debug ثبت می‌کنیم.
-      const oil = items.find(item => item.name === 'oil_brent');
-      if (oil) {
-        log('Brent raw p=' + oil.p + ' (NO DIVISION)');
-      }
-
-      render(items);
-      log('جدول ساخته شد');
-    }
-    catch (error) {
-      log('ERROR: ' + error.message);
-
-      box.innerHTML = `
-        <div class="error">
-          دریافت اطلاعات TGJU ناموفق بود.
-          <br><br>
-          صفحه را Refresh کنید.
-        </div>
-      `;
-    }
-  }
-
-
-  /* باز و بسته کردن Debug */
-  debugToggle.onclick = function () {
-    debug.style.display =
-      debug.style.display === 'none' ? 'block' : 'none';
-  };
-
-
-  /* شروع برنامه */
-  load();
-
+debugToggle.onclick=function(){debug.style.display=debug.style.display==='none'?'block':'none'};
+load();
 })();
 </script>
-
 </main>
 </body>
 </html>
