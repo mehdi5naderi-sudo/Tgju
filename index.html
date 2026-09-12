@@ -6,16 +6,84 @@
 <title>TGJU Market</title>
 <style>
 body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
-main{width:min(720px,94vw);background:#181818;border-radius:16px;padding:18px;box-sizing:border-box}
+main{width:min(720px,94vw);background:#181818;border-radius:16px;padding:18px;box-sizing:border-box;position:relative}
 h1{text-align:center;font-size:20px;margin:0 0 18px}
 #tgju-data{min-height:120px}
+#debug-toggle{display:block;margin:14px auto 0;background:none;border:0;color:#666;font-size:11px;cursor:pointer}
+#debug{display:none;margin-top:10px;padding:10px;border-radius:10px;background:#0b0b0b;color:#aaa;font:11px/1.7 monospace;direction:ltr;text-align:left;white-space:pre-wrap;max-height:220px;overflow:auto}
+#debug.open{display:block}
 </style>
 </head>
 <body>
 <main>
 <h1>قیمت بازار</h1>
 <div id="tgju-data">در حال دریافت اطلاعات...</div>
-<script src="https://www.tgju.org/webservice/global/snippet-loader.php?token=webservice&amp;items=crypto-tether,ons,geram18,sekee,oil_brent&amp;opts=diff,time&amp;placeholder=tgju-data"></script>
+<button id="debug-toggle" type="button">Debug</button>
+<pre id="debug"></pre>
 </main>
+
+<script>
+(function(){
+  const box=document.getElementById('tgju-data');
+  const debug=document.getElementById('debug');
+  const toggle=document.getElementById('debug-toggle');
+  const started=Date.now();
+  const source='https://www.tgju.org/webservice/global/snippet-loader.php?token=webservice&items=crypto-tether,ons,geram18,sekee,oil_brent&opts=diff,time&placeholder=tgju-data';
+  let lastText=box.innerText;
+  let timer=null;
+
+  function log(msg){
+    const line='['+new Date().toLocaleTimeString('fa-IR')+'] '+msg;
+    debug.textContent+=line+'\n';
+    debug.scrollTop=debug.scrollHeight;
+    console.log('[TGJU DEBUG]',msg);
+  }
+
+  toggle.onclick=function(){
+    debug.classList.toggle('open');
+    if(debug.classList.contains('open')) log('Debug panel opened');
+  };
+
+  window.addEventListener('error',function(e){
+    log('JavaScript error: '+(e.message||'unknown')+' | '+(e.filename||'')+':'+(e.lineno||''));
+  });
+
+  window.addEventListener('unhandledrejection',function(e){
+    log('Promise error: '+String(e.reason||'unknown'));
+  });
+
+  const observer=new MutationObserver(function(){
+    const text=box.innerText.trim();
+    if(text!==lastText){
+      lastText=text;
+      log('TGJU container changed after '+(Date.now()-started)+' ms');
+      log('Content preview: '+text.slice(0,500));
+    }
+  });
+  observer.observe(box,{subtree:true,childList:true,characterData:true,attributes:true});
+
+  log('Page started');
+  log('TGJU source: '+source);
+  log('Waiting for TGJU response...');
+
+  timer=setTimeout(function(){
+    const text=box.innerText.trim();
+    if(text==='در حال دریافت اطلاعات...' || !text){
+      log('TIMEOUT: TGJU did not place data in the container within 12 seconds');
+      log('Container HTML length: '+box.innerHTML.length);
+    }else{
+      log('TGJU data exists after 12 seconds');
+    }
+  },12000);
+
+  window.__tgjuDebug={
+    source:source,
+    started:started,
+    getStatus:function(){return {elapsed:Date.now()-started,text:box.innerText,htmlLength:box.innerHTML.length};}
+  };
+})();
+</script>
+
+<script src="https://www.tgju.org/webservice/global/snippet-loader.php?token=webservice&amp;items=crypto-tether,ons,geram18,sekee,oil_brent&amp;opts=diff,time&amp;placeholder=tgju-data" onload="console.log('[TGJU DEBUG] External TGJU script loaded')" onerror="console.error('[TGJU DEBUG] External TGJU script failed to load')"></script>
 </body>
 </html>
