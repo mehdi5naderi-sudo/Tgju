@@ -1,0 +1,7 @@
+{
+  "fetched_at": null,
+  "source": "https://api.tgju.org/v1/widget/tmp?keys=price_dollar_rl,crypto-tether-irr,ons,geram18,ime_fund_kahroba,oil_brent",
+  "response": {
+    "indicators": []
+  }
+}
