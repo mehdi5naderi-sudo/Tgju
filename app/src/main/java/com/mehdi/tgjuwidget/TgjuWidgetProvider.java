@@ -56,28 +56,60 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if (ids == null || ids.length == 0) return;
         new Thread(() -> {
             Map<String, JSONObject> data = new HashMap<>();
+            boolean success = false;
             String requestTime = now();
+            HttpURLConnection c = null;
             try {
-                HttpURLConnection c = (HttpURLConnection) new URL(API).openConnection();
-                c.setRequestMethod("GET"); c.setConnectTimeout(10000); c.setReadTimeout(10000); c.setUseCaches(false);
+                c = (HttpURLConnection) new URL(API).openConnection();
+                c.setRequestMethod("GET");
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(10000);
+                c.setUseCaches(false);
+                c.setRequestProperty("Cache-Control", "no-cache");
+                c.setRequestProperty("Pragma", "no-cache");
+                int code = c.getResponseCode();
+                if (code != HttpURLConnection.HTTP_OK) throw new Exception("HTTP " + code);
                 BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()));
                 StringBuilder sb = new StringBuilder(); String line;
                 while ((line = br.readLine()) != null) sb.append(line);
-                br.close(); c.disconnect();
+                br.close();
                 JSONObject root = new JSONObject(sb.toString());
-                JSONArray arr = root.optJSONObject("response") == null ? null : root.optJSONObject("response").optJSONArray("indicators");
-                if (arr != null) for (int i=0;i<arr.length();i++) {
-                    JSONObject o = arr.optJSONObject(i); if (o == null) continue;
-                    String key = o.optString("name", o.optString("key", o.optString("slug", "")));
-                    data.put(key, o);
+                JSONObject response = root.optJSONObject("response");
+                JSONArray arr = response == null ? null : response.optJSONArray("indicators");
+                if (arr == null || arr.length() == 0) throw new Exception("No indicators");
+                for (int i=0;i<arr.length();i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    if (o == null) continue;
+                    putAliases(data, o);
                 }
-            } catch (Exception ignored) { }
+                success = hasRequiredData(data);
+            } catch (Exception ignored) {
+                success = false;
+            } finally {
+                if (c != null) c.disconnect();
+            }
+            final boolean ok = success;
             final Map<String, JSONObject> result = data;
             new Handler(Looper.getMainLooper()).post(() -> {
                 AppWidgetManager manager = AppWidgetManager.getInstance(context);
-                for (int id : ids) update(context, manager, id, result, requestTime);
+                for (int id : ids) {
+                    if (ok) update(context, manager, id, result, requestTime);
+                }
             });
         }).start();
+    }
+
+    private static void putAliases(Map<String, JSONObject> data, JSONObject o) {
+        String[] fields = {"key", "slug", "name", "symbol", "id"};
+        for (String field : fields) {
+            String value = o.optString(field, "");
+            if (!value.isEmpty()) data.put(value, o);
+        }
+    }
+
+    private static boolean hasRequiredData(Map<String, JSONObject> data) {
+        for (String key : KEYS) if (data.containsKey(key)) return true;
+        return false;
     }
 
     private void update(Context context, AppWidgetManager manager, int id, Map<String, JSONObject> data, String requestTime) {
@@ -94,16 +126,17 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 double p = o.optDouble("dp", Double.NaN);
                 if (!Double.isNaN(p)) {
                     pct = percent(p);
-                    color = p > 0 ? Color.rgb(85,200,120) : p < 0 ? Color.rgb(239,102,102) : Color.LTGRAY;
+                    color = p > 0 ? Color.rgb(85,200,120) : p < 0 ? Color.rgb(239,102,102) : Color.rgb(229,192,74);
                 }
                 time = fa(o.optString("t", "—"));
             }
             v.setTextViewText(PRICE_IDS[n], fa(price));
+            v.setTextColor(PRICE_IDS[n], color);
             v.setTextViewText(PCT_IDS[n], fa(pct));
-            v.setTextViewText(TIME_IDS[n], time);
             v.setTextColor(PCT_IDS[n], color);
+            v.setTextViewText(TIME_IDS[n], time);
         }
-        v.setTextViewText(R.id.requestTime, "درخواست رفرش: " + fa(requestTime));
+        v.setTextViewText(R.id.requestTime, "رفرش: " + fa(requestTime));
         manager.updateAppWidget(id, v);
     }
 
