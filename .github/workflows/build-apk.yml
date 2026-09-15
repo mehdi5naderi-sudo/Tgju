@@ -32,6 +32,7 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
+          echo "Installing Android SDK packages"
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -x "$SDKMANAGER" ]; then
             SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
