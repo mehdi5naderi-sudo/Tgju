@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <application android:theme="@style/AppTheme" android:label="TGJU Widget" android:allowBackup="false" android:supportsRtl="false">
+    <application android:theme="@style/AppTheme" android:label="TGJU Widget" android:allowBackup="false" android:supportsRtl="true">
+        <activity android:name=".WidgetSettingsActivity" android:exported="false" android:label="TGJU Widget Settings" />
         <receiver android:name=".TgjuWidgetProvider" android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
