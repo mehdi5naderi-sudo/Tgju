@@ -6,8 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,7 +30,7 @@ public class WidgetSettingsActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return; }
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) widgetId = 0;
         setResult(RESULT_CANCELED);
         buildUi();
         load();
@@ -42,26 +40,22 @@ public class WidgetSettingsActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(16),dp(12),dp(16),dp(20));
         scroll.addView(root);
-        TextView title = label("تنظیمات ویجت"); title.setTextSize(22); root.addView(title, lp());
+        TextView title = label("تنظیمات ویجت TGJU"); title.setTextSize(22); root.addView(title, lp());
         root.addView(label("شاخص‌ها و ترتیب"), lpTop());
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, NAMES);
         for (int i=0;i<5;i++) { spinners[i] = new Spinner(this); spinners[i].setAdapter(adapter); root.addView(spinners[i], lp()); }
-
         root.addView(label("اندازه فونت (sp)"), lpTop());
         priceSize = field(root,"مبلغ", "20"); pctSize = field(root,"درصد", "12"); timeSize = field(root,"ساعت/تاریخ", "10"); refreshSize = field(root,"متن رفرش", "8");
         root.addView(label("زبان کل ویجت"), lpTop());
         language = spinner(root, new String[]{"فارسی", "English"});
         root.addView(label("فرمت تاریخ بدون ساعت"), lpTop());
         dateFormat = spinner(root, new String[]{"23/06", "23 - 06", "23.06", "23/06/1405", "23 شهریور", "مخفی"});
-
         root.addView(label("نمایش اطلاعات"), lpTop());
         showPct = sw(root,"نمایش درصد تغییر",true); showTime = sw(root,"نمایش ساعت/تاریخ",true); showRefresh = sw(root,"نمایش زمان رفرش",true);
-
         root.addView(label("ظاهر"), lpTop());
         bgColor = field(root,"رنگ پس‌زمینه (HEX)", "#000000"); mutedColor = field(root,"رنگ متن ساعت/رفرش (HEX)", "#AAAAAA");
         rowSpace = field(root,"فاصله ردیف‌ها (dp)", "0"); padding = field(root,"فاصله داخلی ویجت (dp)", "5");
         root.addView(label("رنگ افزایش/کاهش ثابت است: سبز، قرمز، زرد"), lpTop());
-
         Button save = new Button(this); save.setText("ذخیره"); save.setOnClickListener(v -> save()); root.addView(save, lpTop());
         setContentView(scroll);
     }
@@ -94,7 +88,7 @@ public class WidgetSettingsActivity extends Activity {
         e.putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
         e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
         e.putInt("rowSpace",num(rowSpace,0,0,12)).putInt("padding",num(padding,5,0,20)).apply();
-        AppWidgetManager.getInstance(this).updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
+        if (widgetId != 0) AppWidgetManager.getInstance(this).updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
         Intent result=new Intent(); result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,widgetId); setResult(RESULT_OK,result); finish();
     }
 }
