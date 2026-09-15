@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
@@ -33,22 +34,26 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final int[] ROW_IDS={R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5};
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
-    @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){for(int id:ids){m.updateAppWidget(id,buildViews(c,id));setClick(c,m,id);refresh(c,new int[]{id});}}
+    @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){for(int id:ids){m.updateAppWidget(id,buildViews(c,id));refresh(c,new int[]{id});}}
     @Override public void onReceive(Context c,Intent i){super.onReceive(c,i); if(ACTION_REFRESH.equals(i.getAction())){int[] ids=AppWidgetManager.getInstance(c).getAppWidgetIds(new ComponentName(c,TgjuWidgetProvider.class));refresh(c,ids);}}
-
-    private void setClick(Context c,AppWidgetManager m,int id){RemoteViews v=buildViews(c,id);Intent r=new Intent(c,TgjuWidgetProvider.class).setAction(ACTION_REFRESH);PendingIntent p=PendingIntent.getBroadcast(c,id,r,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.root,p);m.updateAppWidget(id,v);}
 
     public static RemoteViews buildViews(Context c,int id){
         RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
         android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
         int bg=p.getInt("bgColor",Color.BLACK), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",5), gap=p.getInt("rowSpace",0);
         float ps=p.getInt("priceSize",20), pct=p.getInt("pctSize",12), ts=p.getInt("timeSize",10), rs=p.getInt("refreshSize",8);
-        boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true); boolean en="en".equals(p.getString("lang","fa"));
+        boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true);
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         for(int i=0;i<5;i++){v.setTextViewTextSize(PRICE_IDS[i],2,ps);v.setTextViewTextSize(PCT_IDS[i],2,pct);v.setTextViewTextSize(TIME_IDS[i],2,ts);if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);v.setTextColor(TIME_IDS[i],muted);v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);v.setViewVisibility(TIME_IDS[i],showTime?View.VISIBLE:View.GONE);}
         v.setTextViewTextSize(R.id.requestTime,2,rs);v.setTextColor(R.id.requestTime,muted);v.setViewVisibility(R.id.requestTime,showRefresh?View.VISIBLE:View.GONE);
-        Intent r=new Intent(c,TgjuWidgetProvider.class).setAction(ACTION_REFRESH);PendingIntent rp=PendingIntent.getBroadcast(c,id,r,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.root,rp);
-        Intent s=new Intent(c,WidgetSettingsActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id);PendingIntent sp=PendingIntent.getActivity(c,id+10000,s,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.settingsButton,sp);
+
+        Intent r=new Intent(c,TgjuWidgetProvider.class).setAction(ACTION_REFRESH).setData(Uri.parse("tgju://refresh/"+id));
+        PendingIntent rp=PendingIntent.getBroadcast(c,id,r,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        v.setOnClickPendingIntent(R.id.root,rp);
+
+        Intent s=new Intent(c,WidgetSettingsActivity.class).setAction("com.mehdi.tgjuwidget.SETTINGS").setData(Uri.parse("tgju://settings/"+id)).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id);
+        PendingIntent sp=PendingIntent.getActivity(c,id+10000,s,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        v.setOnClickPendingIntent(R.id.settingsButton,sp);
         v.setTextViewText(R.id.settingsButton,"⚙");
         return v;
     }
