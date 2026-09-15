@@ -2,6 +2,7 @@ package com.mehdi.tgjuwidget;
 
 import android.app.Activity;
 import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -23,6 +24,7 @@ public class WidgetSettingsActivity extends Activity {
     private static final String[] KEYS = {"crypto-tether-irr", "price_dollar_rl", "geram18", "ons", "oil_brent", "ime_fund_kahroba", "ime_fund_ayar"};
     private static final String[] NAMES = {"تتر", "دلار", "گرم ۱۸", "انس", "نفت برنت", "کهربا", "عیار"};
     private int widgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    private boolean launchedFromIcon = false;
     private Spinner[] spinners = new Spinner[5];
     private EditText priceSize, pctSize, timeSize, refreshSize, rowSpace, padding, bgColor, mutedColor;
     private Spinner language, dateFormat;
@@ -31,10 +33,20 @@ public class WidgetSettingsActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) widgetId = 0;
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+            launchedFromIcon = true;
+            int[] ids = getWidgetIds();
+            widgetId = ids.length > 0 ? ids[0] : 0;
+        }
         setResult(RESULT_CANCELED);
         buildUi();
         load();
+    }
+
+    private int[] getWidgetIds() {
+        AppWidgetManager manager = AppWidgetManager.getInstance(this);
+        ComponentName provider = new ComponentName(this, TgjuWidgetProvider.class);
+        return manager.getAppWidgetIds(provider);
     }
 
     private void buildUi() {
@@ -91,6 +103,7 @@ public class WidgetSettingsActivity extends Activity {
 
     private int num(EditText e,int def,int min,int max){try{return Math.max(min,Math.min(max,Integer.parseInt(e.getText().toString().trim())));}catch(Exception x){return def;}}
     private int color(String s,int def){try{return Color.parseColor(s.trim());}catch(Exception e){return def;}}
+
     private void save(){
         android.content.SharedPreferences.Editor e=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE).edit();
         for(int i=0;i<5;i++) e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);
@@ -99,7 +112,29 @@ public class WidgetSettingsActivity extends Activity {
         e.putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
         e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
         e.putInt("rowSpace",num(rowSpace,0,0,12)).putInt("padding",num(padding,5,0,20)).apply();
-        if (widgetId != 0) AppWidgetManager.getInstance(this).updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
+
+        AppWidgetManager manager = AppWidgetManager.getInstance(this);
+        if (launchedFromIcon) {
+            // The launcher icon has no widget ID. Apply these settings to every existing widget.
+            int[] ids = getWidgetIds();
+            for (int id : ids) {
+                if (id != widgetId) copySettings(widgetId, id);
+                manager.updateAppWidget(id, TgjuWidgetProvider.buildViews(this, id));
+            }
+        } else if (widgetId != 0) {
+            manager.updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
+        }
         Intent result=new Intent(); result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,widgetId); setResult(RESULT_OK,result); finish();
+    }
+
+    private void copySettings(int fromId, int toId) {
+        android.content.SharedPreferences from = getSharedPreferences("widget_"+fromId, Context.MODE_PRIVATE);
+        android.content.SharedPreferences.Editor to = getSharedPreferences("widget_"+toId, Context.MODE_PRIVATE).edit();
+        for (int i=0;i<5;i++) to.putString("key"+i, from.getString("key"+i, KEYS[i]));
+        to.putInt("priceSize", from.getInt("priceSize",20)).putInt("pctSize", from.getInt("pctSize",12)).putInt("timeSize", from.getInt("timeSize",10)).putInt("refreshSize", from.getInt("refreshSize",8));
+        to.putString("lang", from.getString("lang","fa")).putInt("dateFormat", from.getInt("dateFormat",0));
+        to.putBoolean("showPct", from.getBoolean("showPct",true)).putBoolean("showTime", from.getBoolean("showTime",true)).putBoolean("showRefresh", from.getBoolean("showRefresh",true));
+        to.putInt("bgColor", from.getInt("bgColor",Color.BLACK)).putInt("mutedColor", from.getInt("mutedColor",Color.LTGRAY));
+        to.putInt("rowSpace", from.getInt("rowSpace",0)).putInt("padding", from.getInt("padding",5)).apply();
     }
 }
