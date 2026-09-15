@@ -16,6 +16,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class WidgetSettingsActivity extends Activity {
@@ -68,6 +69,16 @@ public class WidgetSettingsActivity extends Activity {
     private LinearLayout.LayoutParams lpTop(){LinearLayout.LayoutParams p=lp();p.topMargin=dp(12);return p;}
     private int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
 
+    private String hexColor(android.content.SharedPreferences p, String key, int def) {
+        String fallback = String.format(Locale.US, "#%06X", def & 0xFFFFFF);
+        try {
+            int value = p.getInt(key, def);
+            return String.format(Locale.US, "#%06X", value & 0xFFFFFF);
+        } catch (ClassCastException e) {
+            try { return p.getString(key, fallback); } catch (Exception ignored) { return fallback; }
+        }
+    }
+
     private void load(){
         android.content.SharedPreferences p=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE);
         Map<String,Integer> idx=new HashMap<>(); for(int i=0;i<KEYS.length;i++)idx.put(KEYS[i],i);
@@ -75,7 +86,7 @@ public class WidgetSettingsActivity extends Activity {
         priceSize.setText(String.valueOf(p.getInt("priceSize",20))); pctSize.setText(String.valueOf(p.getInt("pctSize",12))); timeSize.setText(String.valueOf(p.getInt("timeSize",10))); refreshSize.setText(String.valueOf(p.getInt("refreshSize",8)));
         language.setSelection(p.getString("lang","fa").equals("en")?1:0); dateFormat.setSelection(p.getInt("dateFormat",0));
         showPct.setChecked(p.getBoolean("showPct",true)); showTime.setChecked(p.getBoolean("showTime",true)); showRefresh.setChecked(p.getBoolean("showRefresh",true));
-        bgColor.setText(p.getString("bgColor","#000000")); mutedColor.setText(p.getString("mutedColor","#AAAAAA")); rowSpace.setText(String.valueOf(p.getInt("rowSpace",0))); padding.setText(String.valueOf(p.getInt("padding",5)));
+        bgColor.setText(hexColor(p, "bgColor", Color.BLACK)); mutedColor.setText(hexColor(p, "mutedColor", Color.LTGRAY)); rowSpace.setText(String.valueOf(p.getInt("rowSpace",0))); padding.setText(String.valueOf(p.getInt("padding",5)));
     }
 
     private int num(EditText e,int def,int min,int max){try{return Math.max(min,Math.min(max,Integer.parseInt(e.getText().toString().trim())));}catch(Exception x){return def;}}
