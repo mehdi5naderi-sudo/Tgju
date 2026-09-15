@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
@@ -25,133 +26,48 @@ import java.util.Map;
 
 public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final String ACTION_REFRESH = "com.mehdi.tgjuwidget.REFRESH";
-    private static final String API = "https://api.tgju.org/v1/widget/tmp?keys=crypto-tether-irr,price_dollar_rl,geram18,ons,oil_brent";
-    private static final String[] KEYS = {"crypto-tether-irr", "price_dollar_rl", "geram18", "ons", "oil_brent"};
-    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5};
-    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5};
-    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5};
+    private static final String[] DEFAULT_KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ons","oil_brent"};
+    private static final int[] PRICE_IDS={R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5};
+    private static final int[] PCT_IDS={R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5};
+    private static final int[] TIME_IDS={R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5};
+    private static final int[] ROW_IDS={R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5};
+    private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
-    @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
-        for (int id : ids) setClick(context, manager, id);
-        refresh(context, ids);
+    @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){for(int id:ids){m.updateAppWidget(id,buildViews(c,id));setClick(c,m,id);refresh(c,new int[]{id});}}
+    @Override public void onReceive(Context c,Intent i){super.onReceive(c,i); if(ACTION_REFRESH.equals(i.getAction())){int[] ids=AppWidgetManager.getInstance(c).getAppWidgetIds(new ComponentName(c,TgjuWidgetProvider.class));refresh(c,ids);}}
+
+    private void setClick(Context c,AppWidgetManager m,int id){RemoteViews v=buildViews(c,id);Intent r=new Intent(c,TgjuWidgetProvider.class).setAction(ACTION_REFRESH);PendingIntent p=PendingIntent.getBroadcast(c,id,r,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.root,p);m.updateAppWidget(id,v);}
+
+    public static RemoteViews buildViews(Context c,int id){
+        RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
+        android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
+        int bg=p.getInt("bgColor",Color.BLACK), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",5), gap=p.getInt("rowSpace",0);
+        float ps=p.getInt("priceSize",20), pct=p.getInt("pctSize",12), ts=p.getInt("timeSize",10), rs=p.getInt("refreshSize",8);
+        boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true); boolean en="en".equals(p.getString("lang","fa"));
+        v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
+        for(int i=0;i<5;i++){v.setTextViewTextSize(PRICE_IDS[i],2,ps);v.setTextViewTextSize(PCT_IDS[i],2,pct);v.setTextViewTextSize(TIME_IDS[i],2,ts);v.setViewLayoutMargin(ROW_IDS[i],android.view.Gravity.BOTTOM,gap,1);v.setTextColor(TIME_IDS[i],muted);v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);v.setViewVisibility(TIME_IDS[i],showTime?View.VISIBLE:View.GONE);}
+        v.setTextViewTextSize(R.id.requestTime,2,rs);v.setTextColor(R.id.requestTime,muted);v.setViewVisibility(R.id.requestTime,showRefresh?View.VISIBLE:View.GONE);
+        Intent r=new Intent(c,TgjuWidgetProvider.class).setAction(ACTION_REFRESH);PendingIntent rp=PendingIntent.getBroadcast(c,id,r,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.root,rp);
+        Intent s=new Intent(c,WidgetSettingsActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id);PendingIntent sp=PendingIntent.getActivity(c,id+10000,s,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.settingsButton,sp);
+        v.setTextViewText(R.id.settingsButton,en?"⚙":"⚙");
+        return v;
     }
 
-    @Override public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
-        if (ACTION_REFRESH.equals(intent.getAction())) {
-            int[] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(new ComponentName(context, TgjuWidgetProvider.class));
-            refresh(context, ids);
-        }
-    }
+    private void refresh(Context c,int[] ids){if(ids==null||ids.length==0)return;new Thread(()->{
+        android.content.SharedPreferences p=c.getSharedPreferences("widget_"+ids[0],Context.MODE_PRIVATE);String[] keys=new String[5];StringBuilder list=new StringBuilder();for(int i=0;i<5;i++){keys[i]=p.getString("key"+i,DEFAULT_KEYS[i]);if(i>0)list.append(',');list.append(keys[i]);}
+        Map<String,JSONObject> data=new HashMap<>();boolean success=false;String requestTime=now();HttpURLConnection con=null;
+        try{con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list).openConnection();con.setRequestMethod("GET");con.setConnectTimeout(10000);con.setReadTimeout(10000);con.setUseCaches(false);con.setRequestProperty("Cache-Control","no-cache");int code=con.getResponseCode();if(code!=200)throw new Exception();BufferedReader br=new BufferedReader(new InputStreamReader(con.getInputStream()));StringBuilder sb=new StringBuilder();String line;while((line=br.readLine())!=null)sb.append(line);br.close();JSONArray a=new JSONObject(sb.toString()).optJSONObject("response").optJSONArray("indicators");if(a==null)throw new Exception();for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o!=null)putAliases(data,o);}for(String k:keys)if(data.containsKey(k))success=true;}catch(Exception ignored){}finally{if(con!=null)con.disconnect();}
+        final boolean ok=success;new Handler(Looper.getMainLooper()).post(()->{AppWidgetManager m=AppWidgetManager.getInstance(c);if(ok)for(int id:ids)update(c,m,id,data,requestTime);});
+    }).start();}
 
-    private void setClick(Context context, AppWidgetManager manager, int id) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget);
-        Intent i = new Intent(context, TgjuWidgetProvider.class).setAction(ACTION_REFRESH);
-        PendingIntent pi = PendingIntent.getBroadcast(context, id, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        views.setOnClickPendingIntent(R.id.root, pi);
-        manager.updateAppWidget(id, views);
-    }
+    private static void putAliases(Map<String,JSONObject>d,JSONObject o){for(String f:new String[]{"key","slug","name","symbol","id"}){String x=o.optString(f,"");if(!x.isEmpty())d.put(x,o);}}
+    private void update(Context c,AppWidgetManager m,int id,Map<String,JSONObject>d,String request){RemoteViews v=buildViews(c,id);android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);boolean en="en".equals(p.getString("lang","fa"));for(int i=0;i<5;i++){String k=p.getString("key"+i,DEFAULT_KEYS[i]);JSONObject o=d.get(k);String price="—",pct="—",time="—";int color=Color.LTGRAY;if(o!=null){price=price(o,k);double dp=o.optDouble("dp",Double.NaN);String dt=o.optString("dt","");if(!Double.isNaN(dp)){pct=percent(dp,en);color="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}time=formatTimeOrDate(o.optString("t","—"),p.getInt("dateFormat",0),en);}v.setTextViewText(PRICE_IDS[i],digits(price,en));v.setTextColor(PRICE_IDS[i],color);v.setTextViewText(PCT_IDS[i],digits(pct,en));v.setTextColor(PCT_IDS[i],color);v.setTextViewText(TIME_IDS[i],digits(time,en));}v.setTextViewText(R.id.requestTime,(en?"Refresh: ":"رفرش: ")+digits(request,en));m.updateAppWidget(id,v);}
 
-    private void refresh(Context context, int[] ids) {
-        if (ids == null || ids.length == 0) return;
-        new Thread(() -> {
-            Map<String, JSONObject> data = new HashMap<>();
-            boolean success = false;
-            String requestTime = now();
-            HttpURLConnection c = null;
-            try {
-                c = (HttpURLConnection) new URL(API).openConnection();
-                c.setRequestMethod("GET");
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(10000);
-                c.setUseCaches(false);
-                c.setRequestProperty("Cache-Control", "no-cache");
-                c.setRequestProperty("Pragma", "no-cache");
-                int code = c.getResponseCode();
-                if (code != HttpURLConnection.HTTP_OK) throw new Exception("HTTP " + code);
-                BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()));
-                StringBuilder sb = new StringBuilder(); String line;
-                while ((line = br.readLine()) != null) sb.append(line);
-                br.close();
-                JSONObject root = new JSONObject(sb.toString());
-                JSONObject response = root.optJSONObject("response");
-                JSONArray arr = response == null ? null : response.optJSONArray("indicators");
-                if (arr == null || arr.length() == 0) throw new Exception("No indicators");
-                for (int i=0;i<arr.length();i++) {
-                    JSONObject o = arr.optJSONObject(i);
-                    if (o == null) continue;
-                    putAliases(data, o);
-                }
-                success = hasRequiredData(data);
-            } catch (Exception ignored) {
-                success = false;
-            } finally {
-                if (c != null) c.disconnect();
-            }
-            final boolean ok = success;
-            final Map<String, JSONObject> result = data;
-            new Handler(Looper.getMainLooper()).post(() -> {
-                AppWidgetManager manager = AppWidgetManager.getInstance(context);
-                for (int id : ids) {
-                    if (ok) update(context, manager, id, result, requestTime);
-                }
-            });
-        }).start();
-    }
-
-    private static void putAliases(Map<String, JSONObject> data, JSONObject o) {
-        String[] fields = {"key", "slug", "name", "symbol", "id"};
-        for (String field : fields) {
-            String value = o.optString(field, "");
-            if (!value.isEmpty()) data.put(value, o);
-        }
-    }
-
-    private static boolean hasRequiredData(Map<String, JSONObject> data) {
-        for (String key : KEYS) if (data.containsKey(key)) return true;
-        return false;
-    }
-
-    private void update(Context context, AppWidgetManager manager, int id, Map<String, JSONObject> data, String requestTime) {
-        RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget);
-        Intent i = new Intent(context, TgjuWidgetProvider.class).setAction(ACTION_REFRESH);
-        PendingIntent pi = PendingIntent.getBroadcast(context, id, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        v.setOnClickPendingIntent(R.id.root, pi);
-        for (int n=0;n<5;n++) {
-            JSONObject o = data.get(KEYS[n]);
-            String price = "—", pct = "—", time = "—";
-            int color = Color.LTGRAY;
-            if (o != null) {
-                price = price(o, KEYS[n]);
-                double p = o.optDouble("dp", Double.NaN);
-                if (!Double.isNaN(p)) {
-                    pct = percent(p);
-                    color = p > 0 ? Color.rgb(85,200,120) : p < 0 ? Color.rgb(239,102,102) : Color.rgb(229,192,74);
-                }
-                time = fa(o.optString("t", "—"));
-            }
-            v.setTextViewText(PRICE_IDS[n], fa(price));
-            v.setTextColor(PRICE_IDS[n], color);
-            v.setTextViewText(PCT_IDS[n], fa(pct));
-            v.setTextColor(PCT_IDS[n], color);
-            v.setTextViewText(TIME_IDS[n], time);
-        }
-        v.setTextViewText(R.id.requestTime, "رفرش: " + fa(requestTime));
-        manager.updateAppWidget(id, v);
-    }
-
-    private static String price(JSONObject o, String key) {
-        try {
-            double number;
-            if ("ons".equals(key) || "oil_brent".equals(key)) number = Double.parseDouble(o.optString("p", "0").replace(",", ""));
-            else if ("crypto-tether-irr".equals(key) && o.has("p_irr")) number = Double.parseDouble(o.optString("p_irr", "0").replace(",", "")) / 10.0;
-            else number = Double.parseDouble(o.optString("p", "0").replace(",", "")) / 10.0;
-            DecimalFormat f = new DecimalFormat(("ons".equals(key)||"oil_brent".equals(key)) ? "#,##0.00" : "#,##0");
-            return f.format(number);
-        } catch (Exception e) { return "—"; }
-    }
-
-    private static String percent(double p) { return String.format(Locale.US, "%.2f%%", Math.abs(p)); }
-    private static String now() { return new java.text.SimpleDateFormat("HH:mm", Locale.US).format(new java.util.Date()); }
-    private static String fa(String s) { return s == null ? "—" : s.replace('0','۰').replace('1','۱').replace('2','۲').replace('3','۳').replace('4','۴').replace('5','۵').replace('6','۶').replace('7','۷').replace('8','۸').replace('9','۹'); }
+    private static String price(JSONObject o,String k){try{double n;if("ons".equals(k)||"oil_brent".equals(k))n=Double.parseDouble(o.optString("p","0").replace(",",""));else if("crypto-tether-irr".equals(k)&&o.has("p_irr"))n=Double.parseDouble(o.optString("p_irr","0").replace(",",""))/10.0;else n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;return new DecimalFormat(("ons".equals(k)||"oil_brent".equals(k))?"#,##0.00":"#,##0").format(n);}catch(Exception e){return "—";}}
+    private static String percent(double p,boolean en){return String.format(Locale.US,"%.2f%%",Math.abs(p));}
+    private static String now(){return new java.text.SimpleDateFormat("HH:mm",Locale.US).format(new java.util.Date());}
+    private static String digits(String s,boolean en){if(s==null)return "—";if(en)return s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replace('٬',',').replace('٫','.').replace('٪','%');return s.replace('0','۰').replace('1','۱').replace('2','۲').replace('3','۳').replace('4','۴').replace('5','۵').replace('6','۶').replace('7','۷').replace('8','۸').replace('9','۹').replace(',', '٬').replace('.', '٫').replace('%','٪');}
+    private static String formatTimeOrDate(String t,int fmt,boolean en){if(t==null||t.isEmpty())return "—";if(!t.matches(".*[۰-۹0-9].*"))return t; if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return d+" - "+m;case 2:return d+"."+m;case 3:return d+"/"+m+"/1405";case 4:return d+" "+parts[1];default:return d+"/"+m;}}}return t;}
+    private static int parseNum(String s){try{return Integer.parseInt(s.replaceAll("[^0-9]","").replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9'));}catch(Exception e){return 0;}}
+    private static int month(String s){String[]m={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};for(int i=0;i<m.length;i++)if(s.contains(m[i]))return i+1;return 0;}
 }
