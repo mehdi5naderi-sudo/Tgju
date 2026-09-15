@@ -1,0 +1,100 @@
+package com.mehdi.tgjuwidget;
+
+import android.app.Activity;
+import android.appwidget.AppWidgetManager;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.Switch;
+import android.widget.TextView;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class WidgetSettingsActivity extends Activity {
+    private static final String[] KEYS = {"crypto-tether-irr", "price_dollar_rl", "geram18", "ons", "oil_brent", "ime_fund_kahroba", "ime_fund_ayar"};
+    private static final String[] NAMES = {"تتر", "دلار", "گرم ۱۸", "انس", "نفت برنت", "کهربا", "عیار"};
+    private int widgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    private Spinner[] spinners = new Spinner[5];
+    private EditText priceSize, pctSize, timeSize, refreshSize, rowSpace, padding, bgColor, mutedColor;
+    private Spinner language, dateFormat;
+    private Switch showPct, showTime, showRefresh;
+
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return; }
+        setResult(RESULT_CANCELED);
+        buildUi();
+        load();
+    }
+
+    private void buildUi() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(16),dp(12),dp(16),dp(20));
+        scroll.addView(root);
+        TextView title = label("تنظیمات ویجت"); title.setTextSize(22); root.addView(title, lp());
+        root.addView(label("شاخص‌ها و ترتیب"), lpTop());
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, NAMES);
+        for (int i=0;i<5;i++) { spinners[i] = new Spinner(this); spinners[i].setAdapter(adapter); root.addView(spinners[i], lp()); }
+
+        root.addView(label("اندازه فونت (sp)"), lpTop());
+        priceSize = field(root,"مبلغ", "20"); pctSize = field(root,"درصد", "12"); timeSize = field(root,"ساعت/تاریخ", "10"); refreshSize = field(root,"متن رفرش", "8");
+        root.addView(label("زبان کل ویجت"), lpTop());
+        language = spinner(root, new String[]{"فارسی", "English"});
+        root.addView(label("فرمت تاریخ بدون ساعت"), lpTop());
+        dateFormat = spinner(root, new String[]{"23/06", "23 - 06", "23.06", "23/06/1405", "23 شهریور", "مخفی"});
+
+        root.addView(label("نمایش اطلاعات"), lpTop());
+        showPct = sw(root,"نمایش درصد تغییر",true); showTime = sw(root,"نمایش ساعت/تاریخ",true); showRefresh = sw(root,"نمایش زمان رفرش",true);
+
+        root.addView(label("ظاهر"), lpTop());
+        bgColor = field(root,"رنگ پس‌زمینه (HEX)", "#000000"); mutedColor = field(root,"رنگ متن ساعت/رفرش (HEX)", "#AAAAAA");
+        rowSpace = field(root,"فاصله ردیف‌ها (dp)", "0"); padding = field(root,"فاصله داخلی ویجت (dp)", "5");
+        root.addView(label("رنگ افزایش/کاهش ثابت است: سبز، قرمز، زرد"), lpTop());
+
+        Button save = new Button(this); save.setText("ذخیره"); save.setOnClickListener(v -> save()); root.addView(save, lpTop());
+        setContentView(scroll);
+    }
+
+    private Spinner spinner(LinearLayout root, String[] values) { Spinner s=new Spinner(this); s.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values)); root.addView(s,lp()); return s; }
+    private Switch sw(LinearLayout root,String text,boolean val){ Switch s=new Switch(this); s.setText(text); s.setChecked(val); root.addView(s,lp()); return s; }
+    private EditText field(LinearLayout root,String hint,String val){ TextView l=label(hint); root.addView(l,lp()); EditText e=new EditText(this); e.setSingleLine(true); e.setText(val); e.setSelectAllOnFocus(true); root.addView(e,lp()); return e; }
+    private TextView label(String s){ TextView t=new TextView(this); t.setText(s); t.setTextSize(15); t.setTextColor(Color.DKGRAY); return t; }
+    private LinearLayout.LayoutParams lp(){return new LinearLayout.LayoutParams(-1,-2);}
+    private LinearLayout.LayoutParams lpTop(){LinearLayout.LayoutParams p=lp();p.topMargin=dp(12);return p;}
+    private int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
+
+    private void load(){
+        android.content.SharedPreferences p=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE);
+        Map<String,Integer> idx=new HashMap<>(); for(int i=0;i<KEYS.length;i++)idx.put(KEYS[i],i);
+        for(int i=0;i<5;i++) spinners[i].setSelection(idx.containsKey(p.getString("key"+i,KEYS[i]))?idx.get(p.getString("key"+i,KEYS[i])):i);
+        priceSize.setText(String.valueOf(p.getInt("priceSize",20))); pctSize.setText(String.valueOf(p.getInt("pctSize",12))); timeSize.setText(String.valueOf(p.getInt("timeSize",10))); refreshSize.setText(String.valueOf(p.getInt("refreshSize",8)));
+        language.setSelection(p.getString("lang","fa").equals("en")?1:0); dateFormat.setSelection(p.getInt("dateFormat",0));
+        showPct.setChecked(p.getBoolean("showPct",true)); showTime.setChecked(p.getBoolean("showTime",true)); showRefresh.setChecked(p.getBoolean("showRefresh",true));
+        bgColor.setText(p.getString("bgColor","#000000")); mutedColor.setText(p.getString("mutedColor","#AAAAAA")); rowSpace.setText(String.valueOf(p.getInt("rowSpace",0))); padding.setText(String.valueOf(p.getInt("padding",5)));
+    }
+
+    private int num(EditText e,int def,int min,int max){try{return Math.max(min,Math.min(max,Integer.parseInt(e.getText().toString().trim())));}catch(Exception x){return def;}}
+    private int color(String s,int def){try{return Color.parseColor(s.trim());}catch(Exception e){return def;}}
+    private void save(){
+        android.content.SharedPreferences.Editor e=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE).edit();
+        for(int i=0;i<5;i++) e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);
+        e.putInt("priceSize",num(priceSize,20,8,40)).putInt("pctSize",num(pctSize,12,6,24)).putInt("timeSize",num(timeSize,10,6,20)).putInt("refreshSize",num(refreshSize,8,5,18));
+        e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
+        e.putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
+        e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
+        e.putInt("rowSpace",num(rowSpace,0,0,12)).putInt("padding",num(padding,5,0,20)).apply();
+        AppWidgetManager.getInstance(this).updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
+        Intent result=new Intent(); result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,widgetId); setResult(RESULT_OK,result); finish();
+    }
+}
