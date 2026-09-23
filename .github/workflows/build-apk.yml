@@ -60,7 +60,9 @@ jobs:
         run: |
           APK="app/build/outputs/apk/release/app-release.apk"
           test -f "$APK"
-          apksigner verify --verbose "$APK"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK"
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
