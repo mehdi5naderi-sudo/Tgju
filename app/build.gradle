@@ -14,7 +14,7 @@ android {
 
     signingConfigs {
         release {
-            def keystoreFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "release-key.jks")
+            def keystoreFile = rootProject.file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "release-key.jks")
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
