@@ -20,7 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public class WidgetSettingsActivity extends Activity {
-    private static final int SLOT_COUNT=4;
+    private static final int SLOT_COUNT=5;
     private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","bourse","sekee"};
     private static final String[] NAMES={"تتر","دلار","گرم ۱۸","کهربا","عیار","انس","برنت","بورس","سکه امامی"};
     private int widgetId=AppWidgetManager.INVALID_APPWIDGET_ID;
@@ -42,7 +42,7 @@ public class WidgetSettingsActivity extends Activity {
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(20));scroll.addView(root);
         TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);root.addView(title,lp());
-        root.addView(label("۴ شاخص نمایش داده می‌شود؛ از فهرست زیر برای هر جایگاه انتخاب کنید"),lpTop());
+        root.addView(label("۵ شاخص نمایش داده می‌شود؛ از فهرست زیر برای هر جایگاه انتخاب کنید"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
         for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());}
         root.addView(label("اندازه فونت (sp)"),lpTop());
