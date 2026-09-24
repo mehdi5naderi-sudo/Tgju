@@ -44,7 +44,7 @@ public class WidgetSettingsActivity extends Activity {
         TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);root.addView(title,lp());
         root.addView(label("۵ شاخص اصلی نمایش داده می‌شود؛ شاخص ششم اختیاری است"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
-        for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());if(i==4)root.addView(label("شاخص ششم (اختیاری)"),lpTop());}
+        for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);if(i==5){String[] optional=new String[NAMES.length+1];optional[0]="هیچ‌کدام";System.arraycopy(NAMES,0,optional,1,NAMES.length);spinners[i].setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,optional));}else spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());if(i==4)root.addView(label("شاخص ششم (اختیاری)"),lpTop());}
         root.addView(label("اندازه فونت (sp)"),lpTop());
         priceSize=field(root,"قیمت","18");pctSize=field(root,"درصد","10");timeSize=field(root,"ساعت/تاریخ","8");refreshSize=field(root,"متن رفرش","7");nameSize=field(root,"نام شاخص","8");
         root.addView(label("زبان کل ویجت"),lpTop());language=spinner(root,new String[]{"فارسی","English"});
@@ -74,7 +74,7 @@ public class WidgetSettingsActivity extends Activity {
     private void load(){
         android.content.SharedPreferences p=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE);
         Map<String,Integer> idx=new HashMap<>();for(int i=0;i<KEYS.length;i++)idx.put(KEYS[i],i);
-        for(int i=0;i<SLOT_COUNT;i++){String k=p.getString("key"+i,KEYS[i]);spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
+        for(int i=0;i<SLOT_COUNT;i++){String k=p.getString("key"+i,i<5?KEYS[i]:"");if(i==5){int sel=0;for(int j=0;j<KEYS.length;j++)if(KEYS[j].equals(k)){sel=j+1;break;}spinners[i].setSelection(sel);}else spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
         priceSize.setText(String.valueOf(p.getInt("priceSize",18)));pctSize.setText(String.valueOf(p.getInt("pctSize",10)));timeSize.setText(String.valueOf(p.getInt("timeSize",8)));refreshSize.setText(String.valueOf(p.getInt("refreshSize",7)));nameSize.setText(String.valueOf(p.getInt("nameSize",8)));
         language.setSelection(p.getString("lang","fa").equals("en")?1:0);dateFormat.setSelection(p.getInt("dateFormat",0));
         showNames.setChecked(p.getBoolean("showNames",true));int oldPos=p.getInt("namePosition",1);namePosition.setSelection(oldPos==2?1:0);metaWidth.setSelection(widthSelection(p.getInt("metaWidth",40)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
@@ -87,7 +87,7 @@ public class WidgetSettingsActivity extends Activity {
 
     private void save(){
         android.content.SharedPreferences.Editor e=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE).edit();
-        for(int i=0;i<SLOT_COUNT;i++)e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);
+        for(int i=0;i<SLOT_COUNT;i++){if(i==5){int sel=spinners[i].getSelectedItemPosition();e.putString("key"+i,sel==0?"":KEYS[sel-1]);}else e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);}
         e.putInt("priceSize",num(priceSize,18,8,30)).putInt("pctSize",num(pctSize,10,6,20)).putInt("timeSize",num(timeSize,8,6,18)).putInt("refreshSize",num(refreshSize,7,5,18)).putInt("nameSize",num(nameSize,8,5,16));
         e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
         e.putBoolean("showNames",showNames.isChecked()).putInt("namePosition",namePosition.getSelectedItemPosition()+1).putInt("metaWidth",selectedMetaWidth()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
@@ -102,7 +102,7 @@ public class WidgetSettingsActivity extends Activity {
     private void copySettings(int fromId,int toId){
         android.content.SharedPreferences from=getSharedPreferences("widget_"+fromId,Context.MODE_PRIVATE);
         android.content.SharedPreferences.Editor to=getSharedPreferences("widget_"+toId,Context.MODE_PRIVATE).edit();
-        for(int i=0;i<SLOT_COUNT;i++)to.putString("key"+i,from.getString("key"+i,KEYS[i]));
+        for(int i=0;i<SLOT_COUNT;i++)to.putString("key"+i,from.getString("key"+i,i<5?KEYS[i]:""));
         to.putInt("priceSize",from.getInt("priceSize",18)).putInt("pctSize",from.getInt("pctSize",10)).putInt("timeSize",from.getInt("timeSize",8)).putInt("refreshSize",from.getInt("refreshSize",7)).putInt("nameSize",from.getInt("nameSize",8));
         to.putString("lang",from.getString("lang","fa")).putInt("dateFormat",from.getInt("dateFormat",0));
         to.putBoolean("showNames",from.getBoolean("showNames",true)).putInt("namePosition",from.getInt("namePosition",0)).putInt("metaWidth",from.getInt("metaWidth",54)).putBoolean("showPct",from.getBoolean("showPct",true)).putBoolean("showTime",from.getBoolean("showTime",true)).putBoolean("showRefresh",from.getBoolean("showRefresh",true));
