@@ -60,7 +60,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
         int bg=p.getInt("bgColor",Color.BLACK), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",4), gap=p.getInt("rowSpace",0);
         float ps=p.getInt("priceSize",18), pct=p.getInt("pctSize",10), ts=p.getInt("timeSize",8), rs=p.getInt("refreshSize",7), ns=p.getInt("nameSize",8);
-        boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
+        boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);\n        int namePosition=p.getInt("namePosition",0);
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         for(int i=0;i<SLOT_COUNT;i++){
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
