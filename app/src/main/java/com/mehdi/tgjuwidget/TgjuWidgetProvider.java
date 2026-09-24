@@ -27,16 +27,16 @@ import java.util.Map;
 
 public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final String ACTION_REFRESH = "com.mehdi.tgjuwidget.REFRESH";
-    private static final int SLOT_COUNT = 4;
+    private static final int SLOT_COUNT = 5;
     private static final String[] DEFAULT_KEYS = {
             "crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba",
             "ime_fund_ayar","ons","oil_brent","bourse","sekee"
     };
-    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4};
-    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4};
-    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4};
-    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4};
-    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4};
+    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5};
+    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5};
+    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5};
+    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5};
+    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5};
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){
