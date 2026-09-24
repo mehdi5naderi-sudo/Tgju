@@ -27,33 +27,16 @@ import java.util.Map;
 
 public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final String ACTION_REFRESH = "com.mehdi.tgjuwidget.REFRESH";
+    private static final int SLOT_COUNT = 4;
     private static final String[] DEFAULT_KEYS = {
             "crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba",
             "ime_fund_ayar","ons","oil_brent","bourse","sekee"
     };
-    private static final int[] PRICE_IDS = {
-            R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,
-            R.id.price6,R.id.price7,R.id.price8,R.id.price9
-    };
-    private static final int[] NAME_IDS = {
-            R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5,
-            R.id.name6,R.id.name7,R.id.name8,R.id.name9
-    };
-    private static final int[] PCT_IDS = {
-            R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5,
-            R.id.pct6,R.id.pct7,R.id.pct8,R.id.pct9
-    };
-    private static final int[] TIME_IDS = {
-            R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5,
-            R.id.time6,R.id.time7,R.id.time8,R.id.time9
-    };
-    private static final int[] ROW_IDS = {
-            R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5,
-            R.id.row6,R.id.row7,R.id.row8,R.id.row9
-    };
-    private static final String[] DEFAULT_NAMES = {
-            "تتر","دلار","گرم ۱۸","کهربا","عیار","انس","برنت","بورس","سکه امامی"
-    };
+    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4};
+    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4};
+    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4};
+    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4};
+    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4};
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){
@@ -75,7 +58,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         float ps=p.getInt("priceSize",18), pct=p.getInt("pctSize",10), ts=p.getInt("timeSize",8), rs=p.getInt("refreshSize",7), ns=p.getInt("nameSize",8);
         boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
-        for(int i=0;i<9;i++){
+        for(int i=0;i<SLOT_COUNT;i++){
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
             v.setTextViewTextSize(NAME_IDS[i],2,ns);
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
@@ -105,27 +88,69 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if(ids==null||ids.length==0)return;
         new Thread(()->{
             android.content.SharedPreferences p=c.getSharedPreferences("widget_"+ids[0],Context.MODE_PRIVATE);
-            String[] keys=new String[9]; StringBuilder list=new StringBuilder();
-            for(int i=0;i<9;i++){keys[i]=p.getString("key"+i,DEFAULT_KEYS[i]);if(i>0)list.append(',');list.append(keys[i]);}
-            Map<String,JSONObject> data=new HashMap<>(); boolean success=false; String requestTime=now(); HttpURLConnection con=null;
+            String[] keys=new String[SLOT_COUNT];
+            for(int i=0;i<SLOT_COUNT;i++)keys[i]=p.getString("key"+i,DEFAULT_KEYS[i]);
+            Map<String,JSONObject> data=new HashMap<>();
+            boolean success=false;
+            String requestTime=now();
             try{
-                con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list).openConnection();
-                con.setRequestMethod("GET"); con.setConnectTimeout(10000); con.setReadTimeout(10000); con.setUseCaches(false);
-                con.setRequestProperty("Cache-Control","no-cache");
-                int code=con.getResponseCode(); if(code!=200)throw new Exception();
-                BufferedReader br=new BufferedReader(new InputStreamReader(con.getInputStream()));
-                StringBuilder sb=new StringBuilder(); String line; while((line=br.readLine())!=null)sb.append(line); br.close();
-                JSONArray a=new JSONObject(sb.toString()).optJSONObject("response").optJSONArray("indicators"); if(a==null)throw new Exception();
-                for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o!=null)putAliases(data,o);}
-                int found=0; for(String k:keys)if(data.containsKey(k))found++;
-                success=found>0;
-            }catch(Exception ignored){}finally{if(con!=null)con.disconnect();}
+                success=fetchBatch(keys,data);
+                if(!success) {
+                    for(String k:keys) fetchOne(k,data);
+                    success=hasAny(keys,data);
+                }
+            }catch(Exception ignored){}
             final boolean ok=success;
             new Handler(Looper.getMainLooper()).post(()->{
                 AppWidgetManager m=AppWidgetManager.getInstance(c);
                 for(int id:ids)update(c,m,id,data,requestTime,ok);
             });
         }).start();
+    }
+
+    private static boolean fetchBatch(String[] keys,Map<String,JSONObject> data){
+        HttpURLConnection con=null;
+        try{
+            StringBuilder list=new StringBuilder();
+            for(int i=0;i<keys.length;i++){if(i>0)list.append(',');list.append(keys[i]);}
+            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list).openConnection();
+            con.setRequestMethod("GET"); con.setConnectTimeout(10000); con.setReadTimeout(10000); con.setUseCaches(false);
+            con.setRequestProperty("Cache-Control","no-cache");
+            if(con.getResponseCode()!=200)return false;
+            String body=read(con);
+            JSONObject root=new JSONObject(body);
+            JSONObject response=root.optJSONObject("response");
+            JSONArray a=response==null?null:response.optJSONArray("indicators");
+            if(a==null)return false;
+            for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o!=null)putAliases(data,o);}
+            return hasAny(keys,data);
+        }catch(Exception e){return false;}finally{if(con!=null)con.disconnect();}
+    }
+
+    private static void fetchOne(String key,Map<String,JSONObject> data){
+        HttpURLConnection con=null;
+        try{
+            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+key).openConnection();
+            con.setRequestMethod("GET"); con.setConnectTimeout(7000); con.setReadTimeout(7000); con.setUseCaches(false);
+            con.setRequestProperty("Cache-Control","no-cache");
+            if(con.getResponseCode()!=200)return;
+            JSONObject root=new JSONObject(read(con));
+            JSONObject response=root.optJSONObject("response");
+            JSONArray a=response==null?null:response.optJSONArray("indicators");
+            if(a!=null&&a.length()>0){JSONObject o=a.optJSONObject(0);if(o!=null)putAliases(data,o);}
+        }catch(Exception ignored){}finally{if(con!=null)con.disconnect();}
+    }
+
+    private static String read(HttpURLConnection con)throws Exception{
+        BufferedReader br=new BufferedReader(new InputStreamReader(con.getInputStream()));
+        StringBuilder sb=new StringBuilder(); String line;
+        while((line=br.readLine())!=null)sb.append(line);
+        br.close(); return sb.toString();
+    }
+
+    private static boolean hasAny(String[] keys,Map<String,JSONObject> data){
+        for(String k:keys)if(data.containsKey(k))return true;
+        return false;
     }
 
     private static void putAliases(Map<String,JSONObject>d,JSONObject o){
@@ -139,7 +164,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
         boolean en="en".equals(p.getString("lang","fa"));
         boolean showNames=p.getBoolean("showNames",true);
-        for(int i=0;i<9;i++){
+        for(int i=0;i<SLOT_COUNT;i++){
             String k=p.getString("key"+i,DEFAULT_KEYS[i]); JSONObject o=d.get(k);
             String price="—",pct="—",time="—"; int color=Color.LTGRAY;
             if(o!=null){
