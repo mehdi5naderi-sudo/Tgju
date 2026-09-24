@@ -27,21 +27,21 @@ import java.util.Map;
 
 public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final String ACTION_REFRESH = "com.mehdi.tgjuwidget.REFRESH";
-    private static final int SLOT_COUNT = 5;
+    private static final int SLOT_COUNT = 6;
     private static final String[] DEFAULT_KEYS = {
             "crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba",
             "ime_fund_ayar","ons","oil_brent","bourse","sekee"
     };
-    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5};
-    private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5};
-    private static final int[] PRICE_VERTICAL_IDS = {R.id.priceVertical1,R.id.priceVertical2,R.id.priceVertical3,R.id.priceVertical4,R.id.priceVertical5};
-    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5};
-    private static final int[] NAME_INLINE_IDS = {R.id.nameInline1,R.id.nameInline2,R.id.nameInline3,R.id.nameInline4,R.id.nameInline5};
-    private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5};
-    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5};
-    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5};
-    private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5};
-    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5};
+    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,R.id.price6};
+    private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5,R.id.priceInline6};
+    private static final int[] PRICE_VERTICAL_IDS = {R.id.priceVertical1,R.id.priceVertical2,R.id.priceVertical3,R.id.priceVertical4,R.id.priceVertical5,R.id.priceVertical6};
+    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5,R.id.name6};
+    private static final int[] NAME_INLINE_IDS = {R.id.nameInline1,R.id.nameInline2,R.id.nameInline3,R.id.nameInline4,R.id.nameInline5,R.id.nameInline6};
+    private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5,R.id.nameVertical6};
+    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5,R.id.pct6};
+    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5,R.id.time6};
+    private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5,R.id.meta6};
+    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5,R.id.row6};
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){
@@ -62,8 +62,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         int bg=p.getInt("bgColor",Color.BLACK), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",4), gap=p.getInt("rowSpace",0);
         float ps=p.getInt("priceSize",18), pct=p.getInt("pctSize",10), ts=p.getInt("timeSize",8), rs=p.getInt("refreshSize",7), ns=p.getInt("nameSize",8);
         boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
-        int metaWidth=p.getInt("metaWidth",54);
-        int namePosition=p.getInt("namePosition",0);
+        int metaWidth=p.getInt("metaWidth",40);
+        int namePosition=p.getInt("namePosition",1);
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         for(int i=0;i<SLOT_COUNT;i++){
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
@@ -75,10 +75,10 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if (android.os.Build.VERSION.SDK_INT >= 31) v.setViewLayoutWidth(META_IDS[i], metaWidth, android.util.TypedValue.COMPLEX_UNIT_DIP);
             if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             v.setTextColor(NAME_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
-            v.setViewVisibility(NAME_IDS[i],showNames&&namePosition==0?View.VISIBLE:View.GONE);
+            v.setViewVisibility(NAME_IDS[i],View.GONE);
             v.setViewVisibility(NAME_INLINE_IDS[i],showNames&&namePosition==1?View.VISIBLE:View.GONE);
             v.setViewVisibility(NAME_VERTICAL_IDS[i],showNames&&namePosition==2?View.VISIBLE:View.GONE);
-            v.setViewVisibility(PRICE_IDS[i],namePosition==0?View.VISIBLE:View.GONE);
+            v.setViewVisibility(PRICE_IDS[i],View.GONE);
             v.setViewVisibility(PRICE_INLINE_IDS[i],namePosition==1?View.VISIBLE:View.GONE);
             v.setViewVisibility(PRICE_VERTICAL_IDS[i],namePosition==2?View.VISIBLE:View.GONE);
             v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);
@@ -104,14 +104,14 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         new Thread(()->{
             android.content.SharedPreferences p=c.getSharedPreferences("widget_"+ids[0],Context.MODE_PRIVATE);
             String[] keys=new String[SLOT_COUNT];
-            for(int i=0;i<SLOT_COUNT;i++)keys[i]=p.getString("key"+i,DEFAULT_KEYS[i]);
+            for(int i=0;i<SLOT_COUNT;i++)keys[i]=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"");
             Map<String,JSONObject> data=new HashMap<>();
             boolean success=false;
             String requestTime=now();
             try{
                 success=fetchBatch(keys,data);
                 if(!success) {
-                    for(String k:keys) fetchOne(k,data);
+                    for(String k:keys) if(k!=null&&!k.isEmpty()) fetchOne(k,data);
                     success=hasAny(keys,data);
                 }
             }catch(Exception ignored){}
@@ -127,7 +127,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         HttpURLConnection con=null;
         try{
             StringBuilder list=new StringBuilder();
-            for(int i=0;i<keys.length;i++){if(i>0)list.append(',');list.append(keys[i]);}
+            for(int i=0;i<keys.length;i++){if(keys[i]==null||keys[i].isEmpty())continue;if(list.length()>0)list.append(',');list.append(keys[i]);}
             con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list).openConnection();
             con.setRequestMethod("GET"); con.setConnectTimeout(10000); con.setReadTimeout(10000); con.setUseCaches(false);
             con.setRequestProperty("Cache-Control","no-cache");
@@ -180,7 +180,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         boolean en="en".equals(p.getString("lang","fa"));
         boolean showNames=p.getBoolean("showNames",true);
         for(int i=0;i<SLOT_COUNT;i++){
-            String k=p.getString("key"+i,DEFAULT_KEYS[i]); JSONObject o=d.get(k);
+            String k=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:""); JSONObject o=k.isEmpty()?null:d.get(k);
             String price="—",pct="—",time="—"; int color=Color.LTGRAY;
             if(o!=null){
                 price=price(o,k); double dp=o.optDouble("dp",Double.NaN); String dt=o.optString("dt","");
@@ -193,7 +193,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 time=p.getString("lastTime"+i,"—");
                 color=p.getInt("lastColor"+i,Color.LTGRAY);
             }
-            String name=showNames?nameFor(k,en):"";
+            String name=showNames&&!k.isEmpty()?nameFor(k,en):"";
             v.setTextViewText(NAME_IDS[i],name);
             v.setTextViewText(NAME_INLINE_IDS[i],name);
             v.setTextViewText(NAME_VERTICAL_IDS[i],name);
