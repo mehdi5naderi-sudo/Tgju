@@ -40,6 +40,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5};
     private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5};
     private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5};
+    private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5};
     private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5};
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
@@ -61,6 +62,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         int bg=p.getInt("bgColor",Color.BLACK), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",4), gap=p.getInt("rowSpace",0);
         float ps=p.getInt("priceSize",18), pct=p.getInt("pctSize",10), ts=p.getInt("timeSize",8), rs=p.getInt("refreshSize",7), ns=p.getInt("nameSize",8);
         boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
+        int metaWidth=p.getInt("metaWidth",54);
         int namePosition=p.getInt("namePosition",0);
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         for(int i=0;i<SLOT_COUNT;i++){
@@ -70,6 +72,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewTextSize(NAME_IDS[i],2,ns);
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
             v.setTextViewTextSize(TIME_IDS[i],2,ts);
+            if (android.os.Build.VERSION.SDK_INT >= 31) v.setViewLayoutWidth(META_IDS[i], metaWidth, android.util.TypedValue.COMPLEX_UNIT_DIP);
             if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             v.setTextColor(NAME_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
             v.setViewVisibility(NAME_IDS[i],showNames&&namePosition==0?View.VISIBLE:View.GONE);
@@ -182,9 +185,15 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if(o!=null){
                 price=price(o,k); double dp=o.optDouble("dp",Double.NaN); String dt=o.optString("dt","");
                 if(!Double.isNaN(dp)){pct=percent(dp,en);color="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
+                time=formatTimeOrDate(o.optString("t","—"),p.getInt("dateFormat",0),en);
+                p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,color).apply();
+            } else {
+                price=p.getString("lastPrice"+i,"—");
+                pct=p.getString("lastPct"+i,"—");
+                time=p.getString("lastTime"+i,"—");
+                color=p.getInt("lastColor"+i,Color.LTGRAY);
             }
             String name=showNames?nameFor(k,en):"";
-            time=formatTimeOrDate(o==null?"—":o.optString("t","—"),p.getInt("dateFormat",0),en);
             v.setTextViewText(NAME_IDS[i],name);
             v.setTextViewText(NAME_INLINE_IDS[i],name);
             v.setTextViewText(NAME_VERTICAL_IDS[i],name);
