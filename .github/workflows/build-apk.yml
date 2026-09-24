@@ -1,4 +1,5 @@
 name: Build TGJU Widget Release APK
+# Trigger release build for latest widget changes
 
 on:
   workflow_dispatch:
