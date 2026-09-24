@@ -20,7 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public class WidgetSettingsActivity extends Activity {
-    private static final int SLOT_COUNT=5;
+    private static final int SLOT_COUNT=6;
     private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","bourse","sekee"};
     private static final String[] NAMES={"تتر","دلار","گرم ۱۸","کهربا","عیار","انس","برنت","بورس","امامی"};
     private int widgetId=AppWidgetManager.INVALID_APPWIDGET_ID;
@@ -42,9 +42,9 @@ public class WidgetSettingsActivity extends Activity {
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(20));scroll.addView(root);
         TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);root.addView(title,lp());
-        root.addView(label("۵ شاخص نمایش داده می‌شود؛ از فهرست زیر برای هر جایگاه انتخاب کنید"),lpTop());
+        root.addView(label("۵ شاخص اصلی نمایش داده می‌شود؛ شاخص ششم اختیاری است"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
-        for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());}
+        for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());if(i==4)root.addView(label("شاخص ششم (اختیاری)"),lpTop());}
         root.addView(label("اندازه فونت (sp)"),lpTop());
         priceSize=field(root,"قیمت","18");pctSize=field(root,"درصد","10");timeSize=field(root,"ساعت/تاریخ","8");refreshSize=field(root,"متن رفرش","7");nameSize=field(root,"نام شاخص","8");
         root.addView(label("زبان کل ویجت"),lpTop());language=spinner(root,new String[]{"فارسی","English"});
@@ -52,9 +52,9 @@ public class WidgetSettingsActivity extends Activity {
         root.addView(label("نمایش اطلاعات"),lpTop());
         showNames=sw(root,"نمایش نام شاخص‌ها",true);
         root.addView(label("محل نام شاخص"),lpTop());
-        namePosition=spinner(root,new String[]{"بالای شاخص (حالت فعلی)","جلوی شاخص (همان خط)","عمودی سمت چپ شاخص"});
+        namePosition=spinner(root,new String[]{"جلوی شاخص (همان خط)","عمودی سمت چپ شاخص"});
         root.addView(label("عرض بخش درصد و ساعت"),lpTop());
-        metaWidth=spinner(root,new String[]{"کم (40dp)","متوسط (44dp)","فعلی (54dp)","زیاد (60dp)"});
+        metaWidth=spinner(root,new String[]{"20dp","25dp","30dp","35dp","40dp","45dp","50dp"});
         showPct=sw(root,"نمایش درصد تغییر",true);showTime=sw(root,"نمایش ساعت/تاریخ",true);showRefresh=sw(root,"نمایش زمان رفرش",true);
         root.addView(label("ظاهر"),lpTop());
         bgColor=field(root,"رنگ پس‌زمینه (HEX)","#000000");mutedColor=field(root,"رنگ متن ساعت/نام/رفرش (HEX)","#AAAAAA");
@@ -77,11 +77,11 @@ public class WidgetSettingsActivity extends Activity {
         for(int i=0;i<SLOT_COUNT;i++){String k=p.getString("key"+i,KEYS[i]);spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
         priceSize.setText(String.valueOf(p.getInt("priceSize",18)));pctSize.setText(String.valueOf(p.getInt("pctSize",10)));timeSize.setText(String.valueOf(p.getInt("timeSize",8)));refreshSize.setText(String.valueOf(p.getInt("refreshSize",7)));nameSize.setText(String.valueOf(p.getInt("nameSize",8)));
         language.setSelection(p.getString("lang","fa").equals("en")?1:0);dateFormat.setSelection(p.getInt("dateFormat",0));
-        showNames.setChecked(p.getBoolean("showNames",true));namePosition.setSelection(Math.max(0,Math.min(2,p.getInt("namePosition",0))));metaWidth.setSelection(widthSelection(p.getInt("metaWidth",54)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
+        showNames.setChecked(p.getBoolean("showNames",true));int oldPos=p.getInt("namePosition",1);namePosition.setSelection(oldPos==2?1:0);metaWidth.setSelection(widthSelection(p.getInt("metaWidth",40)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
         bgColor.setText(hexColor(p,"bgColor",Color.BLACK));mutedColor.setText(hexColor(p,"mutedColor",Color.LTGRAY));rowSpace.setText(String.valueOf(p.getInt("rowSpace",0)));padding.setText(String.valueOf(p.getInt("padding",4)));
     }
-    private int widthSelection(int width){if(width<=40)return 0;if(width<=44)return 1;if(width<=54)return 2;return 3;}
-    private int selectedMetaWidth(){int p=metaWidth.getSelectedItemPosition();return p==0?40:p==1?44:p==3?60:54;}
+    private int widthSelection(int width){if(width<=20)return 0;if(width<=25)return 1;if(width<=30)return 2;if(width<=35)return 3;if(width<=40)return 4;if(width<=45)return 5;return 6;}
+    private int selectedMetaWidth(){return 20+metaWidth.getSelectedItemPosition()*5;}
     private int num(EditText e,int def,int min,int max){try{return Math.max(min,Math.min(max,Integer.parseInt(e.getText().toString().trim())));}catch(Exception x){return def;}}
     private int color(String s,int def){try{return Color.parseColor(s.trim());}catch(Exception e){return def;}}
 
@@ -90,7 +90,7 @@ public class WidgetSettingsActivity extends Activity {
         for(int i=0;i<SLOT_COUNT;i++)e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);
         e.putInt("priceSize",num(priceSize,18,8,30)).putInt("pctSize",num(pctSize,10,6,20)).putInt("timeSize",num(timeSize,8,6,18)).putInt("refreshSize",num(refreshSize,7,5,18)).putInt("nameSize",num(nameSize,8,5,16));
         e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
-        e.putBoolean("showNames",showNames.isChecked()).putInt("namePosition",namePosition.getSelectedItemPosition()).putInt("metaWidth",selectedMetaWidth()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
+        e.putBoolean("showNames",showNames.isChecked()).putInt("namePosition",namePosition.getSelectedItemPosition()+1).putInt("metaWidth",selectedMetaWidth()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
         e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
         e.putInt("rowSpace",num(rowSpace,0,0,8)).putInt("padding",num(padding,4,0,12)).apply();
         AppWidgetManager manager=AppWidgetManager.getInstance(this);
