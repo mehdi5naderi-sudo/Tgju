@@ -33,7 +33,11 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             "ime_fund_ayar","ons","oil_brent","bourse","sekee"
     };
     private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5};
+    private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5};
+    private static final int[] PRICE_VERTICAL_IDS = {R.id.priceVertical1,R.id.priceVertical2,R.id.priceVertical3,R.id.priceVertical4,R.id.priceVertical5};
     private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5};
+    private static final int[] NAME_INLINE_IDS = {R.id.nameInline1,R.id.nameInline2,R.id.nameInline3,R.id.nameInline4,R.id.nameInline5};
+    private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5};
     private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5};
     private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5};
     private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5};
@@ -60,12 +64,19 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         for(int i=0;i<SLOT_COUNT;i++){
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
+            v.setTextViewTextSize(PRICE_INLINE_IDS[i],2,ps);
+            v.setTextViewTextSize(PRICE_VERTICAL_IDS[i],2,ps);
             v.setTextViewTextSize(NAME_IDS[i],2,ns);
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
             v.setTextViewTextSize(TIME_IDS[i],2,ts);
             if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             v.setTextColor(NAME_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
-            v.setViewVisibility(NAME_IDS[i],showNames?View.VISIBLE:View.GONE);
+            v.setViewVisibility(NAME_IDS[i],showNames&&namePosition==0?View.VISIBLE:View.GONE);
+            v.setViewVisibility(NAME_INLINE_IDS[i],showNames&&namePosition==1?View.VISIBLE:View.GONE);
+            v.setViewVisibility(NAME_VERTICAL_IDS[i],showNames&&namePosition==2?View.VISIBLE:View.GONE);
+            v.setViewVisibility(PRICE_IDS[i],namePosition==0?View.VISIBLE:View.GONE);
+            v.setViewVisibility(PRICE_INLINE_IDS[i],namePosition==1?View.VISIBLE:View.GONE);
+            v.setViewVisibility(PRICE_VERTICAL_IDS[i],namePosition==2?View.VISIBLE:View.GONE);
             v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);
             v.setViewVisibility(TIME_IDS[i],showTime?View.VISIBLE:View.GONE);
         }
@@ -174,8 +185,14 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             String name=showNames?nameFor(k,en):"";
             time=formatTimeOrDate(o==null?"—":o.optString("t","—"),p.getInt("dateFormat",0),en);
             v.setTextViewText(NAME_IDS[i],name);
+            v.setTextViewText(NAME_INLINE_IDS[i],name);
+            v.setTextViewText(NAME_VERTICAL_IDS[i],name);
             v.setTextColor(NAME_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
+            v.setTextColor(NAME_INLINE_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
+            v.setTextColor(NAME_VERTICAL_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
             v.setTextViewText(PRICE_IDS[i],digits(price,en)); v.setTextColor(PRICE_IDS[i],color);
+            v.setTextViewText(PRICE_INLINE_IDS[i],digits(price,en)); v.setTextColor(PRICE_INLINE_IDS[i],color);
+            v.setTextViewText(PRICE_VERTICAL_IDS[i],digits(price,en)); v.setTextColor(PRICE_VERTICAL_IDS[i],color);
             v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],color);
             v.setTextViewText(TIME_IDS[i],digits(time,en));
         }
@@ -194,7 +211,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if("ons".equals(k))return "Ounce";
             if("oil_brent".equals(k))return "Brent";
             if("bourse".equals(k))return "Bourse";
-            if("sekee".equals(k))return "Imami Coin";
+            if("sekee".equals(k))return "Imami";
         }
         if("crypto-tether-irr".equals(k))return "تتر";
         if("price_dollar_rl".equals(k))return "دلار";
@@ -204,7 +221,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if("ons".equals(k))return "انس";
         if("oil_brent".equals(k))return "برنت";
         if("bourse".equals(k))return "بورس";
-        if("sekee".equals(k))return "سکه امامی";
+        if("sekee".equals(k))return "امامی";
         return k;
     }
 
