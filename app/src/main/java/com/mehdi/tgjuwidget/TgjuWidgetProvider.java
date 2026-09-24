@@ -64,6 +64,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
         int metaWidth=p.getInt("metaWidth",40);
         int namePosition=p.getInt("namePosition",1);
+        boolean hasSixth=!p.getString("key5","").isEmpty();
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         for(int i=0;i<SLOT_COUNT;i++){
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
@@ -84,6 +85,10 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);
             v.setViewVisibility(TIME_IDS[i],showTime?View.VISIBLE:View.GONE);
         }
+        // In 5-item mode, remove the sixth row completely so the five real rows
+        // automatically share the available height. In 6-item mode all six rows
+        // remain visible and share the height evenly.
+        v.setViewVisibility(R.id.row6,hasSixth?View.VISIBLE:View.GONE);
         v.setTextViewTextSize(R.id.requestTime,2,rs);
         v.setTextColor(R.id.requestTime,muted);
         v.setViewVisibility(R.id.requestTime,showRefresh?View.VISIBLE:View.GONE);
