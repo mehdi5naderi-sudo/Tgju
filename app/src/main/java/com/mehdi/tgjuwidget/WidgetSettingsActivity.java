@@ -20,11 +20,12 @@ import java.util.Locale;
 import java.util.Map;
 
 public class WidgetSettingsActivity extends Activity {
+    private static final int SLOT_COUNT=4;
     private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","bourse","sekee"};
     private static final String[] NAMES={"تتر","دلار","گرم ۱۸","کهربا","عیار","انس","برنت","بورس","سکه امامی"};
     private int widgetId=AppWidgetManager.INVALID_APPWIDGET_ID;
     private boolean launchedFromIcon=false;
-    private Spinner[] spinners=new Spinner[9];
+    private Spinner[] spinners=new Spinner[SLOT_COUNT];
     private EditText priceSize,pctSize,timeSize,refreshSize,nameSize,rowSpace,padding,bgColor,mutedColor;
     private Spinner language,dateFormat;
     private Switch showNames,showPct,showTime,showRefresh;
@@ -41,9 +42,9 @@ public class WidgetSettingsActivity extends Activity {
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(20));scroll.addView(root);
         TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);root.addView(title,lp());
-        root.addView(label("شاخص‌ها و ترتیب (۹ مورد)"),lpTop());
+        root.addView(label("۴ شاخص نمایش داده می‌شود؛ از فهرست زیر برای هر جایگاه انتخاب کنید"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
-        for(int i=0;i<9;i++){spinners[i]=new Spinner(this);spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());}
+        for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());}
         root.addView(label("اندازه فونت (sp)"),lpTop());
         priceSize=field(root,"قیمت","18");pctSize=field(root,"درصد","10");timeSize=field(root,"ساعت/تاریخ","8");refreshSize=field(root,"متن رفرش","7");nameSize=field(root,"نام شاخص","8");
         root.addView(label("زبان کل ویجت"),lpTop());language=spinner(root,new String[]{"فارسی","English"});
@@ -68,7 +69,7 @@ public class WidgetSettingsActivity extends Activity {
     private void load(){
         android.content.SharedPreferences p=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE);
         Map<String,Integer> idx=new HashMap<>();for(int i=0;i<KEYS.length;i++)idx.put(KEYS[i],i);
-        for(int i=0;i<9;i++){String k=p.getString("key"+i,KEYS[i]);spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
+        for(int i=0;i<SLOT_COUNT;i++){String k=p.getString("key"+i,KEYS[i]);spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
         priceSize.setText(String.valueOf(p.getInt("priceSize",18)));pctSize.setText(String.valueOf(p.getInt("pctSize",10)));timeSize.setText(String.valueOf(p.getInt("timeSize",8)));refreshSize.setText(String.valueOf(p.getInt("refreshSize",7)));nameSize.setText(String.valueOf(p.getInt("nameSize",8)));
         language.setSelection(p.getString("lang","fa").equals("en")?1:0);dateFormat.setSelection(p.getInt("dateFormat",0));
         showNames.setChecked(p.getBoolean("showNames",true));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
@@ -79,7 +80,7 @@ public class WidgetSettingsActivity extends Activity {
 
     private void save(){
         android.content.SharedPreferences.Editor e=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE).edit();
-        for(int i=0;i<9;i++)e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);
+        for(int i=0;i<SLOT_COUNT;i++)e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);
         e.putInt("priceSize",num(priceSize,18,8,30)).putInt("pctSize",num(pctSize,10,6,20)).putInt("timeSize",num(timeSize,8,6,18)).putInt("refreshSize",num(refreshSize,7,5,18)).putInt("nameSize",num(nameSize,8,5,16));
         e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
         e.putBoolean("showNames",showNames.isChecked()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
@@ -94,7 +95,7 @@ public class WidgetSettingsActivity extends Activity {
     private void copySettings(int fromId,int toId){
         android.content.SharedPreferences from=getSharedPreferences("widget_"+fromId,Context.MODE_PRIVATE);
         android.content.SharedPreferences.Editor to=getSharedPreferences("widget_"+toId,Context.MODE_PRIVATE).edit();
-        for(int i=0;i<9;i++)to.putString("key"+i,from.getString("key"+i,KEYS[i]));
+        for(int i=0;i<SLOT_COUNT;i++)to.putString("key"+i,from.getString("key"+i,KEYS[i]));
         to.putInt("priceSize",from.getInt("priceSize",18)).putInt("pctSize",from.getInt("pctSize",10)).putInt("timeSize",from.getInt("timeSize",8)).putInt("refreshSize",from.getInt("refreshSize",7)).putInt("nameSize",from.getInt("nameSize",8));
         to.putString("lang",from.getString("lang","fa")).putInt("dateFormat",from.getInt("dateFormat",0));
         to.putBoolean("showNames",from.getBoolean("showNames",true)).putBoolean("showPct",from.getBoolean("showPct",true)).putBoolean("showTime",from.getBoolean("showTime",true)).putBoolean("showRefresh",from.getBoolean("showRefresh",true));
