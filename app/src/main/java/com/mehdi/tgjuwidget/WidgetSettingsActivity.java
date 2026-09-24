@@ -41,7 +41,7 @@ public class WidgetSettingsActivity extends Activity {
     private void buildUi(){
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(20));scroll.addView(root);
-        TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);root.addView(title,lp());
+        root.addView(label("منبع داده‌ها: tgju.org"),lpTop());TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);root.addView(title,lp());
         root.addView(label("۵ شاخص اصلی نمایش داده می‌شود؛ شاخص ششم اختیاری است"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
         for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);if(i==5){String[] optional=new String[NAMES.length+1];optional[0]="هیچ‌کدام";System.arraycopy(NAMES,0,optional,1,NAMES.length);spinners[i].setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,optional));}else spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());if(i==4)root.addView(label("شاخص ششم (اختیاری)"),lpTop());}
