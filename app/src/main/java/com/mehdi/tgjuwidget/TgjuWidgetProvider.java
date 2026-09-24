@@ -71,6 +71,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewTextSize(PRICE_INLINE_IDS[i],2,ps);
             v.setTextViewTextSize(PRICE_VERTICAL_IDS[i],2,ps);
             v.setTextViewTextSize(NAME_IDS[i],2,ns);
+            v.setTextViewTextSize(NAME_INLINE_IDS[i],2,ns);
+            v.setTextViewTextSize(NAME_VERTICAL_IDS[i],2,ns);
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
             v.setTextViewTextSize(TIME_IDS[i],2,ts);
             if (android.os.Build.VERSION.SDK_INT >= 31) v.setViewLayoutWidth(META_IDS[i], metaWidth, android.util.TypedValue.COMPLEX_UNIT_DIP);
