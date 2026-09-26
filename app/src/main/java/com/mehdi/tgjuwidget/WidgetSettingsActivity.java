@@ -21,7 +21,7 @@ import java.util.Map;
 
 public class WidgetSettingsActivity extends Activity {
     private static final int SLOT_COUNT=6;
-    private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","bourse","sekee"};
+    private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","gc30","sekee"};
     private static final String[] NAMES={"تتر","دلار","گرم ۱۸","کهربا","عیار","انس","برنت","بورس","امامی"};
     private int widgetId=AppWidgetManager.INVALID_APPWIDGET_ID;
     private boolean launchedFromIcon=false;
