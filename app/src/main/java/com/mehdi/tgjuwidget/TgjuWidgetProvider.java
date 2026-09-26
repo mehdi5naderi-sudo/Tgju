@@ -211,7 +211,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(PRICE_INLINE_IDS[i],digits(price,en)); v.setTextColor(PRICE_INLINE_IDS[i],color);
             v.setTextViewText(PRICE_VERTICAL_IDS[i],digits(price,en)); v.setTextColor(PRICE_VERTICAL_IDS[i],color);
             v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],color);
-            v.setTextViewText(TIME_IDS[i],digits(time,en));
+            v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],color);
         }
         v.setTextViewText(R.id.requestTime,digits(request,en));
         v.setTextColor(R.id.requestTime,ok?p.getInt("mutedColor",Color.LTGRAY):RED);
