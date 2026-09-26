@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout
@@ -65,13 +65,25 @@ jobs:
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose "$APK"
 
-      - name: Upload Release APK
+      - name: Upload Release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: TGJU-Widget-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="tgju-build-${{ github.run_number }}"
+          gh release create "$TAG" \
+            "app/build/outputs/apk/release/app-release.apk" \
+            --repo "${{ github.repository }}" \
+            --title "TGJU Widget Build #${{ github.run_number }}" \
+            --notes "Installable TGJU Widget APK from GitHub Actions build #${{ github.run_number }}." \
+            --latest
 
       - name: Clean signing material
         if: always()
