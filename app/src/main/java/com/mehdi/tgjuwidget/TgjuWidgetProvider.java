@@ -30,7 +30,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final int SLOT_COUNT = 6;
     private static final String[] DEFAULT_KEYS = {
             "crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba",
-            "ime_fund_ayar","ons","oil_brent","bourse","sekee"
+            "ime_fund_ayar","ons","oil_brent","gc30","sekee"
     };
     private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,R.id.price6};
     private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5,R.id.priceInline6};
@@ -227,7 +227,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if("ime_fund_ayar".equals(k))return "Ayar";
             if("ons".equals(k))return "Ounce";
             if("oil_brent".equals(k))return "Brent";
-            if("bourse".equals(k))return "Bourse";
+            if("gc30".equals(k))return "gc30";
             if("sekee".equals(k))return "Imami";
         }
         if("crypto-tether-irr".equals(k))return "تتر";
@@ -237,7 +237,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if("ime_fund_ayar".equals(k))return "عیار";
         if("ons".equals(k))return "انس";
         if("oil_brent".equals(k))return "برنت";
-        if("bourse".equals(k))return "بورس";
+        if("gc30".equals(k))return "بورس";
         if("sekee".equals(k))return "امامی";
         return k;
     }
@@ -245,7 +245,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static String price(JSONObject o,String k){
         try{
             double n;
-            if("ons".equals(k)||"oil_brent".equals(k)||"bourse".equals(k))
+            if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k))
                 n=Double.parseDouble(o.optString("p","0").replace(",",""));
             else if("crypto-tether-irr".equals(k)&&o.has("p_irr"))
                 n=Double.parseDouble(o.optString("p_irr","0").replace(",",""))/10.0;
