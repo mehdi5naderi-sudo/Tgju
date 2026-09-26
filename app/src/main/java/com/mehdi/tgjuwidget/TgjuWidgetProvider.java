@@ -35,9 +35,11 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,R.id.price6};
     private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5,R.id.priceInline6};
     private static final int[] PRICE_VERTICAL_IDS = {R.id.priceVertical1,R.id.priceVertical2,R.id.priceVertical3,R.id.priceVertical4,R.id.priceVertical5,R.id.priceVertical6};
+    private static final int[] PRICE_RIGHT_IDS = {R.id.priceRight1,R.id.priceRight2,R.id.priceRight3,R.id.priceRight4,R.id.priceRight5,R.id.priceRight6};
     private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5,R.id.name6};
     private static final int[] NAME_INLINE_IDS = {R.id.nameInline1,R.id.nameInline2,R.id.nameInline3,R.id.nameInline4,R.id.nameInline5,R.id.nameInline6};
     private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5,R.id.nameVertical6};
+    private static final int[] NAME_RIGHT_IDS = {R.id.nameRight1,R.id.nameRight2,R.id.nameRight3,R.id.nameRight4,R.id.nameRight5,R.id.nameRight6};
     private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5,R.id.pct6};
     private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5,R.id.time6};
     private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5,R.id.meta6};
@@ -70,20 +72,24 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
             v.setTextViewTextSize(PRICE_INLINE_IDS[i],2,ps);
             v.setTextViewTextSize(PRICE_VERTICAL_IDS[i],2,ps);
+            v.setTextViewTextSize(PRICE_RIGHT_IDS[i],2,ps);
             v.setTextViewTextSize(NAME_IDS[i],2,ns);
             v.setTextViewTextSize(NAME_INLINE_IDS[i],2,ns);
             v.setTextViewTextSize(NAME_VERTICAL_IDS[i],2,ns);
+            v.setTextViewTextSize(NAME_RIGHT_IDS[i],2,ns);
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
             v.setTextViewTextSize(TIME_IDS[i],2,ts);
             if (android.os.Build.VERSION.SDK_INT >= 31) v.setViewLayoutWidth(META_IDS[i], metaWidth, android.util.TypedValue.COMPLEX_UNIT_DIP);
             if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);
-            v.setTextColor(NAME_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
+            v.setTextColor(NAME_IDS[i],muted); v.setTextColor(NAME_RIGHT_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
             v.setViewVisibility(NAME_IDS[i],View.GONE);
             v.setViewVisibility(NAME_INLINE_IDS[i],showNames&&namePosition==1?View.VISIBLE:View.GONE);
             v.setViewVisibility(NAME_VERTICAL_IDS[i],showNames&&namePosition==2?View.VISIBLE:View.GONE);
+            v.setViewVisibility(NAME_RIGHT_IDS[i],showNames&&namePosition==3?View.VISIBLE:View.GONE);
             v.setViewVisibility(PRICE_IDS[i],View.GONE);
             v.setViewVisibility(PRICE_INLINE_IDS[i],namePosition==1?View.VISIBLE:View.GONE);
             v.setViewVisibility(PRICE_VERTICAL_IDS[i],namePosition==2?View.VISIBLE:View.GONE);
+            v.setViewVisibility(PRICE_RIGHT_IDS[i],namePosition==3?View.VISIBLE:View.GONE);
             v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);
             v.setViewVisibility(TIME_IDS[i],showTime?View.VISIBLE:View.GONE);
         }
@@ -204,12 +210,15 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(NAME_IDS[i],name);
             v.setTextViewText(NAME_INLINE_IDS[i],name);
             v.setTextViewText(NAME_VERTICAL_IDS[i],name);
+            v.setTextViewText(NAME_RIGHT_IDS[i],name);
             v.setTextColor(NAME_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
             v.setTextColor(NAME_INLINE_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
             v.setTextColor(NAME_VERTICAL_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
+            v.setTextColor(NAME_RIGHT_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
             v.setTextViewText(PRICE_IDS[i],digits(price,en)); v.setTextColor(PRICE_IDS[i],color);
             v.setTextViewText(PRICE_INLINE_IDS[i],digits(price,en)); v.setTextColor(PRICE_INLINE_IDS[i],color);
             v.setTextViewText(PRICE_VERTICAL_IDS[i],digits(price,en)); v.setTextColor(PRICE_VERTICAL_IDS[i],color);
+            v.setTextViewText(PRICE_RIGHT_IDS[i],digits(price,en)); v.setTextColor(PRICE_RIGHT_IDS[i],color);
             v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],color);
             v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],color);
         }
