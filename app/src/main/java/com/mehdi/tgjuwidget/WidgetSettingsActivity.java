@@ -52,7 +52,7 @@ public class WidgetSettingsActivity extends Activity {
         root.addView(label("نمایش اطلاعات"),lpTop());
         showNames=sw(root,"نمایش نام شاخص‌ها",true);
         root.addView(label("محل نام شاخص"),lpTop());
-        namePosition=spinner(root,new String[]{"جلوی شاخص (همان خط)","عمودی سمت چپ شاخص"});
+        namePosition=spinner(root,new String[]{"جلوی شاخص (همان خط)","عمودی سمت چپ شاخص","سمت راست راست"});
         root.addView(label("عرض بخش درصد و ساعت"),lpTop());
         metaWidth=spinner(root,new String[]{"20dp","25dp","30dp","35dp","40dp","45dp","50dp"});
         showPct=sw(root,"نمایش درصد تغییر",true);showTime=sw(root,"نمایش ساعت/تاریخ",true);showRefresh=sw(root,"نمایش زمان رفرش",true);
@@ -77,7 +77,7 @@ public class WidgetSettingsActivity extends Activity {
         for(int i=0;i<SLOT_COUNT;i++){String k=p.getString("key"+i,i<5?KEYS[i]:"");if(i==5){int sel=0;for(int j=0;j<KEYS.length;j++)if(KEYS[j].equals(k)){sel=j+1;break;}spinners[i].setSelection(sel);}else spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
         priceSize.setText(String.valueOf(p.getInt("priceSize",18)));pctSize.setText(String.valueOf(p.getInt("pctSize",10)));timeSize.setText(String.valueOf(p.getInt("timeSize",8)));refreshSize.setText(String.valueOf(p.getInt("refreshSize",7)));nameSize.setText(String.valueOf(p.getInt("nameSize",8)));
         language.setSelection(p.getString("lang","fa").equals("en")?1:0);dateFormat.setSelection(p.getInt("dateFormat",0));
-        showNames.setChecked(p.getBoolean("showNames",true));int oldPos=p.getInt("namePosition",1);namePosition.setSelection(oldPos==2?1:0);metaWidth.setSelection(widthSelection(p.getInt("metaWidth",40)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
+        showNames.setChecked(p.getBoolean("showNames",true));int oldPos=p.getInt("namePosition",1);namePosition.setSelection(oldPos>=1&&oldPos<=3?oldPos-1:0);metaWidth.setSelection(widthSelection(p.getInt("metaWidth",40)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
         bgColor.setText(hexColor(p,"bgColor",Color.BLACK));mutedColor.setText(hexColor(p,"mutedColor",Color.LTGRAY));rowSpace.setText(String.valueOf(p.getInt("rowSpace",0)));padding.setText(String.valueOf(p.getInt("padding",4)));
     }
     private int widthSelection(int width){if(width<=20)return 0;if(width<=25)return 1;if(width<=30)return 2;if(width<=35)return 3;if(width<=40)return 4;if(width<=45)return 5;return 6;}
