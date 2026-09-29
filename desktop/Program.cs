@@ -140,13 +140,53 @@ public sealed class MainForm : Form
             if (lastGood.Count > 0)
                 Render();
 
-            status.Text = "خطا: " + ex.GetType().Name + " | " + ex.Message;
+            status.Text = "خطا در دریافت اطلاعات — برای جزئیات کلیک کنید";
             status.ForeColor = Color.Firebrick;
+            ShowErrorDetails(ex, api);
         }
         finally
         {
             refresh.Enabled = true;
         }
+    }
+
+    private void ShowErrorDetails(Exception ex, string api)
+    {
+        var details = "خطای دریافت اطلاعات TGJU\r\n"
+            + "زمان: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n"
+            + "آدرس: " + api + "\r\n\r\n"
+            + ex.ToString();
+
+        using var dialog = new Form
+        {
+            Text = "جزئیات خطای TGJU",
+            StartPosition = FormStartPosition.CenterParent,
+            Size = new Size(760, 440),
+            MinimumSize = new Size(520, 300),
+            RightToLeft = RightToLeft.Yes,
+            RightToLeftLayout = true
+        };
+
+        var box = new TextBox
+        {
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Both,
+            WordWrap = false,
+            Dock = DockStyle.Fill,
+            Font = new Font("Consolas", 10),
+            Text = details
+        };
+        var copy = new Button { Text = "کپی کل خطا", AutoSize = true, Dock = DockStyle.Left };
+        copy.Click += (_, _) => { Clipboard.SetText(details); copy.Text = "کپی شد"; };
+        var close = new Button { Text = "بستن", AutoSize = true, Dock = DockStyle.Right };
+        close.Click += (_, _) => dialog.Close();
+        var buttons = new Panel { Dock = DockStyle.Bottom, Height = 42, Padding = new Padding(8) };
+        buttons.Controls.Add(copy);
+        buttons.Controls.Add(close);
+        dialog.Controls.Add(box);
+        dialog.Controls.Add(buttons);
+        dialog.ShowDialog(this);
     }
 
     private void Render()
