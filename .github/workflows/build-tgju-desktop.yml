@@ -40,4 +40,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "desktop-v1.0.$env:GITHUB_RUN_NUMBER"
-          gh release create $tag "desktop/publish/TGJU.exe" --title "TGJU Desktop $tag" --notes "Portable TGJU Desktop application. No installer or administrator rights required."
+          gh release create $tag "publish/TGJU.exe" --title "TGJU Desktop $tag" --notes "Portable TGJU Desktop application. No installer or administrator rights required."
