@@ -1,5 +1,7 @@
 using System.Drawing.Drawing2D;
+using System.Net;
 using System.Net.Http.Json;
+using System.Security.Authentication;
 using System.Text.Json.Serialization;
 
 namespace TgjuDesktop;
@@ -20,7 +22,20 @@ public sealed class MainForm : Form
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        // TGJU works in the browser on this PC, but the native client was
+        // failing during TLS negotiation. Use the Windows proxy settings,
+        // TLS 1.2 and HTTP/1.1 to maximize compatibility with managed PCs.
+        var handler = new HttpClientHandler
+        {
+            UseProxy = true,
+            Proxy = null,
+            SslProtocols = SslProtocols.Tls12,
+            AutomaticDecompression = DecompressionMethods.All
+        };
+
+        var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(20) };
+        client.DefaultRequestVersion = HttpVersion.Version11;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154.0 Safari/537.36");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
         client.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
@@ -123,7 +138,12 @@ public sealed class MainForm : Form
         var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
         try
         {
-            using var response = await http.GetAsync(api, HttpCompletionOption.ResponseHeadersRead);
+            using var request = new HttpRequestMessage(HttpMethod.Get, api)
+            {
+                Version = HttpVersion.Version11,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact
+            };
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
             var data = await response.Content.ReadFromJsonAsync<ApiResponse>();
             var items = data?.Response?.Indicators ?? new List<Quote>();
