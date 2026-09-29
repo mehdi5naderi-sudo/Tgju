@@ -120,9 +120,9 @@ public sealed class MainForm : Form
     private async Task LoadData()
     {
         refresh.Enabled = false;
+        var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
         try
         {
-            var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
             using var response = await http.GetAsync(api, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
             var data = await response.Content.ReadFromJsonAsync<ApiResponse>();
