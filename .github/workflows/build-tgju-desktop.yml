@@ -7,6 +7,9 @@ on:
       - "desktop/**"
       - ".github/workflows/build-tgju-desktop.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -26,8 +29,16 @@ jobs:
       - name: Publish portable EXE
         run: dotnet publish TgjuDesktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o publish
 
-      - name: Upload EXE
+      - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: TGJU-Desktop-win-x64
           path: desktop/publish/TGJU.exe
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "desktop-v1.0.$env:GITHUB_RUN_NUMBER"
+          gh release create $tag "desktop/publish/TGJU.exe" --title "TGJU Desktop $tag" --notes "Portable TGJU Desktop application. No installer or administrator rights required."
