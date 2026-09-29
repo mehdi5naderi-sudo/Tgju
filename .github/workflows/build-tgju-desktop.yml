@@ -3,9 +3,8 @@ name: Build TGJU Desktop
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "desktop/**"
-      - ".github/workflows/build-tgju-desktop.yml"
+    branches:
+      - main
 
 permissions:
   contents: write
