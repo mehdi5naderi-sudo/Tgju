@@ -221,7 +221,7 @@ public sealed class MainForm : Form
             if (price is null || change is null) continue;
 
             double.TryParse(q.P, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var p);
-            double.TryParse(q.Dp, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var dp);
+            var dp = q.Dp;
 
             var isUsd = slugs[i] is "ons" or "oil_brent";
             var shown = isUsd ? p : p / 10.0;
@@ -271,5 +271,5 @@ public sealed class Quote
     [JsonPropertyName("p")]
     public string P { get; set; } = "";
     [JsonPropertyName("dp")]
-    public string Dp { get; set; } = "";
+    public double Dp { get; set; }
 }
