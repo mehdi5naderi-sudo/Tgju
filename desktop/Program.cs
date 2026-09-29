@@ -259,7 +259,7 @@ internal sealed class TrayApp : IDisposable
         var dc = BeginPaint(hWnd, out ps);
         GetClientRect(hWnd, out var rc);
 
-        using var bg = CreateSolidBrush(0x00FFFFFF);
+        var bg = CreateSolidBrush(0x00FFFFFF);
         FillRect(dc, ref rc, bg);
         DeleteObject(bg);
 
@@ -301,7 +301,7 @@ internal sealed class TrayApp : IDisposable
     static void DrawTextRtl(IntPtr dc, string text, int l, int t, int r, int b, int color, uint flags)
     {
         SetTextColor(dc, color);
-        SetBkMode(dc, TRANSPARENT);
+        SetBkMode(dc, (int)TRANSPARENT);
         var rect = new RECT { Left = l, Top = t, Right = r, Bottom = b };
         DrawTextW(dc, text, text.Length, ref rect, flags | DT_RTLREADING | DT_NOPREFIX);
     }
