@@ -12,19 +12,138 @@ internal static class Program
     static void Main()
     {
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm());
+        Application.Run(new TrayContext());
     }
 }
 
-public sealed class MainForm : Form
+public sealed class TrayContext : ApplicationContext
 {
     private readonly HttpClient http = CreateHttpClient();
+    private readonly NotifyIcon tray = new();
+    private readonly System.Windows.Forms.Timer timer = new();
+    private readonly Dictionary<string, Quote> lastGood = new();
+    private readonly string[] slugs =
+    {
+        "crypto-tether-irr", "price_dollar_rl", "geram18",
+        "ime_fund_kahroba", "ime_fund_ayar", "ons", "oil_brent"
+    };
+    private readonly string[] names = { "تتر", "دلار", "گرم ۱۸", "کهربا", "عیار", "انس", "نفت برنت" };
+    private PopupForm? popup;
+    private DateTime lastHoverRefresh = DateTime.MinValue;
+    private bool loading;
+
+    public TrayContext()
+    {
+        tray.Icon = MakeIcon();
+        tray.Text = "شاخص‌های TGJU";
+        tray.Visible = true;
+        tray.MouseMove += Tray_MouseMove;
+        tray.MouseClick += Tray_MouseClick;
+
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("نمایش شاخص‌ها", null, async (_, _) =>
+        {
+            await LoadData();
+            ShowPopup();
+        });
+        menu.Items.Add("بروزرسانی", null, async (_, _) => await LoadData());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("خروج", null, (_, _) => ExitThread());
+        tray.ContextMenuStrip = menu;
+
+        timer.Interval = 300000;
+        timer.Tick += async (_, _) => await LoadData();
+        timer.Start();
+
+        _ = LoadData();
+    }
+
+    private async void Tray_MouseMove(object? sender, MouseEventArgs e)
+    {
+        if (loading) return;
+        if ((DateTime.Now - lastHoverRefresh).TotalSeconds < 2) return;
+
+        lastHoverRefresh = DateTime.Now;
+        await LoadData();
+        ShowPopup();
+    }
+
+    private async void Tray_MouseClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            await LoadData();
+            ShowPopup();
+        }
+    }
+
+    private void ShowPopup()
+    {
+        if (lastGood.Count == 0) return;
+
+        popup?.Close();
+        popup?.Dispose();
+        popup = new PopupForm(slugs, names, lastGood);
+
+        var cursor = Cursor.Position;
+        var screen = Screen.FromPoint(cursor);
+        var x = Math.Min(cursor.X - popup.Width + 16, screen.WorkingArea.Right - popup.Width - 8);
+        var y = cursor.Y - popup.Height - 10;
+        if (y < screen.WorkingArea.Top + 8) y = cursor.Y + 20;
+        if (x < screen.WorkingArea.Left + 8) x = screen.WorkingArea.Left + 8;
+
+        popup.StartPosition = FormStartPosition.Manual;
+        popup.Location = new Point(x, y);
+        popup.Show();
+    }
+
+    private async Task LoadData()
+    {
+        if (loading) return;
+        loading = true;
+        var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, api)
+            {
+                Version = HttpVersion.Version11,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact
+            };
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            var data = await response.Content.ReadFromJsonAsync<ApiResponse>();
+            var items = data?.Response?.Indicators ?? new List<Quote>();
+
+            foreach (var item in items)
+                lastGood[item.Name] = item;
+
+            if (popup is not null && !popup.IsDisposed)
+                popup.UpdateData(lastGood);
+        }
+        catch
+        {
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    protected override void ExitThreadCore()
+    {
+        timer.Stop();
+        tray.Visible = false;
+        tray.Dispose();
+        popup?.Close();
+        popup?.Dispose();
+        http.Dispose();
+        base.ExitThreadCore();
+    }
 
     private static HttpClient CreateHttpClient()
     {
-        // TGJU works in the browser on this PC, but the native client was
-        // failing during TLS negotiation. Use the Windows proxy settings,
-        // TLS 1.2 and HTTP/1.1 to maximize compatibility with managed PCs.
         var handler = new HttpClientHandler
         {
             UseProxy = true,
@@ -36,202 +155,12 @@ public sealed class MainForm : Form
         var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(20) };
         client.DefaultRequestVersion = HttpVersion.Version11;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154.0 Safari/537.36");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154.0 Safari/537.36");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
-        client.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+        client.DefaultRequestHeaders.CacheControl =
+            new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
         return client;
-    }
-    private readonly TableLayoutPanel table = new();
-    private readonly Label status = new();
-    private readonly Button refresh = new();
-    private readonly System.Windows.Forms.Timer timer = new();
-    private readonly Dictionary<string, Quote> lastGood = new();
-    private readonly string[] slugs =
-    {
-        "crypto-tether-irr", "price_dollar_rl", "geram18",
-        "ime_fund_kahroba", "ime_fund_ayar", "ons", "oil_brent"
-    };
-    private readonly string[] names = { "تتر", "دلار", "گرم ۱۸", "کهربا", "عیار", "انس", "نفت برنت" };
-
-    public MainForm()
-    {
-        Text = "شاخص‌های TGJU";
-        RightToLeft = RightToLeft.Yes;
-        RightToLeftLayout = true;
-        StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(470, 430);
-        MinimumSize = new Size(430, 360);
-        FormBorderStyle = FormBorderStyle.FixedSingle;
-        MaximizeBox = false;
-        ShowInTaskbar = true;
-        Icon = MakeIcon();
-
-        var title = new Label
-        {
-            Text = "شاخص‌های TGJU",
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 18, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleCenter
-        };
-
-        refresh.Text = "↻  بروزرسانی";
-        refresh.AutoSize = true;
-        refresh.Font = new Font("Segoe UI", 10);
-        refresh.Padding = new Padding(8, 4, 8, 4);
-        refresh.Click += async (_, _) => await LoadData();
-
-        status.Text = "در حال دریافت اطلاعات...";
-        status.Dock = DockStyle.Fill;
-        status.TextAlign = ContentAlignment.MiddleCenter;
-        status.ForeColor = Color.DimGray;
-        status.Font = new Font("Segoe UI", 9);
-
-        table.Dock = DockStyle.Fill;
-        table.ColumnCount = 3;
-        table.RowCount = slugs.Length;
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 26));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 26));
-        for (int i = 0; i < slugs.Length; i++)
-            table.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / slugs.Length));
-
-        for (int i = 0; i < slugs.Length; i++)
-        {
-            var name = new Label { Text = names[i], Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 11) };
-            var price = new Label { Name = "p" + i, Text = "—", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 12, FontStyle.Bold) };
-            var change = new Label { Name = "c" + i, Text = "—", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10) };
-            table.Controls.Add(name, 0, i);
-            table.Controls.Add(price, 1, i);
-            table.Controls.Add(change, 2, i);
-        }
-
-        var bottom = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false,
-            AutoSize = true
-        };
-        bottom.Controls.Add(refresh);
-        bottom.Controls.Add(status);
-
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(10) };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        root.Controls.Add(title, 0, 0);
-        root.Controls.Add(new Label { Text = "قیمت‌ها و درصد تغییر", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.Gray }, 0, 1);
-        root.Controls.Add(table, 0, 2);
-        root.Controls.Add(bottom, 0, 3);
-        Controls.Add(root);
-
-        timer.Interval = 300000; // 5 minutes
-        timer.Tick += async (_, _) => await LoadData();
-        timer.Start();
-        Shown += async (_, _) => await LoadData();
-    }
-
-    private async Task LoadData()
-    {
-        refresh.Enabled = false;
-        var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, api)
-            {
-                Version = HttpVersion.Version11,
-                VersionPolicy = HttpVersionPolicy.RequestVersionExact
-            };
-            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-            var data = await response.Content.ReadFromJsonAsync<ApiResponse>();
-            var items = data?.Response?.Indicators ?? new List<Quote>();
-
-            foreach (var item in items)
-                lastGood[item.Name] = item;
-
-            Render();
-            status.Text = "آخرین بروزرسانی: " + DateTime.Now.ToString("HH:mm:ss");
-            status.ForeColor = Color.DimGray;
-        }
-        catch (Exception ex)
-        {
-            if (lastGood.Count > 0)
-                Render();
-
-            status.Text = "خطا در دریافت اطلاعات — برای جزئیات کلیک کنید";
-            status.ForeColor = Color.Firebrick;
-            ShowErrorDetails(ex, api);
-        }
-        finally
-        {
-            refresh.Enabled = true;
-        }
-    }
-
-    private void ShowErrorDetails(Exception ex, string api)
-    {
-        var details = "خطای دریافت اطلاعات TGJU\r\n"
-            + "زمان: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n"
-            + "آدرس: " + api + "\r\n\r\n"
-            + ex.ToString();
-
-        using var dialog = new Form
-        {
-            Text = "جزئیات خطای TGJU",
-            StartPosition = FormStartPosition.CenterParent,
-            Size = new Size(760, 440),
-            MinimumSize = new Size(520, 300),
-            RightToLeft = RightToLeft.Yes,
-            RightToLeftLayout = true
-        };
-
-        var box = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Both,
-            WordWrap = false,
-            Dock = DockStyle.Fill,
-            Font = new Font("Consolas", 10),
-            Text = details
-        };
-        var copy = new Button { Text = "کپی کل خطا", AutoSize = true, Dock = DockStyle.Left };
-        copy.Click += (_, _) => { Clipboard.SetText(details); copy.Text = "کپی شد"; };
-        var close = new Button { Text = "بستن", AutoSize = true, Dock = DockStyle.Right };
-        close.Click += (_, _) => dialog.Close();
-        var buttons = new Panel { Dock = DockStyle.Bottom, Height = 42, Padding = new Padding(8) };
-        buttons.Controls.Add(copy);
-        buttons.Controls.Add(close);
-        dialog.Controls.Add(box);
-        dialog.Controls.Add(buttons);
-        dialog.ShowDialog(this);
-    }
-
-    private void Render()
-    {
-        for (int i = 0; i < slugs.Length; i++)
-        {
-            if (!lastGood.TryGetValue(slugs[i], out var q))
-                continue;
-
-            var price = table.Controls["p" + i] as Label;
-            var change = table.Controls["c" + i] as Label;
-            if (price is null || change is null) continue;
-
-            double.TryParse(q.P, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var p);
-            var dp = q.Dp;
-
-            var isUsd = slugs[i] is "ons" or "oil_brent";
-            var shown = isUsd ? p : p / 10.0;
-            price.Text = isUsd ? shown.ToString("N2") : shown.ToString("N0");
-
-            change.Text = (dp > 0 ? "▲ " : dp < 0 ? "▼ " : "● ") + Math.Abs(dp).ToString("0.00") + "%";
-            var color = dp > 0 ? Color.ForestGreen : dp < 0 ? Color.Firebrick : Color.DarkGoldenrod;
-            price.ForeColor = color;
-            change.ForeColor = color;
-        }
     }
 
     private static Icon MakeIcon()
@@ -252,6 +181,113 @@ public sealed class MainForm : Form
     }
 }
 
+public sealed class PopupForm : Form
+{
+    private readonly string[] slugs;
+    private readonly string[] names;
+    private readonly TableLayoutPanel table = new();
+
+    public PopupForm(string[] slugs, string[] names, Dictionary<string, Quote> data)
+    {
+        this.slugs = slugs;
+        this.names = names;
+
+        FormBorderStyle = FormBorderStyle.FixedSingle;
+        ControlBox = false;
+        ShowInTaskbar = false;
+        TopMost = true;
+        RightToLeft = RightToLeft.Yes;
+        RightToLeftLayout = true;
+        BackColor = Color.White;
+        ClientSize = new Size(455, 390);
+        Padding = new Padding(10);
+
+        table.Dock = DockStyle.Fill;
+        table.ColumnCount = 3;
+        table.RowCount = slugs.Length + 1;
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 43));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+
+        table.Controls.Add(Header("شاخص"), 0, 0);
+        table.Controls.Add(Header("قیمت"), 1, 0);
+        table.Controls.Add(Header("تغییر / زمان"), 2, 0);
+
+        for (int i = 0; i < slugs.Length; i++)
+        {
+            table.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / (slugs.Length + 1)));
+            table.Controls.Add(new Label
+            {
+                Text = names[i],
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold)
+            }, 0, i + 1);
+
+            table.Controls.Add(new Label
+            {
+                Name = "p" + i,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 12, FontStyle.Bold)
+            }, 1, i + 1);
+
+            table.Controls.Add(new Label
+            {
+                Name = "c" + i,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9.5f)
+            }, 2, i + 1);
+        }
+
+        Controls.Add(table);
+        UpdateData(data);
+        Deactivate += (_, _) => Hide();
+    }
+
+    private static Label Header(string text) => new()
+    {
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.MiddleCenter,
+        Font = new Font("Segoe UI", 10, FontStyle.Bold),
+        ForeColor = Color.DimGray
+    };
+
+    protected override bool ShowWithoutActivation => true;
+
+    public void UpdateData(Dictionary<string, Quote> data)
+    {
+        for (int i = 0; i < slugs.Length; i++)
+        {
+            if (!data.TryGetValue(slugs[i], out var q)) continue;
+
+            var price = table.Controls["p" + i] as Label;
+            var change = table.Controls["c" + i] as Label;
+            if (price is null || change is null) continue;
+
+            double.TryParse(q.P, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var p);
+
+            var isUsd = slugs[i] is "ons" or "oil_brent";
+            var shown = isUsd ? p : p / 10.0;
+            price.Text = isUsd ? shown.ToString("N2") : shown.ToString("N0");
+
+            var dp = q.Dp;
+            var color = dp > 0 ? Color.ForestGreen
+                : dp < 0 ? Color.Firebrick
+                : Color.DarkGoldenrod;
+
+            var symbol = dp > 0 ? "▲" : dp < 0 ? "▼" : "●";
+            var time = string.IsNullOrWhiteSpace(q.T) ? "—" : q.T;
+            change.Text = symbol + " " + Math.Abs(dp).ToString("0.00") + "%\r\n" + time;
+            change.ForeColor = color;
+            price.ForeColor = color;
+        }
+    }
+}
+
 public sealed class ApiResponse
 {
     [JsonPropertyName("response")]
@@ -268,8 +304,13 @@ public sealed class Quote
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
     [JsonPropertyName("p")]
     public string P { get; set; } = "";
+
     [JsonPropertyName("dp")]
     public double Dp { get; set; }
+
+    [JsonPropertyName("t")]
+    public string T { get; set; } = "";
 }
