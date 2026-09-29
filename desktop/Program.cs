@@ -44,7 +44,10 @@ internal sealed class TrayApp : IDisposable
     const uint SWP_NOMOVE = 0x0002;
     const uint TTM = 0x0000;
     const uint NIM_ADD = 0;
+    const uint NIM_MODIFY = 1;
     const uint NIM_DELETE = 2;
+    const uint NIM_SETVERSION = 4;
+    const uint NOTIFYICON_VERSION_4 = 4;
     const uint NIF_MESSAGE = 1;
     const uint NIF_ICON = 2;
     const uint NIF_TIP = 4;
@@ -99,7 +102,7 @@ internal sealed class TrayApp : IDisposable
             popupClass, "TGJU", WS_POPUP | WS_BORDER,
             0, 0, 455, 390, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
 
-        icon = LoadIcon(IntPtr.Zero, new IntPtr(32516)); // IDI_INFORMATION
+        icon = LoadIcon(IntPtr.Zero, new IntPtr(32512)); // IDI_APPLICATION
         AddTrayIcon();
         SetTimer(hwnd, timerId, 300000, IntPtr.Zero);
         _ = LoadData();
@@ -149,12 +152,21 @@ internal sealed class TrayApp : IDisposable
             cbSize = Marshal.SizeOf<NOTIFYICONDATA>(),
             hWnd = hwnd,
             uID = 1,
-            uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP,
+            uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
             uCallbackMessage = WM_TRAY,
             hIcon = icon,
             szTip = "شاخص‌های TGJU"
         };
-        Shell_NotifyIcon(NIM_ADD, ref n);
+        var added = Shell_NotifyIcon(NIM_ADD, ref n);
+        if (added)
+        {
+            n.uVersion = NOTIFYICON_VERSION_4;
+            Shell_NotifyIcon(NIM_SETVERSION, ref n);
+        }
+        else
+        {
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "TGJU-desktop.log"), "Shell_NotifyIcon(NIM_ADD) failed.");
+        }
     }
 
     void RemoveTrayIcon()
