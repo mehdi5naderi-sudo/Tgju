@@ -135,17 +135,12 @@ public sealed class MainForm : Form
             status.Text = "آخرین بروزرسانی: " + DateTime.Now.ToString("HH:mm:ss");
             status.ForeColor = Color.DimGray;
         }
-        catch
+        catch (Exception ex)
         {
             if (lastGood.Count > 0)
-            {
                 Render();
-                status.Text = "اتصال ناموفق — اطلاعات قبلی";
-            }
-            else
-            {
-                status.Text = "دریافت اطلاعات ناموفق بود";
-            }
+
+            status.Text = "خطا: " + ex.GetType().Name + " | " + ex.Message;
             status.ForeColor = Color.Firebrick;
         }
         finally
