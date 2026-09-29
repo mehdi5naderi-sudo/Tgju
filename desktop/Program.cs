@@ -16,7 +16,16 @@ internal static class Program
 
 public sealed class MainForm : Form
 {
-    private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly HttpClient http = CreateHttpClient();
+
+    private static HttpClient CreateHttpClient()
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154.0 Safari/537.36");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
+        client.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+        return client;
+    }
     private readonly TableLayoutPanel table = new();
     private readonly Label status = new();
     private readonly Button refresh = new();
@@ -114,7 +123,9 @@ public sealed class MainForm : Form
         try
         {
             var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
-            var data = await http.GetFromJsonAsync<ApiResponse>(api);
+            using var response = await http.GetAsync(api, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            var data = await response.Content.ReadFromJsonAsync<ApiResponse>();
             var items = data?.Response?.Indicators ?? new List<Quote>();
 
             foreach (var item in items)
