@@ -339,11 +339,11 @@ static void StartFetch() {
 
 static void ShowPopup() {
     POINT pt; GetCursorPos(&pt);
-    const int w = 480, h = 56 + kCount * 36 + 20;
+    const int w = 620, h = 64 + kCount * 44 + 24;
     int x = pt.x - w + 24;
     int y = pt.y - h - 12;
     if (x < 8) x = 8;
-    if (y < 8) y = pt.y + 28;
+    if (y < 8) y = pt.y + 36;
 
     SetWindowPos(gPopup, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
     ShowWindow(gPopup, SW_SHOWNOACTIVATE);
@@ -371,7 +371,7 @@ static void PaintPopup(HWND hwnd) {
     HDC hdc = BeginPaint(hwnd, &ps);
     RECT rc; GetClientRect(hwnd, &rc);
     const int W = rc.right;
-    const int m = 14;
+    const int m = 18;
 
     HBRUSH bg = CreateSolidBrush(RGB(255, 255, 255));
     FillRect(hdc, &rc, bg);
@@ -382,17 +382,17 @@ static void PaintPopup(HWND hwnd) {
     FillRect(hdc, &bar, accent);
     DeleteObject(accent);
 
-    RECT head{ 0, 3, W, 42 };
+    RECT head{ 0, 3, W, 50 };
     HBRUSH headBg = CreateSolidBrush(RGB(247, 249, 252));
     FillRect(hdc, &head, headBg);
     DeleteObject(headBg);
 
     SetBkMode(hdc, TRANSPARENT);
-    HFONT titleFont = CreateFontW(18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+    HFONT titleFont = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    HFONT rowFont = CreateFontW(15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    HFONT rowFont = CreateFontW(18, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    HFONT smallFont = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    HFONT smallFont = CreateFontW(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
 
     std::wstring status, error;
@@ -404,9 +404,9 @@ static void PaintPopup(HWND hwnd) {
     LeaveCriticalSection(&gCs);
 
     HFONT old = (HFONT)SelectObject(hdc, titleFont);
-    DrawTextRect(hdc, RECT{ m, 10, W - m, 36 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
+    DrawTextRect(hdc, RECT{ m, 10, W - m, 44 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
     SelectObject(hdc, smallFont);
-    DrawTextRect(hdc, RECT{ m, 12, W / 2, 34 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
+    DrawTextRect(hdc, RECT{ m, 14, W / 2, 42 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
 
     const int nameW = 120;
     const int priceW = 140;
@@ -417,7 +417,7 @@ static void PaintPopup(HWND hwnd) {
     auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
     auto colTime  = [&](int y1, int y2) { return RECT{ m, y1, W - m - nameW - priceW - chgW - 4, y2 }; };
 
-    int y0 = 48;
+    int y0 = 56;
     SelectObject(hdc, smallFont);
     DrawTextRect(hdc, colName(y0, y0 + 18),  L"شاخص", DT_RIGHT, RGB(120, 130, 145));
     DrawTextRect(hdc, colPrice(y0, y0 + 18), L"قیمت", DT_CENTER, RGB(120, 130, 145));
@@ -433,10 +433,10 @@ static void PaintPopup(HWND hwnd) {
 
     SelectObject(hdc, rowFont);
     for (int i = 0; i < kCount; i++) {
-        int y = 72 + i * 36;
+        int y = 82 + i * 44;
 
         if (i % 2 == 0) {
-            RECT zr{ m - 4, y - 4, W - m + 4, y + 30 };
+            RECT zr{ m - 4, y - 4, W - m + 4, y + 38 };
             HBRUSH zb = CreateSolidBrush(RGB(250, 251, 253));
             FillRect(hdc, &zr, zb);
             DeleteObject(zb);
@@ -461,7 +461,7 @@ static void PaintPopup(HWND hwnd) {
         case Mode::Index0:     price = FormatNumber(p, 0); break;
         }
 
-        COLORREF c = q.dp > 0 ? RGB(0, 140, 70) : (q.dp < 0 ? RGB(190, 40, 40) : RGB(90, 95, 105));
+        COLORREF c = isNegative ? RGB(200, 35, 35) : (isPositive ? RGB(0, 140, 70) : RGB(90, 95, 105));
 
         DrawTextRect(hdc, colPrice(y, y + 28), price.c_str(), DT_CENTER, c);
 
@@ -478,7 +478,7 @@ static void PaintPopup(HWND hwnd) {
 
     if (!error.empty()) {
         SelectObject(hdc, smallFont);
-        DrawTextRect(hdc, RECT{ m, rc.bottom - 22, W - m, rc.bottom - 4 },
+        DrawTextRect(hdc, RECT{ m, rc.bottom - 24, W - m, rc.bottom - 5 },
             error.c_str(), DT_RIGHT, RGB(180, 50, 50));
     }
 
@@ -588,9 +588,9 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     gMain = CreateWindowExW(WS_EX_TOOLWINDOW, kClassMain, L"TGJU", 0,
         0, 0, 0, 0, nullptr, nullptr, hi, nullptr);
 
-    int h = 56 + kCount * 36 + 20;
+    int h = 64 + kCount * 44 + 24;
     gPopup = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, kClassPopup, L"TGJU",
-        WS_POPUP | WS_BORDER, 100, 100, 480, h, nullptr, nullptr, hi, nullptr);
+        WS_POPUP | WS_BORDER, 100, 100, 620, h, nullptr, nullptr, hi, nullptr);
 
     AddTray(hi);
     SetTimer(gMain, kTimerId, 5 * 60 * 1000, nullptr);
