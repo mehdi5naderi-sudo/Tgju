@@ -46,7 +46,8 @@ static const int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 struct Quote {
     std::string p;
     double dp = 0;
-    std::string t; // API field "t": clock (۱۱:۲۰:۰۵) OR date label (۷ مهر)
+    std::string t; // API field "t": clock/date label
+    std::string dt; // API field "dt": "high" or "low"
 };
 
 static HWND gMain = nullptr;
@@ -278,12 +279,13 @@ static void ParseAndStore(const std::string& body) {
         q.p = ExtractStrNear(obj, localName, "p", obj.size());
         q.dp = ExtractNumNear(obj, localName, "dp", obj.size());
         q.t = ExtractStrNear(obj, localName, "t", obj.size());
+        q.dt = ExtractStrNear(obj, localName, "dt", obj.size());
 
         next[kItems[i].key] = q;
 
         char line[320];
-        sprintf_s(line, "key=%s p=%s dp=%.2f t='%s'",
-            kItems[i].key, q.p.c_str(), q.dp, q.t.c_str());
+        sprintf_s(line, "key=%s p=%s dp=%.2f dt=%s t='%s'",
+            kItems[i].key, q.p.c_str(), q.dp, q.dt.c_str(), q.t.c_str());
         Log(line);
     }
 
@@ -344,7 +346,7 @@ static void StartFetch() {
 
 static void ShowPopup() {
     POINT pt; GetCursorPos(&pt);
-    const int w = 700, h = 72 + kCount * 52 + 28;
+    const int w = 700, h = 58 + kCount * 40 + 20;
     int x = pt.x - w + 24;
     int y = pt.y - h - 12;
     if (x < 8) x = 8;
@@ -360,7 +362,7 @@ static void ShowPopup() {
 
 static void HidePopup() {
     if (!gPopupVisible) return;
-    if (GetTickCount() - gPopupShownTick < 2000) return;
+    if (GetTickCount() - gPopupShownTick < 1000) return;
     ShowWindow(gPopup, SW_HIDE);
     gPopupVisible = false;
 }
@@ -387,7 +389,7 @@ static void PaintPopup(HWND hwnd) {
     FillRect(hdc, &bar, accent);
     DeleteObject(accent);
 
-    RECT head{ 0, 3, W, 56 };
+    RECT head{ 0, 3, W, 48 };
     HBRUSH headBg = CreateSolidBrush(RGB(247, 249, 252));
     FillRect(hdc, &head, headBg);
     DeleteObject(headBg);
@@ -409,10 +411,10 @@ static void PaintPopup(HWND hwnd) {
     LeaveCriticalSection(&gCs);
 
     HFONT old = (HFONT)SelectObject(hdc, titleFont);
-    DrawTextRect(hdc, RECT{ m, 8, W - m, 48 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
+    DrawTextRect(hdc, RECT{ m, 5, W - m, 43 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
     SelectObject(hdc, smallFont);
-    DrawTextRect(hdc, RECT{ m, 16, W / 2 - 65, 46 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
-    DrawTextRect(hdc, RECT{ W / 2 - 55, 16, W - m, 46 }, kAppVersion, DT_RIGHT, RGB(16, 122, 186));
+    DrawTextRect(hdc, RECT{ m, 8, W / 2 - 65, 40 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
+    DrawTextRect(hdc, RECT{ W / 2 - 55, 8, W - m, 40 }, kAppVersion, DT_RIGHT, RGB(16, 122, 186));
 
     const int nameW = 165;
     const int priceW = 195;
@@ -423,7 +425,7 @@ static void PaintPopup(HWND hwnd) {
     auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
     auto colTime  = [&](int y1, int y2) { return RECT{ m, y1, W - m - nameW - priceW - chgW - 4, y2 }; };
 
-    int y0 = 62;
+    int y0 = 50;
     SelectObject(hdc, smallFont);
     DrawTextRect(hdc, colName(y0, y0 + 18),  L"شاخص", DT_RIGHT, RGB(120, 130, 145));
     DrawTextRect(hdc, colPrice(y0, y0 + 18), L"قیمت", DT_CENTER, RGB(120, 130, 145));
@@ -439,16 +441,16 @@ static void PaintPopup(HWND hwnd) {
 
     SelectObject(hdc, rowFont);
     for (int i = 0; i < kCount; i++) {
-        int y = 92 + i * 52;
+        int y = 76 + i * 40;
 
         if (i % 2 == 0) {
-            RECT zr{ m - 4, y - 4, W - m + 4, y + 46 };
+            RECT zr{ m - 2, y - 2, W - m + 2, y + 36 };
             HBRUSH zb = CreateSolidBrush(RGB(250, 251, 253));
             FillRect(hdc, &zr, zb);
             DeleteObject(zb);
         }
 
-        DrawTextRect(hdc, colName(y, y + 44), kItems[i].label, DT_RIGHT, RGB(25, 30, 40));
+        DrawTextRect(hdc, colName(y, y + 36), kItems[i].label, DT_RIGHT, RGB(25, 30, 40));
 
         auto it = snap.find(kItems[i].key);
         if (it == snap.end() || it->second.p.empty()) {
@@ -467,8 +469,8 @@ static void PaintPopup(HWND hwnd) {
         case Mode::Index0:     price = FormatNumber(p, 0); break;
         }
 
-        const bool isNegative = q.dp < -0.000001;
-        const bool isPositive = q.dp > 0.000001;
+        const bool isNegative = q.dt == "low";
+        const bool isPositive = q.dt == "high";
         COLORREF c = isNegative ? RGB(210, 25, 35) : (isPositive ? RGB(0, 140, 70) : RGB(90, 95, 105));
 
         DrawTextRect(hdc, colPrice(y, y + 28), price.c_str(), DT_CENTER, c);
@@ -596,7 +598,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     gMain = CreateWindowExW(WS_EX_TOOLWINDOW, kClassMain, L"TGJU", 0,
         0, 0, 0, 0, nullptr, nullptr, hi, nullptr);
 
-    int h = 72 + kCount * 52 + 28;
+    int h = 58 + kCount * 40 + 20;
     gPopup = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, kClassPopup, L"TGJU",
         WS_POPUP | WS_BORDER, 100, 100, 700, h, nullptr, nullptr, hi, nullptr);
 
