@@ -5,11 +5,11 @@
 #include <shellapi.h>
 #include <winhttp.h>
 #include <string>
-#include <vector>
 #include <map>
 #include <fstream>
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "shell32.lib")
@@ -22,7 +22,6 @@ static const UINT WM_TRAY = WM_APP + 1;
 static const UINT WM_DATA = WM_APP + 2;
 static const UINT_PTR kTimerId = 1;
 
-// name key from API ("name" field), Persian label, display mode
 enum class Mode { TomanDiv10, AsIs2, Index0 };
 
 struct ItemDef {
@@ -47,7 +46,7 @@ static const int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 struct Quote {
     std::string p;
     double dp = 0;
-    std::string t;
+    std::string t; // HH:MM or HH:MM:SS only
 };
 
 static HWND gMain = nullptr;
@@ -88,7 +87,6 @@ static std::wstring Wide(const std::string& s) {
     return w;
 }
 
-// Convert ASCII digits in time string to Persian digits for display
 static std::wstring ToPersianDigits(const std::wstring& in) {
     static const wchar_t* fa = L"۰۱۲۳۴۵۶۷۸۹";
     std::wstring out;
@@ -102,12 +100,9 @@ static std::wstring ToPersianDigits(const std::wstring& in) {
 
 static std::wstring FormatNumber(double v, int decimals) {
     wchar_t buf[64];
-    if (decimals == 0)
-        swprintf_s(buf, L"%.0f", v);
-    else
-        swprintf_s(buf, L"%.2f", v);
+    if (decimals == 0) swprintf_s(buf, L"%.0f", v);
+    else swprintf_s(buf, L"%.2f", v);
 
-    // thousand separators for integer part
     std::wstring s = buf;
     auto dot = s.find(L'.');
     std::wstring ip = (dot == std::wstring::npos) ? s : s.substr(0, dot);
@@ -127,28 +122,40 @@ static std::wstring FormatNumber(double v, int decimals) {
     return ToPersianDigits(grouped + fp);
 }
 
-static std::string JsonStr(const std::string& obj, const char* key) {
+// Extract "key":"value" after position `from`, within next `limit` chars
+static std::string ExtractStrAfter(const std::string& body, size_t from, const char* key, size_t limit = 800) {
     std::string pat = std::string("\"") + key + "\":\"";
-    auto p = obj.find(pat);
-    if (p == std::string::npos) return {};
+    size_t endSearch = (from + limit < body.size()) ? from + limit : body.size();
+    auto p = body.find(pat, from);
+    if (p == std::string::npos || p >= endSearch) return {};
     p += pat.size();
-    auto e = obj.find('"', p);
-    if (e == std::string::npos) return {};
-    return obj.substr(p, e - p);
+    auto e = body.find('"', p);
+    if (e == std::string::npos || e > from + limit + 64) return {};
+    return body.substr(p, e - p);
 }
 
-static double JsonNum(const std::string& obj, const char* key) {
+static double ExtractNumAfter(const std::string& body, size_t from, const char* key, size_t limit = 800) {
     std::string pat = std::string("\"") + key + "\":";
-    auto p = obj.find(pat);
-    if (p == std::string::npos) return 0;
+    size_t endSearch = (from + limit < body.size()) ? from + limit : body.size();
+    auto p = body.find(pat, from);
+    if (p == std::string::npos || p >= endSearch) return 0;
     p += pat.size();
-    while (p < obj.size() && (obj[p] == ' ' || obj[p] == '\t')) p++;
-    try { return std::stod(obj.substr(p)); } catch (...) { return 0; }
+    while (p < body.size() && (body[p] == ' ' || body[p] == '\t')) p++;
+    try { return std::stod(body.substr(p)); } catch (...) { return 0; }
+}
+
+// Keep only clock-like text (has ':' and short)
+static std::string SanitizeTime(const std::string& t) {
+    if (t.empty() || t.size() > 16) return {};
+    if (t.find(':') == std::string::npos) return {};
+    // reject if looks like a date (has '-' or '/')
+    if (t.find('-') != std::string::npos || t.find('/') != std::string::npos) return {};
+    return t;
 }
 
 static bool HttpGet(const std::wstring& host, const std::wstring& path, std::string& out, std::string& err) {
     out.clear();
-    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.1",
+    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.2",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ses) { err = "WinHttpOpen failed"; return false; }
 
@@ -195,24 +202,37 @@ static bool HttpGet(const std::wstring& host, const std::wstring& path, std::str
 
 static void ParseAndStore(const std::string& body) {
     std::map<std::string, Quote> next;
-    size_t pos = 0;
-    while (true) {
-        auto n = body.find("\"name\":\"", pos);
-        if (n == std::string::npos) break;
-        auto start = body.rfind('{', n);
-        auto end = body.find('}', n);
-        if (start == std::string::npos || end == std::string::npos) { pos = n + 8; continue; }
-        std::string obj = body.substr(start, end - start + 1);
-        std::string name = JsonStr(obj, "name");
-        std::string slug = JsonStr(obj, "slug");
+
+    // For each known key, find "name":"<key>" and read nearby fields
+    for (int i = 0; i < kCount; i++) {
+        std::string needle = std::string("\"name\":\"") + kItems[i].key + "\"";
+        auto pos = body.find(needle);
+        if (pos == std::string::npos) {
+            Log(std::string("missing key ") + kItems[i].key);
+            continue;
+        }
+
+        // Search a window around the name (fields can be before/after name)
+        size_t from = (pos > 300) ? pos - 300 : 0;
+
         Quote q;
-        q.p = JsonStr(obj, "p");
-        q.dp = JsonNum(obj, "dp");
-        q.t = JsonStr(obj, "t");
-        if (!name.empty()) next[name] = q;
-        if (!slug.empty()) next[slug] = q;
-        pos = end + 1;
+        q.p = ExtractStrAfter(body, from, "p", 900);
+        q.dp = ExtractNumAfter(body, from, "dp", 900);
+        q.t = SanitizeTime(ExtractStrAfter(body, from, "t", 900));
+
+        // fallback: updated_at "YYYY-MM-DD HH:MM:SS" → take time part
+        if (q.t.empty()) {
+            std::string ua = ExtractStrAfter(body, from, "updated_at", 900);
+            auto sp = ua.find(' ');
+            if (sp != std::string::npos && sp + 1 < ua.size())
+                q.t = SanitizeTime(ua.substr(sp + 1, 8));
+        }
+
+        next[kItems[i].key] = q;
+        Log(std::string("ok ") + kItems[i].key + " p=" + q.p + " t=" + q.t +
+            " dp=" + std::to_string(q.dp));
     }
+
     EnterCriticalSection(&gCs);
     gData.swap(next);
     LeaveCriticalSection(&gCs);
@@ -241,14 +261,13 @@ static DWORD WINAPI FetchThread(LPVOID) {
         Log("HTTP ok len=" + std::to_string(body.size()));
         ParseAndStore(body);
         SYSTEMTIME st; GetLocalTime(&st);
-        wchar_t ts[32];
+        wchar_t ts[48];
         swprintf_s(ts, L"به‌روزرسانی %02d:%02d", st.wHour, st.wMinute);
         EnterCriticalSection(&gCs);
         gStatus = ToPersianDigits(ts);
         gError.clear();
         gFetching = false;
         LeaveCriticalSection(&gCs);
-        Log("Parsed keys=" + std::to_string(gData.size()));
     }
     PostMessageW(gMain, WM_DATA, 0, 0);
     return 0;
@@ -271,8 +290,8 @@ static void StartFetch() {
 
 static void ShowPopup() {
     POINT pt; GetCursorPos(&pt);
-    const int w = 460, h = 52 + kCount * 36 + 36;
-    int x = pt.x - w + 20;
+    const int w = 480, h = 56 + kCount * 36 + 20;
+    int x = pt.x - w + 24;
     int y = pt.y - h - 12;
     if (x < 8) x = 8;
     if (y < 8) y = pt.y + 28;
@@ -292,30 +311,29 @@ static void HidePopup() {
     gPopupVisible = false;
 }
 
-static void DrawTextRect(HDC hdc, const RECT& r, const wchar_t* text, UINT fmt, COLORREF color) {
+static void DrawTextRect(HDC hdc, RECT r, const wchar_t* text, UINT align, COLORREF color) {
     SetTextColor(hdc, color);
-    RECT rr = r;
-    DrawTextW(hdc, text, -1, &rr, fmt | DT_RTLREADING | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
+    DrawTextW(hdc, text, -1, &r,
+        align | DT_RTLREADING | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
 }
 
 static void PaintPopup(HWND hwnd) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     RECT rc; GetClientRect(hwnd, &rc);
+    const int W = rc.right;
+    const int m = 14;
 
-    // clean white background
     HBRUSH bg = CreateSolidBrush(RGB(255, 255, 255));
     FillRect(hdc, &rc, bg);
     DeleteObject(bg);
 
-    // top accent bar
-    RECT bar{ 0, 0, rc.right, 4 };
+    RECT bar{ 0, 0, W, 3 };
     HBRUSH accent = CreateSolidBrush(RGB(16, 122, 186));
     FillRect(hdc, &bar, accent);
     DeleteObject(accent);
 
-    // header strip
-    RECT head{ 0, 4, rc.right, 40 };
+    RECT head{ 0, 3, W, 42 };
     HBRUSH headBg = CreateSolidBrush(RGB(247, 249, 252));
     FillRect(hdc, &head, headBg);
     DeleteObject(headBg);
@@ -323,9 +341,9 @@ static void PaintPopup(HWND hwnd) {
     SetBkMode(hdc, TRANSPARENT);
     HFONT titleFont = CreateFontW(18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    HFONT rowFont = CreateFontW(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    HFONT rowFont = CreateFontW(15, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    HFONT smallFont = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    HFONT smallFont = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
 
     std::wstring status, error;
@@ -337,52 +355,57 @@ static void PaintPopup(HWND hwnd) {
     LeaveCriticalSection(&gCs);
 
     HFONT old = (HFONT)SelectObject(hdc, titleFont);
-    RECT titleR{ 12, 8, rc.right - 12, 36 };
-    DrawTextRect(hdc, titleR, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
-
+    // Title on the RIGHT (RTL)
+    DrawTextRect(hdc, RECT{ m, 10, W - m, 36 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
     SelectObject(hdc, smallFont);
-    RECT stR{ 12, 12, rc.right - 140, 34 };
-    DrawTextRect(hdc, stR, status.c_str(), DT_LEFT, RGB(100, 110, 125));
+    // Status on the LEFT
+    DrawTextRect(hdc, RECT{ m, 12, W / 2, 34 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
 
-    // column headers
+    /*
+      Visual RTL columns (right → left):
+        [شاخص] [قیمت] [تغییر] [زمان]
+        right ........................ left
+    */
+    const int nameW = 120;
+    const int priceW = 140;
+    const int chgW = 80;
+    // time gets the rest on the left
+
+    auto colName  = [&](int y1, int y2) { return RECT{ W - m - nameW, y1, W - m, y2 }; };
+    auto colPrice = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW, y1, W - m - nameW, y2 }; };
+    auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
+    auto colTime  = [&](int y1, int y2) { return RECT{ m, y1, W - m - nameW - priceW - chgW - 4, y2 }; };
+
+    int y0 = 48;
     SelectObject(hdc, smallFont);
-    int y0 = 44;
-    RECT hName{ 12, y0, 130, y0 + 20 };
-    RECT hPrice{ 130, y0, 280, y0 + 20 };
-    RECT hChg{ 280, y0, 370, y0 + 20 };
-    RECT hTime{ 370, y0, rc.right - 12, y0 + 20 };
-    DrawTextRect(hdc, hName, L"شاخص", DT_RIGHT, RGB(120, 130, 145));
-    DrawTextRect(hdc, hPrice, L"قیمت", DT_CENTER, RGB(120, 130, 145));
-    DrawTextRect(hdc, hChg, L"تغییر", DT_CENTER, RGB(120, 130, 145));
-    DrawTextRect(hdc, hTime, L"زمان", DT_CENTER, RGB(120, 130, 145));
+    DrawTextRect(hdc, colName(y0, y0 + 18),  L"شاخص", DT_RIGHT, RGB(120, 130, 145));
+    DrawTextRect(hdc, colPrice(y0, y0 + 18), L"قیمت", DT_CENTER, RGB(120, 130, 145));
+    DrawTextRect(hdc, colChg(y0, y0 + 18),   L"تغییر", DT_CENTER, RGB(120, 130, 145));
+    DrawTextRect(hdc, colTime(y0, y0 + 18),  L"زمان", DT_CENTER, RGB(120, 130, 145));
 
-    // separator under headers
     HPEN pen = CreatePen(PS_SOLID, 1, RGB(230, 234, 240));
     HPEN oldPen = (HPEN)SelectObject(hdc, pen);
-    MoveToEx(hdc, 12, y0 + 22, nullptr);
-    LineTo(hdc, rc.right - 12, y0 + 22);
+    MoveToEx(hdc, m, y0 + 20, nullptr);
+    LineTo(hdc, W - m, y0 + 20);
     SelectObject(hdc, oldPen);
     DeleteObject(pen);
 
     SelectObject(hdc, rowFont);
     for (int i = 0; i < kCount; i++) {
-        int y = 70 + i * 36;
+        int y = 72 + i * 36;
 
-        // zebra row
         if (i % 2 == 0) {
-            RECT zr{ 8, y - 4, rc.right - 8, y + 30 };
+            RECT zr{ m - 4, y - 4, W - m + 4, y + 30 };
             HBRUSH zb = CreateSolidBrush(RGB(250, 251, 253));
             FillRect(hdc, &zr, zb);
             DeleteObject(zb);
         }
 
-        RECT rName{ 12, y, 130, y + 28 };
-        DrawTextRect(hdc, rName, kItems[i].label, DT_RIGHT, RGB(25, 30, 40));
+        DrawTextRect(hdc, colName(y, y + 28), kItems[i].label, DT_RIGHT, RGB(25, 30, 40));
 
         auto it = snap.find(kItems[i].key);
-        if (it == snap.end()) {
-            RECT rDash{ 130, y, rc.right - 12, y + 28 };
-            DrawTextRect(hdc, rDash, L"—", DT_CENTER, RGB(170, 175, 185));
+        if (it == snap.end() || it->second.p.empty()) {
+            DrawTextRect(hdc, colPrice(y, y + 28), L"—", DT_CENTER, RGB(170, 175, 185));
             continue;
         }
 
@@ -399,25 +422,20 @@ static void PaintPopup(HWND hwnd) {
 
         COLORREF c = q.dp > 0 ? RGB(0, 140, 70) : (q.dp < 0 ? RGB(190, 40, 40) : RGB(90, 95, 105));
 
-        RECT rPrice{ 130, y, 280, y + 28 };
-        DrawTextRect(hdc, rPrice, price.c_str(), DT_CENTER, c);
+        DrawTextRect(hdc, colPrice(y, y + 28), price.c_str(), DT_CENTER, c);
 
         wchar_t chg[32];
         swprintf_s(chg, L"%+.2f%%", q.dp);
-        std::wstring chgFa = ToPersianDigits(chg);
-        RECT rChg{ 280, y, 370, y + 28 };
-        DrawTextRect(hdc, rChg, chgFa.c_str(), DT_CENTER, c);
+        DrawTextRect(hdc, colChg(y, y + 28), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
         std::wstring t = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
-        RECT rTime{ 370, y, rc.right - 12, y + 28 };
-        DrawTextRect(hdc, rTime, t.c_str(), DT_CENTER, RGB(110, 120, 135));
+        DrawTextRect(hdc, colTime(y, y + 28), t.c_str(), DT_CENTER, RGB(110, 120, 135));
     }
 
-    // footer
     if (!error.empty()) {
         SelectObject(hdc, smallFont);
-        RECT fr{ 12, rc.bottom - 28, rc.right - 12, rc.bottom - 6 };
-        DrawTextRect(hdc, fr, error.c_str(), DT_RIGHT, RGB(180, 50, 50));
+        DrawTextRect(hdc, RECT{ m, rc.bottom - 22, W - m, rc.bottom - 4 },
+            error.c_str(), DT_RIGHT, RGB(180, 50, 50));
     }
 
     SelectObject(hdc, old);
@@ -427,7 +445,7 @@ static void PaintPopup(HWND hwnd) {
     EndPaint(hwnd, &ps);
 }
 
-static void AddTray(HINSTANCE hi) {
+static void AddTray(HINSTANCE) {
     memset(&gNid, 0, sizeof(gNid));
     gNid.cbSize = sizeof(gNid);
     gNid.hWnd = gMain;
@@ -439,7 +457,6 @@ static void AddTray(HINSTANCE hi) {
     Shell_NotifyIconW(NIM_ADD, &gNid);
     gNid.uVersion = NOTIFYICON_VERSION_4;
     Shell_NotifyIconW(NIM_SETVERSION, &gNid);
-    Log("Tray added");
 }
 
 static void RemoveTray() {
@@ -450,23 +467,21 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_TRAY) {
         UINT ev = LOWORD(lp);
         if (ev == NIN_SELECT || ev == NIN_KEYSELECT || ev == WM_LBUTTONUP || ev == WM_LBUTTONDBLCLK) {
-            ShowPopup();
-            StartFetch();
+            ShowPopup(); StartFetch();
         } else if (ev == WM_MOUSEMOVE) {
             static DWORD last = 0;
             if (GetTickCount() - last > 900) {
                 last = GetTickCount();
-                ShowPopup();
-                StartFetch();
+                ShowPopup(); StartFetch();
             }
         } else if (ev == WM_RBUTTONUP || ev == WM_CONTEXTMENU) {
             POINT pt; GetCursorPos(&pt);
-            HMENU m = CreatePopupMenu();
-            AppendMenuW(m, MF_STRING, 1001, L"به‌روزرسانی");
-            AppendMenuW(m, MF_STRING, 1002, L"خروج");
+            HMENU menu = CreatePopupMenu();
+            AppendMenuW(menu, MF_STRING, 1001, L"به‌روزرسانی");
+            AppendMenuW(menu, MF_STRING, 1002, L"خروج");
             SetForegroundWindow(hwnd);
-            TrackPopupMenu(m, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN, pt.x, pt.y, 0, hwnd, nullptr);
-            DestroyMenu(m);
+            TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN, pt.x, pt.y, 0, hwnd, nullptr);
+            DestroyMenu(menu);
         }
         return 0;
     }
@@ -482,10 +497,7 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     }
-    if (msg == WM_TIMER && wp == kTimerId) {
-        StartFetch();
-        return 0;
-    }
+    if (msg == WM_TIMER && wp == kTimerId) { StartFetch(); return 0; }
     if (msg == WM_DESTROY) {
         KillTimer(hwnd, kTimerId);
         RemoveTray();
@@ -513,10 +525,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     wchar_t tmp[MAX_PATH];
     GetTempPathW(MAX_PATH, tmp);
     gLogPath = Narrow(tmp) + "TGJU-native.log";
-    {
-        std::ofstream f(gLogPath, std::ios::trunc);
-        f << "=== TGJU Native started ===\n";
-    }
+    { std::ofstream f(gLogPath, std::ios::trunc); f << "=== TGJU Native started ===\n"; }
 
     WNDCLASSW wc{};
     wc.lpfnWndProc = MainProc;
@@ -535,9 +544,9 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     gMain = CreateWindowExW(WS_EX_TOOLWINDOW, kClassMain, L"TGJU", 0,
         0, 0, 0, 0, nullptr, nullptr, hi, nullptr);
 
-    int h = 52 + kCount * 36 + 36;
+    int h = 56 + kCount * 36 + 20;
     gPopup = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, kClassPopup, L"TGJU",
-        WS_POPUP | WS_BORDER, 100, 100, 460, h, nullptr, nullptr, hi, nullptr);
+        WS_POPUP | WS_BORDER, 100, 100, 480, h, nullptr, nullptr, hi, nullptr);
 
     AddTray(hi);
     SetTimer(gMain, kTimerId, 5 * 60 * 1000, nullptr);
@@ -550,6 +559,5 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     }
 
     DeleteCriticalSection(&gCs);
-    Log("exit");
     return 0;
 }
