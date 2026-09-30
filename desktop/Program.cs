@@ -83,7 +83,7 @@ internal sealed class TrayApp : IDisposable
     const uint NIF_TIP = 4;
     const uint NIF_SHOWTIP = 0x80;
 
-    const uint TRANSPARENT = 1;
+    const int TRANSPARENT = 1;
     const int IDM_REFRESH = 1001;
     const int IDM_EXIT = 1002;
     const int TPM_RIGHTBUTTON = 0x0002;
@@ -95,15 +95,14 @@ internal sealed class TrayApp : IDisposable
         "crypto-tether-irr", "price_dollar_rl", "geram18",
         "ime_fund_kahroba", "ime_fund_ayar", "ons", "oil_brent"
     };
-    readonly string[] namesFa = { "تتر", "دلار", "گرم18", "کهربا", "عیار", "انس", "نفت" };
     readonly string[] namesEn = { "USDT", "USD", "Gold18", "Kahroba", "Ayar", "ONS", "Brent" };
 
     readonly object dataLock = new();
     readonly Dictionary<string, Quote> lastGood = new(StringComparer.OrdinalIgnoreCase);
     readonly WndProcDelegate wndProc;
     readonly WndProcDelegate popupProc;
-    readonly string className = "TGJUTrayNative3";
-    readonly string popupClass = "TGJUPopupNative3";
+    readonly string className = "TGJUTrayNative4";
+    readonly string popupClass = "TGJUPopupNative4";
     readonly string logPath;
 
     IntPtr hwnd;
@@ -234,7 +233,6 @@ internal sealed class TrayApp : IDisposable
                 lastGood.Clear();
                 foreach (var item in indicators)
                 {
-                    // API returns name=slug key like price_dollar_rl; also store slug field
                     if (!string.IsNullOrWhiteSpace(item.Name))
                         lastGood[item.Name] = item;
                     if (!string.IsNullOrWhiteSpace(item.Slug))
@@ -304,8 +302,7 @@ internal sealed class TrayApp : IDisposable
 
             SetWindowPos(popup, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
             ShowWindow(popup, SW_SHOW);
-            var visible = IsWindowVisible(popup);
-            Log($"ShowPopup at ({x},{y}) visible={visible} items={count}");
+            Log($"ShowPopup at ({x},{y}) visible={IsWindowVisible(popup)} items={count}");
 
             popupVisible = true;
             popupShownAt = DateTime.Now;
@@ -391,9 +388,7 @@ internal sealed class TrayApp : IDisposable
                     _ = LoadData();
                 }
                 else if (id == IDM_EXIT)
-                {
                     DestroyWindow(hwnd);
-                }
                 return IntPtr.Zero;
             }
 
@@ -473,17 +468,17 @@ internal sealed class TrayApp : IDisposable
             GetClientRect(hWnd, out var rc);
             int ch = rc.Bottom - rc.Top;
 
-            // light yellow background — CreateSolidBrush is in gdi32
             var bg = CreateSolidBrush(0x00CCFFFF);
             FillRect(dc, ref rc, bg);
             DeleteObject(bg);
 
-            SetBkMode(dc, (int)TRANSPARENT);
+            SetBkMode(dc, TRANSPARENT);
             SetTextColor(dc, 0x00000000);
 
+            // CreateFontW is in gdi32
             var font = CreateFontW(18, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
             var font2 = CreateFontW(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Consolas");
-            if (font == IntPtr.Zero) font = GetStockObject(17);
+            if (font == IntPtr.Zero) font = GetStockObject(17); // DEFAULT_GUI_FONT
             if (font2 == IntPtr.Zero) font2 = font;
             var old = SelectObject(dc, font);
 
@@ -539,7 +534,8 @@ internal sealed class TrayApp : IDisposable
             Log($"Paint #{paintCount} drawn={drawn} keys={snapshot.Count}");
 
             SelectObject(dc, old);
-            if (font != IntPtr.Zero) DeleteObject(font);
+            // only delete fonts we created (not stock objects)
+            if (font != IntPtr.Zero && font != GetStockObject(17)) DeleteObject(font);
             if (font2 != IntPtr.Zero && font2 != font) DeleteObject(font2);
         }
         catch (Exception ex)
@@ -586,7 +582,7 @@ internal sealed class TrayApp : IDisposable
 
     delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    // --- user32 ---
+    // user32
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern ushort RegisterClass(ref WNDCLASS lpWndClass);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateWindowEx(int exStyle, string className, string windowName, int style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
     [DllImport("user32.dll")] static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -610,7 +606,6 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT ps);
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")] static extern bool FillRect(IntPtr hdc, ref RECT rect, IntPtr brush);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateFontW(int h, int w, int e, int o, int weight, uint italic, uint underline, uint strike, uint charset, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreatePopupMenu();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, UIntPtr uIDNewItem, string lpNewItem);
     [DllImport("user32.dll")] static extern bool DestroyMenu(IntPtr hMenu);
@@ -618,7 +613,7 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    // --- gdi32 (CreateSolidBrush, text, fonts select) ---
+    // gdi32 — all drawing APIs
     [DllImport("gdi32.dll")] static extern IntPtr CreateSolidBrush(int color);
     [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
     [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
@@ -626,6 +621,10 @@ internal sealed class TrayApp : IDisposable
     [DllImport("gdi32.dll")] static extern int SetTextColor(IntPtr hdc, int color);
     [DllImport("gdi32.dll")] static extern int SetBkMode(IntPtr hdc, int mode);
     [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern bool TextOutW(IntPtr hdc, int x, int y, string lpString, int c);
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr CreateFontW(int h, int w, int e, int o, int weight,
+        uint italic, uint underline, uint strike, uint charset,
+        uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern bool Shell_NotifyIcon(uint message, ref NOTIFYICONDATA data);
