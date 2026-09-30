@@ -90,7 +90,6 @@ internal sealed class TrayApp : IDisposable
     const uint DT_SINGLELINE = 0x00000020;
     const uint DT_RTLREADING = 0x00020000;
     const uint DT_NOPREFIX = 0x00000800;
-    const uint DT_WORDBREAK = 0x00000010;
 
     const int IDM_REFRESH = 1001;
     const int IDM_EXIT = 1002;
@@ -240,7 +239,6 @@ internal sealed class TrayApp : IDisposable
     async Task LoadData()
     {
         if (loading) return;
-        // avoid hammering API on hover spam
         if ((DateTime.Now - lastFetch).TotalSeconds < 3 && lastGood.Count > 0) return;
 
         loading = true;
@@ -249,7 +247,6 @@ internal sealed class TrayApp : IDisposable
 
         try
         {
-            // Prefer the path that works on this machine (TLS1.2 + cert bypass)
             var result = await TryFetchHttp(bypassCert: true, tls12Only: true).ConfigureAwait(false);
             if (!result.ok)
                 result = await TryFetchHttp(bypassCert: false, tls12Only: false).ConfigureAwait(false);
@@ -267,7 +264,6 @@ internal sealed class TrayApp : IDisposable
                 lastGood.Clear();
                 foreach (var item in indicators)
                 {
-                    // API puts the slug in "name" and also in "slug"
                     if (!string.IsNullOrWhiteSpace(item.Slug))
                         lastGood[item.Slug] = item;
                     if (!string.IsNullOrWhiteSpace(item.Name))
@@ -394,9 +390,7 @@ internal sealed class TrayApp : IDisposable
                 int ev = unchecked((int)(long)lParam) & 0xFFFF;
                 if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT
                     || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
-                {
                     HandleTrayActivate();
-                }
                 else if (ev == (int)WM_MOUSEMOVE)
                 {
                     if ((DateTime.Now - lastHover).TotalMilliseconds >= 600)
@@ -471,16 +465,13 @@ internal sealed class TrayApp : IDisposable
                 return IntPtr.Zero;
             }
             if (msg == WM_ERASEBKGND)
-            {
-                // prevent flicker / blank erase; we paint fully in WM_PAINT
                 return (IntPtr)1;
-            }
             if (msg == WM_MOUSEMOVE)
             {
                 var tme = new TRACKMOUSEEVENT
                 {
                     cbSize = Marshal.SizeOf<TRACKMOUSEEVENT>(),
-                    dwFlags = 0x00000002, // TME_LEAVE
+                    dwFlags = 0x00000002,
                     hwndTrack = hWnd
                 };
                 TrackMouseEvent(ref tme);
@@ -509,23 +500,15 @@ internal sealed class TrayApp : IDisposable
             GetClientRect(hWnd, out var rc);
             Log($"PaintPopup client={rc.Right - rc.Left}x{rc.Bottom - rc.Top}");
 
-            // white background
             var bg = CreateSolidBrush(0x00FFFFFF);
             FillRect(dc, ref rc, bg);
             DeleteObject(bg);
 
-            // light border frame
-            var pen = CreateSolidBrush(0x00DDDDDD);
-            var frame = new RECT { Left = 0, Top = 0, Right = rc.Right, Bottom = 1 };
-            FillRect(dc, ref frame, pen);
-            DeleteObject(pen);
-
             var font = CreateFontW(20, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
             var small = CreateFontW(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
-            if (font == IntPtr.Zero) font = GetStockObject(17); // DEFAULT_GUI_FONT
+            if (font == IntPtr.Zero) font = GetStockObject(17);
             if (small == IntPtr.Zero) small = font;
             var old = SelectObject(dc, font);
-
             SetBkMode(dc, (int)TRANSPARENT);
 
             DrawTextRtl(dc, "شاخص", 8, 6, 100, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -555,11 +538,9 @@ internal sealed class TrayApp : IDisposable
                 double.TryParse(pStr, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out var p);
 
-                string price;
-                if (slugs[i] is "ons" or "oil_brent")
-                    price = p.ToString("N2");
-                else
-                    price = (p / 10.0).ToString("N0");
+                string price = slugs[i] is "ons" or "oil_brent"
+                    ? p.ToString("N2")
+                    : (p / 10.0).ToString("N0");
 
                 var color = q.Dp > 0 ? 0x00228B22 : q.Dp < 0 ? 0x002323B0 : 0x00008C8C;
                 SelectObject(dc, font);
@@ -625,7 +606,7 @@ internal sealed class TrayApp : IDisposable
     {
         var wc = new WNDCLASS
         {
-            style = 0x0003, // CS_HREDRAW | CS_VREDRAW
+            style = 0x0003,
             lpfnWndProc = proc,
             hInstance = hInst,
             lpszClassName = name,
@@ -666,7 +647,6 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern int SetBkMode(IntPtr hdc, int mode);
     [DllImport("user32.dll")] static extern bool FillRect(IntPtr hdc, ref RECT rect, IntPtr brush);
     [DllImport("user32.dll")] static extern IntPtr CreateSolidBrush(int color);
-    [DllImport("user32.dll")] static extern bool DeleteObject(IntPtr obj);
     [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateFontW(int h, int w, int e, int o, int weight, uint italic, uint underline, uint strike, uint charset, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
     [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
