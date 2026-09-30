@@ -80,10 +80,63 @@ static std::string Narrow(const std::wstring& w) {
 
 static std::wstring Wide(const std::string& s) {
     if (s.empty()) return {};
-    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
-    std::wstring w(n, 0);
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), &w[0], n);
-    return w;
+
+    // API text is normally UTF-8, but some TGJU fields can contain
+    // JSON unicode escapes or legacy Windows-1256 text. Decode robustly.
+    std::wstring out;
+    out.reserve(s.size());
+
+    // First handle JSON unicode escapes such as \\u06f1.
+    for (size_t i = 0; i < s.size(); ) {
+        if (i + 5 < s.size() && s[i] == '\\' && s[i + 1] == 'u') {
+            unsigned int v = 0;
+            bool ok = true;
+            for (int j = 0; j < 4; ++j) {
+                char ch = s[i + 2 + j];
+                unsigned int d = 0;
+                if (ch >= '0' && ch <= '9') d = ch - '0';
+                else if (ch >= 'a' && ch <= 'f') d = ch - 'a' + 10;
+                else if (ch >= 'A' && ch <= 'F') d = ch - 'A' + 10;
+                else { ok = false; break; }
+                v = (v << 4) | d;
+            }
+            if (ok) {
+                out.push_back((wchar_t)v);
+                i += 6;
+                continue;
+            }
+        }
+        out.push_back((unsigned char)s[i]);
+        ++i;
+    }
+
+    // If no unicode escapes were present, decode the original bytes.
+    if (out.size() == s.size()) {
+        int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+            s.c_str(), (int)s.size(), nullptr, 0);
+        if (n > 0) {
+            std::wstring w(n, 0);
+            MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                s.c_str(), (int)s.size(), &w[0], n);
+            return w;
+        }
+
+        n = MultiByteToWideChar(1256, 0, s.c_str(), (int)s.size(), nullptr, 0);
+        if (n > 0) {
+            std::wstring w(n, 0);
+            MultiByteToWideChar(1256, 0, s.c_str(), (int)s.size(), &w[0], n);
+            return w;
+        }
+    }
+
+    // The escaped path above may have produced UTF-16 code units directly.
+    // For normal ASCII/Persian text this is already the desired result.
+    bool hasHigh = false;
+    for (wchar_t ch : out) if (ch > 0x7F) { hasHigh = true; break; }
+    if (hasHigh) return out;
+
+    // ASCII-only text is safe as-is.
+    return out;
 }
 
 static std::wstring ToPersianDigits(const std::wstring& in) {
@@ -416,7 +469,9 @@ static void PaintPopup(HWND hwnd) {
         swprintf_s(chg, L"%+.2f%%", q.dp);
         DrawTextRect(hdc, colChg(y, y + 28), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
-        // Show TGJU "t" exactly: clock OR date label (۷ مهر)
+        // Decode TGJU "t" correctly (clock or date label) before drawing.
+        // This avoids mojibake when the API sends Persian text in UTF-8/CP1256
+        // or as JSON unicode escapes.
         std::wstring tShow = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
         DrawTextRect(hdc, colTime(y, y + 28), tShow.c_str(), DT_CENTER, RGB(110, 120, 135));
     }
