@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #define UNICODE
 #define _UNICODE
 #include <windows.h>
@@ -478,7 +479,8 @@ static void StartFetch() {
 
 static void ShowPopup() {
     POINT pt; GetCursorPos(&pt);
-    const int w = std::max(520,gSettings.margin*2+gSettings.nameW+gSettings.priceW+gSettings.chgW+gSettings.timeW);\n    const int h = 54+kCount*gSettings.rowGap+18;
+    const int w = std::max(520,gSettings.margin*2+gSettings.nameW+gSettings.priceW+gSettings.chgW+gSettings.timeW);
+    const int h = 54+kCount*gSettings.rowGap+18;
     int x = pt.x - w + 24;
     int y = pt.y - h - 12;
     if (x < 8) x = 8;
