@@ -377,7 +377,7 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
     [DllImport("user32.dll")] static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr iconName);
     [DllImport("user32.dll")] static extern IntPtr LoadCursor(IntPtr hInstance, int cursor);
-    [DllImport("user32.dll")] static extern IntPtr GetModuleHandle(string? name);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
     [DllImport("user32.dll")] static extern bool SetTimer(IntPtr hWnd, uint id, uint ms, IntPtr callback);
     [DllImport("user32.dll")] static extern bool KillTimer(IntPtr hWnd, uint id);
     [DllImport("user32.dll")] static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT tme);
