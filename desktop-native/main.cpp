@@ -557,6 +557,7 @@ static void PaintPopup(HWND hwnd) {
     auto colName  = [&](int y1, int y2) { return RECT{ W - m - nameW, y1, W - m, y2 }; };
     auto colPrice = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW, y1, W - m - nameW, y2 }; };
     auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
+    const int timeW = 110;
     auto colTime  = [&](int y1,int y2){return RECT{m,y1,m+timeW,y2};};
 
     int y0 = 46;
