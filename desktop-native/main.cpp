@@ -45,7 +45,7 @@ static const int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 struct Quote {
     std::string p;
     double dp = 0;
-    std::string time; // HH:MM:SS from updated_at
+    std::string t; // API field "t": clock (۱۱:۲۰:۰۵) OR date label (۷ مهر)
 };
 
 static HWND gMain = nullptr;
@@ -157,22 +157,9 @@ static double ExtractNumNear(const std::string& body, size_t from, const char* k
     try { return std::stod(body.substr(v)); } catch (...) { return 0; }
 }
 
-// "2026-09-30 11:44:18" → "11:44:18"
-static std::string TimeFromUpdatedAt(const std::string& ua) {
-    auto sp = ua.find(' ');
-    if (sp == std::string::npos || sp + 1 >= ua.size()) return {};
-    std::string clock = ua.substr(sp + 1);
-    // keep HH:MM:SS or HH:MM
-    if (clock.size() >= 8) clock = clock.substr(0, 8);
-    else if (clock.size() >= 5) clock = clock.substr(0, 5);
-    else return {};
-    if (clock.find(':') == std::string::npos) return {};
-    return clock;
-}
-
 static bool HttpGet(const std::wstring& host, const std::wstring& path, std::string& out, std::string& err) {
     out.clear();
-    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.4",
+    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.5",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ses) { err = "WinHttpOpen failed"; return false; }
 
@@ -231,16 +218,14 @@ static void ParseAndStore(const std::string& body) {
         Quote q;
         q.p = ExtractStrNear(body, pos, "p");
         q.dp = ExtractNumNear(body, pos, "dp");
-
-        // Real last-update timestamp from TGJU
-        std::string ua = ExtractStrNear(body, pos, "updated_at");
-        q.time = TimeFromUpdatedAt(ua);
+        // TGJU display time/label — keep as-is (e.g. "۱۱:۲۰:۰۵" or "۷ مهر")
+        q.t = ExtractStrNear(body, pos, "t");
 
         next[kItems[i].key] = q;
 
         char line[320];
-        sprintf_s(line, "key=%s p=%s dp=%.2f updated_at='%s' time='%s'",
-            kItems[i].key, q.p.c_str(), q.dp, ua.c_str(), q.time.c_str());
+        sprintf_s(line, "key=%s p=%s dp=%.2f t='%s'",
+            kItems[i].key, q.p.c_str(), q.dp, q.t.c_str());
         Log(line);
     }
 
@@ -384,7 +369,7 @@ static void PaintPopup(HWND hwnd) {
     DrawTextRect(hdc, colName(y0, y0 + 18),  L"شاخص", DT_RIGHT, RGB(120, 130, 145));
     DrawTextRect(hdc, colPrice(y0, y0 + 18), L"قیمت", DT_CENTER, RGB(120, 130, 145));
     DrawTextRect(hdc, colChg(y0, y0 + 18),   L"تغییر", DT_CENTER, RGB(120, 130, 145));
-    DrawTextRect(hdc, colTime(y0, y0 + 18),  L"آخرین آپدیت", DT_CENTER, RGB(120, 130, 145));
+    DrawTextRect(hdc, colTime(y0, y0 + 18),  L"زمان", DT_CENTER, RGB(120, 130, 145));
 
     HPEN pen = CreatePen(PS_SOLID, 1, RGB(230, 234, 240));
     HPEN oldPen = (HPEN)SelectObject(hdc, pen);
@@ -431,7 +416,8 @@ static void PaintPopup(HWND hwnd) {
         swprintf_s(chg, L"%+.2f%%", q.dp);
         DrawTextRect(hdc, colChg(y, y + 28), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
-        std::wstring tShow = q.time.empty() ? L"—" : ToPersianDigits(Wide(q.time));
+        // Show TGJU "t" exactly: clock OR date label (۷ مهر)
+        std::wstring tShow = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
         DrawTextRect(hdc, colTime(y, y + 28), tShow.c_str(), DT_CENTER, RGB(110, 120, 135));
     }
 
