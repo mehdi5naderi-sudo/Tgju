@@ -638,7 +638,7 @@ internal sealed class TrayApp : IDisposable
     public sealed class Quote
     {
         [JsonPropertyName("name")] public string Name { get; set; } = "";
-        [JsonPropertyName("slug")] public stringSlug { get; set; } = "";
+        [JsonPropertyName("slug")] public string Slug { get; set; } = "";
         [JsonPropertyName("p")] public string P { get; set; } = "";
         [JsonPropertyName("dp")] public double Dp { get; set; }
         [JsonPropertyName("t")] public string T { get; set; } = "";
