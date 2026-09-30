@@ -9,7 +9,6 @@
 #include <fstream>
 #include <cstdio>
 #include <cstring>
-#include <cctype>
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "shell32.lib")
@@ -46,7 +45,7 @@ static const int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 struct Quote {
     std::string p;
     double dp = 0;
-    std::string t; // HH:MM or HH:MM:SS only
+    std::string t; // raw from API field "t" (indicator update time)
 };
 
 static HWND gMain = nullptr;
@@ -122,40 +121,57 @@ static std::wstring FormatNumber(double v, int decimals) {
     return ToPersianDigits(grouped + fp);
 }
 
-// Extract "key":"value" after position `from`, within next `limit` chars
-static std::string ExtractStrAfter(const std::string& body, size_t from, const char* key, size_t limit = 800) {
+// Extract "key":"value" near position `from`
+static std::string ExtractStrNear(const std::string& body, size_t from, const char* key, size_t window = 1200) {
     std::string pat = std::string("\"") + key + "\":\"";
-    size_t endSearch = (from + limit < body.size()) ? from + limit : body.size();
-    auto p = body.find(pat, from);
-    if (p == std::string::npos || p >= endSearch) return {};
-    p += pat.size();
-    auto e = body.find('"', p);
-    if (e == std::string::npos || e > from + limit + 64) return {};
-    return body.substr(p, e - p);
+    size_t start = (from > 400) ? from - 400 : 0;
+    size_t endSearch = (from + window < body.size()) ? from + window : body.size();
+
+    // Prefer match closest to `from` (after name field)
+    size_t best = std::string::npos;
+    size_t p = body.find(pat, start);
+    while (p != std::string::npos && p < endSearch) {
+        if (best == std::string::npos || (p >= from && p < best) || (best < from && p > best))
+            best = p;
+        // keep first match at or after `from`
+        if (p >= from) { best = p; break; }
+        p = body.find(pat, p + pat.size());
+    }
+    if (best == std::string::npos) return {};
+    size_t v = best + pat.size();
+    auto e = body.find('"', v);
+    if (e == std::string::npos) return {};
+    return body.substr(v, e - v);
 }
 
-static double ExtractNumAfter(const std::string& body, size_t from, const char* key, size_t limit = 800) {
+static double ExtractNumNear(const std::string& body, size_t from, const char* key, size_t window = 1200) {
     std::string pat = std::string("\"") + key + "\":";
-    size_t endSearch = (from + limit < body.size()) ? from + limit : body.size();
-    auto p = body.find(pat, from);
-    if (p == std::string::npos || p >= endSearch) return 0;
-    p += pat.size();
-    while (p < body.size() && (body[p] == ' ' || body[p] == '\t')) p++;
-    try { return std::stod(body.substr(p)); } catch (...) { return 0; }
+    size_t start = (from > 400) ? from - 400 : 0;
+    size_t endSearch = (from + window < body.size()) ? from + window : body.size();
+    size_t p = body.find(pat, start);
+    size_t best = std::string::npos;
+    while (p != std::string::npos && p < endSearch) {
+        if (p >= from) { best = p; break; }
+        best = p;
+        p = body.find(pat, p + pat.size());
+    }
+    if (best == std::string::npos) return 0;
+    size_t v = best + pat.size();
+    while (v < body.size() && (body[v] == ' ' || body[v] == '\t')) v++;
+    try { return std::stod(body.substr(v)); } catch (...) { return 0; }
 }
 
-// Keep only clock-like text (has ':' and short)
-static std::string SanitizeTime(const std::string& t) {
-    if (t.empty() || t.size() > 16) return {};
-    if (t.find(':') == std::string::npos) return {};
-    // reject if looks like a date (has '-' or '/')
-    if (t.find('-') != std::string::npos || t.find('/') != std::string::npos) return {};
-    return t;
+// Accept API "t" values (ASCII or Persian digits). Reject dates.
+static bool LooksLikeClock(const std::wstring& w) {
+    if (w.empty() || w.size() > 12) return false;
+    if (w.find(L':') == std::wstring::npos) return false;
+    if (w.find(L'-') != std::wstring::npos || w.find(L'/') != std::wstring::npos) return false;
+    return true;
 }
 
 static bool HttpGet(const std::wstring& host, const std::wstring& path, std::string& out, std::string& err) {
     out.clear();
-    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.2",
+    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.3",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ses) { err = "WinHttpOpen failed"; return false; }
 
@@ -203,34 +219,32 @@ static bool HttpGet(const std::wstring& host, const std::wstring& path, std::str
 static void ParseAndStore(const std::string& body) {
     std::map<std::string, Quote> next;
 
-    // For each known key, find "name":"<key>" and read nearby fields
     for (int i = 0; i < kCount; i++) {
         std::string needle = std::string("\"name\":\"") + kItems[i].key + "\"";
         auto pos = body.find(needle);
         if (pos == std::string::npos) {
-            Log(std::string("missing key ") + kItems[i].key);
+            Log(std::string("missing ") + kItems[i].key);
             continue;
         }
 
-        // Search a window around the name (fields can be before/after name)
-        size_t from = (pos > 300) ? pos - 300 : 0;
-
         Quote q;
-        q.p = ExtractStrAfter(body, from, "p", 900);
-        q.dp = ExtractNumAfter(body, from, "dp", 900);
-        q.t = SanitizeTime(ExtractStrAfter(body, from, "t", 900));
+        q.p = ExtractStrNear(body, pos, "p");
+        q.dp = ExtractNumNear(body, pos, "dp");
 
-        // fallback: updated_at "YYYY-MM-DD HH:MM:SS" → take time part
-        if (q.t.empty()) {
-            std::string ua = ExtractStrAfter(body, from, "updated_at", 900);
-            auto sp = ua.find(' ');
-            if (sp != std::string::npos && sp + 1 < ua.size())
-                q.t = SanitizeTime(ua.substr(sp + 1, 8));
-        }
+        // IMPORTANT: field "t" = last update time of this indicator on TGJU
+        std::string tRaw = ExtractStrNear(body, pos, "t");
+        std::wstring tw = Wide(tRaw);
+        if (LooksLikeClock(tw))
+            q.t = tRaw;
+        else
+            q.t.clear();
 
         next[kItems[i].key] = q;
-        Log(std::string("ok ") + kItems[i].key + " p=" + q.p + " t=" + q.t +
-            " dp=" + std::to_string(q.dp));
+
+        char line[256];
+        sprintf_s(line, "key=%s p=%s dp=%.2f t_bytes=%d t='%s'",
+            kItems[i].key, q.p.c_str(), q.dp, (int)q.t.size(), q.t.c_str());
+        Log(line);
     }
 
     EnterCriticalSection(&gCs);
@@ -260,9 +274,10 @@ static DWORD WINAPI FetchThread(LPVOID) {
     } else {
         Log("HTTP ok len=" + std::to_string(body.size()));
         ParseAndStore(body);
+        // status = local fetch clock only (header), NOT per-row time
         SYSTEMTIME st; GetLocalTime(&st);
         wchar_t ts[48];
-        swprintf_s(ts, L"به‌روزرسانی %02d:%02d", st.wHour, st.wMinute);
+        swprintf_s(ts, L"خواندن %02d:%02d", st.wHour, st.wMinute);
         EnterCriticalSection(&gCs);
         gStatus = ToPersianDigits(ts);
         gError.clear();
@@ -355,21 +370,14 @@ static void PaintPopup(HWND hwnd) {
     LeaveCriticalSection(&gCs);
 
     HFONT old = (HFONT)SelectObject(hdc, titleFont);
-    // Title on the RIGHT (RTL)
     DrawTextRect(hdc, RECT{ m, 10, W - m, 36 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
     SelectObject(hdc, smallFont);
-    // Status on the LEFT
     DrawTextRect(hdc, RECT{ m, 12, W / 2, 34 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
 
-    /*
-      Visual RTL columns (right → left):
-        [شاخص] [قیمت] [تغییر] [زمان]
-        right ........................ left
-    */
+    // RTL columns: right → left : Name | Price | Change | Time
     const int nameW = 120;
     const int priceW = 140;
     const int chgW = 80;
-    // time gets the rest on the left
 
     auto colName  = [&](int y1, int y2) { return RECT{ W - m - nameW, y1, W - m, y2 }; };
     auto colPrice = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW, y1, W - m - nameW, y2 }; };
@@ -381,7 +389,7 @@ static void PaintPopup(HWND hwnd) {
     DrawTextRect(hdc, colName(y0, y0 + 18),  L"شاخص", DT_RIGHT, RGB(120, 130, 145));
     DrawTextRect(hdc, colPrice(y0, y0 + 18), L"قیمت", DT_CENTER, RGB(120, 130, 145));
     DrawTextRect(hdc, colChg(y0, y0 + 18),   L"تغییر", DT_CENTER, RGB(120, 130, 145));
-    DrawTextRect(hdc, colTime(y0, y0 + 18),  L"زمان", DT_CENTER, RGB(120, 130, 145));
+    DrawTextRect(hdc, colTime(y0, y0 + 18),  L"زمان شاخص", DT_CENTER, RGB(120, 130, 145));
 
     HPEN pen = CreatePen(PS_SOLID, 1, RGB(230, 234, 240));
     HPEN oldPen = (HPEN)SelectObject(hdc, pen);
@@ -428,8 +436,14 @@ static void PaintPopup(HWND hwnd) {
         swprintf_s(chg, L"%+.2f%%", q.dp);
         DrawTextRect(hdc, colChg(y, y + 28), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
-        std::wstring t = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
-        DrawTextRect(hdc, colTime(y, y + 28), t.c_str(), DT_CENTER, RGB(110, 120, 135));
+        // Per-indicator update time from API field "t"
+        std::wstring tShow = L"—";
+        if (!q.t.empty()) {
+            std::wstring tw = Wide(q.t);
+            if (LooksLikeClock(tw))
+                tShow = ToPersianDigits(tw);
+        }
+        DrawTextRect(hdc, colTime(y, y + 28), tShow.c_str(), DT_CENTER, RGB(110, 120, 135));
     }
 
     if (!error.empty()) {
