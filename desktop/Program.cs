@@ -22,8 +22,7 @@ internal static class Program
             {
                 var path = Path.Combine(Path.GetTempPath(), "TGJU-desktop.log");
                 File.AppendAllText(path,
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] FATAL: {e.ExceptionObject}{Environment.NewLine}",
-                    Encoding.UTF8);
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] FATAL: {e.ExceptionObject}{Environment.NewLine}", Encoding.UTF8);
             }
             catch { }
         };
@@ -39,8 +38,7 @@ internal static class Program
             {
                 var path = Path.Combine(Path.GetTempPath(), "TGJU-desktop.log");
                 File.AppendAllText(path,
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] MAIN EX: {ex}{Environment.NewLine}",
-                    Encoding.UTF8);
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] MAIN EX: {ex}{Environment.NewLine}", Encoding.UTF8);
             }
             catch { }
         }
@@ -49,6 +47,7 @@ internal static class Program
 
 internal sealed class TrayApp : IDisposable
 {
+    // --- messages ---
     const uint WM_APP = 0x8000;
     const uint WM_TRAY = WM_APP + 1;
     const uint WM_DATA_READY = WM_APP + 3;
@@ -66,16 +65,26 @@ internal sealed class TrayApp : IDisposable
     const uint NIN_SELECT = WM_USER + 0;
     const uint NIN_KEYSELECT = WM_USER + 1;
 
+    // --- window styles ---
     const int WS_EX_TOOLWINDOW = 0x00000080;
     const int WS_EX_TOPMOST = 0x00000008;
     const int WS_EX_NOACTIVATE = 0x08000000;
     const int WS_POPUP = unchecked((int)0x80000000);
     const int WS_BORDER = 0x00800000;
+    const int WS_VISIBLE = 0x10000000;
+
     const uint SW_HIDE = 0;
+    const uint SW_SHOW = 5;
     const uint SW_SHOWNOACTIVATE = 4;
-    const uint HWND_TOPMOST = unchecked(0xFFFFFFFF);
+
+    // CRITICAL: must be -1 as IntPtr on both 32/64-bit (not 0xFFFFFFFF uint)
+    static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+
     const uint SWP_NOACTIVATE = 0x0010;
     const uint SWP_SHOWWINDOW = 0x0040;
+    const uint SWP_NOMOVE = 0x0002;
+    const uint SWP_NOSIZE = 0x0001;
+
     const uint NIM_ADD = 0;
     const uint NIM_DELETE = 2;
     const uint NIM_SETVERSION = 4;
@@ -83,14 +92,9 @@ internal sealed class TrayApp : IDisposable
     const uint NIF_MESSAGE = 1;
     const uint NIF_ICON = 2;
     const uint NIF_TIP = 4;
-    const uint NIF_SHOWTIP = 0x00000080;
-    const uint TRANSPARENT = 1;
-    const uint DT_CENTER = 0x00000001;
-    const uint DT_VCENTER = 0x00000004;
-    const uint DT_SINGLELINE = 0x00000020;
-    const uint DT_RTLREADING = 0x00020000;
-    const uint DT_NOPREFIX = 0x00000800;
+    const uint NIF_SHOWTIP = 0x80;
 
+    const uint TRANSPARENT = 1;
     const int IDM_REFRESH = 1001;
     const int IDM_EXIT = 1002;
     const int TPM_RIGHTBUTTON = 0x0002;
@@ -102,14 +106,15 @@ internal sealed class TrayApp : IDisposable
         "crypto-tether-irr", "price_dollar_rl", "geram18",
         "ime_fund_kahroba", "ime_fund_ayar", "ons", "oil_brent"
     };
-    readonly string[] names = { "تتر", "دلار", "گرم ۱۸", "کهربا", "عیار", "انس", "نفت برنت" };
+    readonly string[] namesFa = { "تتر", "دلار", "گرم18", "کهربا", "عیار", "انس", "نفت" };
+    readonly string[] namesEn = { "USDT", "USD", "Gold18", "Kahroba", "Ayar", "ONS", "Brent" };
 
     readonly object dataLock = new();
-    readonly Dictionary<string, Quote> lastGood = new();
+    readonly Dictionary<string, Quote> lastGood = new(StringComparer.OrdinalIgnoreCase);
     readonly WndProcDelegate wndProc;
     readonly WndProcDelegate popupProc;
-    readonly string className = "TGJUTrayNative";
-    readonly string popupClass = "TGJUPopupNative";
+    readonly string className = "TGJUTrayNative2";
+    readonly string popupClass = "TGJUPopupNative2";
     readonly string logPath;
 
     IntPtr hwnd;
@@ -121,48 +126,62 @@ internal sealed class TrayApp : IDisposable
     DateTime lastHover = DateTime.MinValue;
     DateTime popupShownAt = DateTime.MinValue;
     DateTime lastFetch = DateTime.MinValue;
-    string statusText = "در حال دریافت اطلاعات...";
+    string statusText = "loading...";
     string lastError = "";
+    int paintCount;
 
     public TrayApp()
     {
         logPath = Path.Combine(Path.GetTempPath(), "TGJU-desktop.log");
         try { File.WriteAllText(logPath, "", Encoding.UTF8); } catch { }
+
         Log("=== TGJU Desktop started ===");
-        Log($"Log file: {logPath}");
-        Log($"OS: {Environment.OSVersion} 64bit={Environment.Is64BitProcess}");
+        Log($"Log: {logPath}");
+        Log($"OS={Environment.OSVersion} x64={Environment.Is64BitProcess} CLR={Environment.Version}");
+        Log($"HWND_TOPMOST ptr={HWND_TOPMOST.ToInt64()}");
 
         wndProc = MainWndProc;
         popupProc = PopupWndProc;
 
         var hInst = GetModuleHandle(null);
-        Register(className, wndProc, hInst);
-        Register(popupClass, popupProc, hInst);
+        Log($"hInst={hInst}");
+
+        var reg1 = Register(className, wndProc, hInst);
+        var reg2 = Register(popupClass, popupProc, hInst);
+        Log($"RegisterClass main={reg1} popup={reg2} err={GetLastError()}");
 
         hwnd = CreateWindowEx(WS_EX_TOOLWINDOW, className, "TGJU", 0,
             0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
-        Log($"Main hwnd={hwnd}");
+        Log($"Main hwnd={hwnd} err={GetLastError()}");
 
+        // Popup: TOPMOST + TOOLWINDOW. Start hidden.
         popup = CreateWindowEx(
-            WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
-            popupClass, "TGJU Popup", WS_POPUP | WS_BORDER,
-            0, 0, 460, 410, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
-        Log($"Popup hwnd={popup}");
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            popupClass, "TGJU Popup",
+            WS_POPUP | WS_BORDER,
+            100, 100, 480, 420,
+            IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
+        Log($"Popup hwnd={popup} err={GetLastError()}");
 
         icon = LoadIcon(IntPtr.Zero, new IntPtr(32512));
+        Log($"Icon={icon}");
+
         AddTrayIcon();
         SetTimer(hwnd, timerId, 300000, IntPtr.Zero);
+        Log("Timer set, loading data...");
         _ = LoadData();
     }
 
     public void Run()
     {
+        Log("Message loop start");
         MSG msg;
         while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0)
         {
             TranslateMessage(ref msg);
             DispatchMessage(ref msg);
         }
+        Log("Message loop end");
     }
 
     void Log(string line)
@@ -170,8 +189,7 @@ internal sealed class TrayApp : IDisposable
         try
         {
             File.AppendAllText(logPath,
-                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}{Environment.NewLine}",
-                Encoding.UTF8);
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}{Environment.NewLine}", Encoding.UTF8);
         }
         catch { }
     }
@@ -182,82 +200,61 @@ internal sealed class TrayApp : IDisposable
             PostMessage(hwnd, WM_DATA_READY, IntPtr.Zero, IntPtr.Zero);
     }
 
-    static string ApiUrl(string[] slugs) =>
-        "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
+    static string ApiUrl(string[] s) =>
+        "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", s);
 
-    static HttpClient CreateClient(bool bypassCert, bool tls12Only)
+    static HttpClient CreateClient()
     {
-        var ssl = tls12Only ? SslProtocols.Tls12 : (SslProtocols.Tls12 | SslProtocols.Tls13);
         var sockets = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
             ConnectTimeout = TimeSpan.FromSeconds(15),
             SslOptions = new SslClientAuthenticationOptions
             {
-                EnabledSslProtocols = ssl,
-                RemoteCertificateValidationCallback = bypassCert
-                    ? static (_, _, _, _) => true
-                    : null
+                EnabledSslProtocols = SslProtocols.Tls12,
+                RemoteCertificateValidationCallback = static (_, _, _, _) => true
             }
         };
         var c = new HttpClient(sockets) { Timeout = TimeSpan.FromSeconds(25) };
         c.DefaultRequestVersion = HttpVersion.Version11;
         c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-        c.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
-        c.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
-        c.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "fa-IR,fa;q=0.9,en;q=0.8");
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/128.0.0.0");
+        c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         return c;
-    }
-
-    async Task<(bool ok, string body, string error)> TryFetchHttp(bool bypassCert, bool tls12Only)
-    {
-        var api = ApiUrl(slugs);
-        Log($"GET HttpClient (bypass={bypassCert}, tls12Only={tls12Only})");
-        try
-        {
-            using var client = CreateClient(bypassCert, tls12Only);
-            using var response = await client.GetAsync(api).ConfigureAwait(false);
-            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            Log($"HTTP {(int)response.StatusCode} len={body.Length}");
-            if (body.Length > 0)
-                Log("Body head: " + body[..Math.Min(body.Length, 200)]);
-            if (!response.IsSuccessStatusCode)
-                return (false, "", $"HTTP {(int)response.StatusCode}");
-            return (true, body, "");
-        }
-        catch (Exception ex)
-        {
-            var msg = ex.Message;
-            for (var e = ex.InnerException; e != null; e = e.InnerException)
-                msg += " | " + e.Message;
-            Log($"HttpClient error: {msg}");
-            return (false, "", msg);
-        }
     }
 
     async Task LoadData()
     {
-        if (loading) return;
-        if ((DateTime.Now - lastFetch).TotalSeconds < 3 && lastGood.Count > 0) return;
+        if (loading) { Log("LoadData skipped (already loading)"); return; }
+        if ((DateTime.Now - lastFetch).TotalSeconds < 3 && lastGood.Count > 0)
+        {
+            Log("LoadData skipped (fresh cache)");
+            return;
+        }
 
         loading = true;
-        statusText = "در حال دریافت اطلاعات...";
+        statusText = "loading...";
         NotifyUi();
+        Log("LoadData start");
 
         try
         {
-            var result = await TryFetchHttp(bypassCert: true, tls12Only: true).ConfigureAwait(false);
-            if (!result.ok)
-                result = await TryFetchHttp(bypassCert: false, tls12Only: false).ConfigureAwait(false);
+            var api = ApiUrl(slugs);
+            Log("GET " + api);
+            using var client = CreateClient();
+            using var response = await client.GetAsync(api).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Log($"HTTP {(int)response.StatusCode} len={body.Length}");
+            if (body.Length > 0)
+                Log("Body: " + body[..Math.Min(body.Length, 180)]);
 
-            if (!result.ok)
-                throw new Exception(result.error);
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"HTTP {(int)response.StatusCode}");
 
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var data = JsonSerializer.Deserialize<ApiResponse>(result.body, opts);
+            var data = JsonSerializer.Deserialize<ApiResponse>(body, opts);
             var indicators = data?.Response?.Indicators ?? new List<Quote>();
-            Log($"Parsed indicators={indicators.Count}");
+            Log($"Parsed count={indicators.Count}");
 
             lock (dataLock)
             {
@@ -268,23 +265,20 @@ internal sealed class TrayApp : IDisposable
                         lastGood[item.Slug] = item;
                     if (!string.IsNullOrWhiteSpace(item.Name))
                         lastGood[item.Name] = item;
-                    Log($"  slug={item.Slug} name={item.Name} p={item.P} dp={item.Dp}");
+                    Log($"  + {item.Slug}/{item.Name} p={item.P} dp={item.Dp} t={item.T}");
                 }
             }
 
             lastError = "";
             lastFetch = DateTime.Now;
-            int count;
-            lock (dataLock) count = lastGood.Count;
-            statusText = count > 0
-                ? $"به‌روزرسانی: {DateTime.Now:HH:mm:ss}"
-                : "داده‌ای دریافت نشد";
+            statusText = $"ok {DateTime.Now:HH:mm:ss}";
+            Log($"LoadData ok items={lastGood.Count}");
         }
         catch (Exception ex)
         {
-            lastError = ex.Message.Length > 60 ? ex.Message[..60] + "…" : ex.Message;
-            statusText = "خطا در دریافت داده";
-            Log($"ERROR final: {ex.Message}");
+            lastError = ex.Message.Length > 80 ? ex.Message[..80] : ex.Message;
+            statusText = "error";
+            Log("LoadData ERROR: " + ex);
         }
         finally
         {
@@ -303,14 +297,15 @@ internal sealed class TrayApp : IDisposable
             uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP,
             uCallbackMessage = WM_TRAY,
             hIcon = icon,
-            szTip = "شاخص‌های TGJU"
+            szTip = "TGJU"
         };
-        var added = Shell_NotifyIcon(NIM_ADD, ref n);
-        Log($"Shell_NotifyIcon(NIM_ADD) => {added}");
-        if (added)
+        var ok = Shell_NotifyIcon(NIM_ADD, ref n);
+        Log($"NIM_ADD={ok} err={GetLastError()}");
+        if (ok)
         {
             n.uVersion = NOTIFYICON_VERSION_4;
-            Shell_NotifyIcon(NIM_SETVERSION, ref n);
+            var v = Shell_NotifyIcon(NIM_SETVERSION, ref n);
+            Log($"NIM_SETVERSION={v}");
         }
     }
 
@@ -318,6 +313,7 @@ internal sealed class TrayApp : IDisposable
     {
         var n = new NOTIFYICONDATA { cbSize = Marshal.SizeOf<NOTIFYICONDATA>(), hWnd = hwnd, uID = 1 };
         Shell_NotifyIcon(NIM_DELETE, ref n);
+        Log("Tray removed");
     }
 
     void ShowPopup()
@@ -325,36 +321,46 @@ internal sealed class TrayApp : IDisposable
         try
         {
             GetCursorPos(out var pt);
-            var screen = MonitorFromPoint(pt, 2);
-            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            GetMonitorInfo(screen, ref mi);
+            Log($"ShowPopup cursor=({pt.X},{pt.Y})");
 
-            const int w = 460, h = 410;
-            int x = Math.Min(pt.X - w + 16, mi.rcWork.Right - w - 8);
-            int y = pt.Y - h - 12;
-            if (y < mi.rcWork.Top + 8) y = pt.Y + 24;
-            if (x < mi.rcWork.Left + 8) x = mi.rcWork.Left + 8;
+            // Place above cursor; clamp to primary-ish area
+            const int w = 480, h = 420;
+            int x = pt.X - w / 2;
+            int y = pt.Y - h - 20;
+            if (x < 8) x = 8;
+            if (y < 8) y = pt.Y + 30;
 
             int count;
             lock (dataLock) count = lastGood.Count;
-            Log($"ShowPopup at ({x},{y}) items={count} visible={popupVisible}");
 
-            SetWindowPos(popup, new IntPtr(HWND_TOPMOST), x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-            ShowWindow(popup, SW_SHOWNOACTIVATE);
+            // Use HWND_TOPMOST = -1 (fixed for x64)
+            var posOk = SetWindowPos(popup, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
+            Log($"SetWindowPos ok={posOk} at ({x},{y},{w},{h}) err={GetLastError()}");
+
+            var showOk = ShowWindow(popup, SW_SHOW);
+            Log($"ShowWindow(SW_SHOW) prevVisible={showOk}");
+
+            var visible = IsWindowVisible(popup);
+            GetWindowRect(popup, out var wr);
+            Log($"IsWindowVisible={visible} rect=({wr.Left},{wr.Top})-({wr.Right},{wr.Bottom}) items={count}");
+
             popupVisible = true;
             popupShownAt = DateTime.Now;
-            InvalidateRect(popup, IntPtr.Zero, true);
-            UpdateWindow(popup);
+
+            var inv = InvalidateRect(popup, IntPtr.Zero, true);
+            var upd = UpdateWindow(popup);
+            Log($"Invalidate={inv} UpdateWindow={upd} paintCount={paintCount}");
         }
         catch (Exception ex)
         {
-            Log("ShowPopup EX: " + ex.Message);
+            Log("ShowPopup EX: " + ex);
         }
     }
 
     void HidePopup()
     {
-        if ((DateTime.Now - popupShownAt).TotalMilliseconds < 800) return;
+        // Keep visible at least 3s so user can see it
+        if ((DateTime.Now - popupShownAt).TotalMilliseconds < 3000) return;
         if (!popupVisible) return;
         ShowWindow(popup, SW_HIDE);
         popupVisible = false;
@@ -365,17 +371,19 @@ internal sealed class TrayApp : IDisposable
     {
         GetCursorPos(out var pt);
         var menu = CreatePopupMenu();
-        AppendMenuW(menu, 0, (UIntPtr)IDM_REFRESH, "به‌روزرسانی");
-        AppendMenuW(menu, 0, (UIntPtr)IDM_EXIT, "خروج");
+        AppendMenuW(menu, 0, (UIntPtr)IDM_REFRESH, "Refresh");
+        AppendMenuW(menu, 0, (UIntPtr)IDM_EXIT, "Exit");
         SetForegroundWindow(hwnd);
         TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN,
             pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
         PostMessage(hwnd, 0, IntPtr.Zero, IntPtr.Zero);
         DestroyMenu(menu);
+        Log("Context menu");
     }
 
-    void HandleTrayActivate()
+    void HandleTrayActivate(string reason)
     {
+        Log($"TrayActivate reason={reason}");
         lastHover = DateTime.Now;
         ShowPopup();
         _ = LoadData();
@@ -388,13 +396,14 @@ internal sealed class TrayApp : IDisposable
             if (msg == WM_TRAY)
             {
                 int ev = unchecked((int)(long)lParam) & 0xFFFF;
+                Log($"WM_TRAY ev=0x{ev:X4}");
                 if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT
                     || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
-                    HandleTrayActivate();
+                    HandleTrayActivate($"click/select 0x{ev:X4}");
                 else if (ev == (int)WM_MOUSEMOVE)
                 {
-                    if ((DateTime.Now - lastHover).TotalMilliseconds >= 600)
-                        HandleTrayActivate();
+                    if ((DateTime.Now - lastHover).TotalMilliseconds >= 800)
+                        HandleTrayActivate("hover");
                 }
                 else if (ev == (int)WM_RBUTTONUP || ev == (int)WM_CONTEXTMENU)
                 {
@@ -406,6 +415,7 @@ internal sealed class TrayApp : IDisposable
 
             if (msg == WM_DATA_READY)
             {
+                Log($"WM_DATA_READY popupVisible={popupVisible}");
                 if (popupVisible)
                 {
                     InvalidateRect(popup, IntPtr.Zero, true);
@@ -417,6 +427,7 @@ internal sealed class TrayApp : IDisposable
             if (msg == WM_COMMAND)
             {
                 int id = unchecked((int)(long)wParam) & 0xFFFF;
+                Log($"WM_COMMAND id={id}");
                 if (id == IDM_REFRESH)
                 {
                     lastFetch = DateTime.MinValue;
@@ -425,7 +436,7 @@ internal sealed class TrayApp : IDisposable
                 }
                 else if (id == IDM_EXIT)
                 {
-                    Log("Exit requested");
+                    Log("Exit");
                     DestroyWindow(hwnd);
                 }
                 return IntPtr.Zero;
@@ -433,6 +444,7 @@ internal sealed class TrayApp : IDisposable
 
             if (msg == 0x0113 && wParam == (IntPtr)timerId)
             {
+                Log("Timer");
                 lastFetch = DateTime.MinValue;
                 _ = LoadData();
                 return IntPtr.Zero;
@@ -440,6 +452,7 @@ internal sealed class TrayApp : IDisposable
 
             if (msg == WM_DESTROY)
             {
+                Log("WM_DESTROY");
                 KillTimer(hWnd, timerId);
                 RemoveTrayIcon();
                 PostQuitMessage(0);
@@ -479,6 +492,7 @@ internal sealed class TrayApp : IDisposable
             }
             if (msg == WM_MOUSELEAVE)
             {
+                Log("WM_MOUSELEAVE on popup");
                 HidePopup();
                 return IntPtr.Zero;
             }
@@ -493,47 +507,70 @@ internal sealed class TrayApp : IDisposable
 
     void PaintPopup(IntPtr hWnd)
     {
+        paintCount++;
         PAINTSTRUCT ps = default;
         var dc = BeginPaint(hWnd, out ps);
+        Log($"PaintPopup #{paintCount} dc={dc} paintRect=({ps.rcPaint.Left},{ps.rcPaint.Top})-({ps.rcPaint.Right},{ps.rcPaint.Bottom})");
+
         try
         {
-            GetClientRect(hWnd, out var rc);
-            Log($"PaintPopup client={rc.Right - rc.Left}x{rc.Bottom - rc.Top}");
+            if (dc == IntPtr.Zero)
+            {
+                Log("BeginPaint returned NULL");
+                return;
+            }
 
-            var bg = CreateSolidBrush(0x00FFFFFF);
+            GetClientRect(hWnd, out var rc);
+            int cw = rc.Right - rc.Left;
+            int ch = rc.Bottom - rc.Top;
+            Log($"Client size={cw}x{ch}");
+
+            // Bright yellow background so the window is unmistakable
+            var bg = CreateSolidBrush(0x00CCFFFF); // light yellow (COLORREF = 0x00BBGGRR)
             FillRect(dc, ref rc, bg);
             DeleteObject(bg);
 
-            var font = CreateFontW(20, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
-            var small = CreateFontW(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
-            if (font == IntPtr.Zero) font = GetStockObject(17);
-            if (small == IntPtr.Zero) small = font;
-            var old = SelectObject(dc, font);
             SetBkMode(dc, (int)TRANSPARENT);
+            SetTextColor(dc, 0x00000000); // black
 
-            DrawTextRtl(dc, "شاخص", 8, 6, 100, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            DrawTextRtl(dc, "قیمت", 100, 6, 280, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            DrawTextRtl(dc, "تغییر / زمان", 280, 6, 450, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            var font = CreateFontW(18, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
+            var font2 = CreateFontW(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Consolas");
+            if (font == IntPtr.Zero) { font = GetStockObject(17); Log("CreateFont failed, stock"); }
+            if (font2 == IntPtr.Zero) font2 = font;
+            var old = SelectObject(dc, font);
+
+            // Header in plain English with TextOutW (most reliable)
+            TextAt(dc, 12, 8, "TGJU Prices");
+            TextAt(dc, 200, 8, statusText);
+            if (!string.IsNullOrEmpty(lastError))
+            {
+                SetTextColor(dc, 0x000000CC);
+                TextAt(dc, 12, 30, "ERR: " + lastError);
+                SetTextColor(dc, 0x00000000);
+            }
+
+            SelectObject(dc, font2);
+            TextAt(dc, 12, 55, "Name");
+            TextAt(dc, 120, 55, "Price");
+            TextAt(dc, 280, 55, "Change");
 
             Dictionary<string, Quote> snapshot;
             lock (dataLock)
                 snapshot = new Dictionary<string, Quote>(lastGood, StringComparer.OrdinalIgnoreCase);
 
-            bool hasAny = false;
+            int drawn = 0;
             for (int i = 0; i < slugs.Length; i++)
             {
-                int y = 40 + i * 48;
-                DrawTextRtl(dc, names[i], 8, y, 100, y + 40, 0x00111111, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                int y = 80 + i * 40;
+                TextAt(dc, 12, y, namesEn[i] + " / " + namesFa[i]);
 
                 if (!snapshot.TryGetValue(slugs[i], out var q) || q == null)
                 {
-                    SelectObject(dc, small);
-                    DrawTextRtl(dc, "—", 100, y, 450, y + 40, 0x00999999, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-                    SelectObject(dc, font);
+                    TextAt(dc, 120, y, "---");
                     continue;
                 }
 
-                hasAny = true;
+                drawn++;
                 var pStr = (q.P ?? "").Replace(",", "");
                 double.TryParse(pStr, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out var p);
@@ -542,34 +579,21 @@ internal sealed class TrayApp : IDisposable
                     ? p.ToString("N2")
                     : (p / 10.0).ToString("N0");
 
-                var color = q.Dp > 0 ? 0x00228B22 : q.Dp < 0 ? 0x002323B0 : 0x00008C8C;
-                SelectObject(dc, font);
-                DrawTextRtl(dc, price, 100, y, 280, y + 40, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-                SelectObject(dc, small);
-                var symbol = q.Dp > 0 ? "+" : q.Dp < 0 ? "-" : "=";
-                var t = string.IsNullOrWhiteSpace(q.T) ? "-" : q.T;
-                var text = symbol + Math.Abs(q.Dp).ToString("0.00") + "%  " + t;
-                DrawTextRtl(dc, text, 280, y, 450, y + 40, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-                SelectObject(dc, font);
+                var color = q.Dp > 0 ? 0x00008800 : q.Dp < 0 ? 0x000000CC : 0x00555555;
+                SetTextColor(dc, color);
+                TextAt(dc, 120, y, price);
+                TextAt(dc, 280, y, q.Dp.ToString("+0.00;-0.00;0") + "%  " + (q.T ?? ""));
+                SetTextColor(dc, 0x00000000);
             }
 
-            SelectObject(dc, small);
-            var statusColor = string.IsNullOrEmpty(lastError) ? 0x00666666 : 0x000000CC;
-            var bar = string.IsNullOrEmpty(lastError) ? statusText : statusText + " | " + lastError;
-            DrawTextRtl(dc, bar, 8, 380, 450, 405, statusColor, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            SetTextColor(dc, 0x00333333);
+            TextAt(dc, 12, ch - 28, $"drawn={drawn} paints={paintCount}  (click tray icon)");
 
-            if (!hasAny)
-            {
-                SelectObject(dc, font);
-                DrawTextRtl(dc, statusText, 8, 160, 450, 220, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            }
-
-            Log($"PaintPopup done hasAny={hasAny} status={statusText}");
+            Log($"Paint done drawn={drawn} snapshotKeys={snapshot.Count}");
 
             SelectObject(dc, old);
             if (font != IntPtr.Zero) DeleteObject(font);
-            if (small != IntPtr.Zero && small != font) DeleteObject(small);
+            if (font2 != IntPtr.Zero && font2 != font) DeleteObject(font2);
         }
         catch (Exception ex)
         {
@@ -581,13 +605,10 @@ internal sealed class TrayApp : IDisposable
         }
     }
 
-    static void DrawTextRtl(IntPtr dc, string text, int l, int t, int r, int b, int color, uint flags)
+    static void TextAt(IntPtr dc, int x, int y, string text)
     {
-        if (string.IsNullOrEmpty(text)) text = " ";
-        SetTextColor(dc, color);
-        SetBkMode(dc, (int)TRANSPARENT);
-        var rect = new RECT { Left = l, Top = t, Right = r, Bottom = b };
-        DrawTextW(dc, text, -1, ref rect, flags | DT_RTLREADING | DT_NOPREFIX);
+        if (string.IsNullOrEmpty(text)) return;
+        TextOutW(dc, x, y, text, text.Length);
     }
 
     public void Dispose()
@@ -599,10 +620,10 @@ internal sealed class TrayApp : IDisposable
             if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
         }
         catch { }
-        Log("=== TGJU Desktop exited ===");
+        Log("=== exited ===");
     }
 
-    static void Register(string name, WndProcDelegate proc, IntPtr hInst)
+    static ushort Register(string name, WndProcDelegate proc, IntPtr hInst)
     {
         var wc = new WNDCLASS
         {
@@ -613,7 +634,7 @@ internal sealed class TrayApp : IDisposable
             hCursor = LoadCursor(IntPtr.Zero, 32512),
             hbrBackground = IntPtr.Zero
         };
-        RegisterClass(ref wc);
+        return RegisterClass(ref wc);
     }
 
     delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -627,19 +648,19 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool TranslateMessage(ref MSG msg);
     [DllImport("user32.dll")] static extern IntPtr DispatchMessage(ref MSG msg);
     [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
-    [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(POINT p, uint flags);
-    [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO info);
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hWnd, uint cmd);
     [DllImport("user32.dll")] static extern bool UpdateWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr iconName);
     [DllImport("user32.dll")] static extern IntPtr LoadCursor(IntPtr hInstance, int cursor);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
+    [DllImport("kernel32.dll")] static extern uint GetLastError();
     [DllImport("user32.dll")] static extern bool SetTimer(IntPtr hWnd, uint id, uint ms, IntPtr callback);
     [DllImport("user32.dll")] static extern bool KillTimer(IntPtr hWnd, uint id);
     [DllImport("user32.dll")] static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT tme);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int DrawTextW(IntPtr hdc, string text, int len, ref RECT rect, uint format);
     [DllImport("user32.dll")] static extern IntPtr BeginPaint(IntPtr hWnd, out PAINTSTRUCT ps);
     [DllImport("user32.dll")] static extern bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT ps);
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
@@ -651,6 +672,7 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateFontW(int h, int w, int e, int o, int weight, uint italic, uint underline, uint strike, uint charset, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
     [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
     [DllImport("gdi32.dll")] static extern IntPtr GetStockObject(int fnObject);
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern bool TextOutW(IntPtr hdc, int x, int y, string lpString, int c);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern bool Shell_NotifyIcon(uint message, ref NOTIFYICONDATA data);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreatePopupMenu();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, UIntPtr uIDNewItem, string lpNewItem);
@@ -672,7 +694,6 @@ internal sealed class TrayApp : IDisposable
     [StructLayout(LayoutKind.Sequential)] struct MSG { public IntPtr hWnd; public uint message; public IntPtr wParam, lParam; public uint time; public POINT pt; }
     [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] struct RECT { public int Left, Top, Right, Bottom; }
-    [StructLayout(LayoutKind.Sequential)] struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
     [StructLayout(LayoutKind.Sequential)]
     struct PAINTSTRUCT
     {
