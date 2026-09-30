@@ -55,6 +55,7 @@ static HWND gPopup = nullptr;
 static NOTIFYICONDATAW gNid{};
 static bool gPopupVisible = false;
 static DWORD gPopupShownTick = 0;
+static DWORD gLastTrayMoveTick = 0;
 static std::map<std::string, Quote> gData;
 static CRITICAL_SECTION gCs;
 static std::wstring gStatus = L"در حال دریافت…";
@@ -346,7 +347,7 @@ static void StartFetch() {
 
 static void ShowPopup() {
     POINT pt; GetCursorPos(&pt);
-    const int w = 700, h = 58 + kCount * 40 + 20;
+    const int w = 700, h = 54 + kCount * 34 + 18;
     int x = pt.x - w + 24;
     int y = pt.y - h - 12;
     if (x < 8) x = 8;
@@ -356,13 +357,13 @@ static void ShowPopup() {
     ShowWindow(gPopup, SW_SHOWNOACTIVATE);
     gPopupVisible = true;
     gPopupShownTick = GetTickCount();
+    gLastTrayMoveTick = GetTickCount();
     InvalidateRect(gPopup, nullptr, TRUE);
     UpdateWindow(gPopup);
 }
 
 static void HidePopup() {
     if (!gPopupVisible) return;
-    if (GetTickCount() - gPopupShownTick < 1000) return;
     ShowWindow(gPopup, SW_HIDE);
     gPopupVisible = false;
 }
@@ -380,17 +381,17 @@ static void PaintPopup(HWND hwnd) {
     const int W = rc.right;
     const int m = 18;
 
-    HBRUSH bg = CreateSolidBrush(RGB(255, 255, 255));
+    HBRUSH bg = CreateSolidBrush(RGB(28, 32, 38));
     FillRect(hdc, &rc, bg);
     DeleteObject(bg);
 
     RECT bar{ 0, 0, W, 3 };
-    HBRUSH accent = CreateSolidBrush(RGB(16, 122, 186));
+    HBRUSH accent = CreateSolidBrush(RGB(40, 145, 205));
     FillRect(hdc, &bar, accent);
     DeleteObject(accent);
 
-    RECT head{ 0, 3, W, 48 };
-    HBRUSH headBg = CreateSolidBrush(RGB(247, 249, 252));
+    RECT head{ 0, 3, W, 44 };
+    HBRUSH headBg = CreateSolidBrush(RGB(36, 41, 48));
     FillRect(hdc, &head, headBg);
     DeleteObject(headBg);
 
@@ -411,10 +412,10 @@ static void PaintPopup(HWND hwnd) {
     LeaveCriticalSection(&gCs);
 
     HFONT old = (HFONT)SelectObject(hdc, titleFont);
-    DrawTextRect(hdc, RECT{ m, 5, W - m, 43 }, L"شاخص‌های بازار", DT_RIGHT, RGB(30, 40, 55));
+    DrawTextRect(hdc, RECT{ m, 3, W - m, 40 }, L"شاخص‌های بازار", DT_RIGHT, RGB(245, 247, 250));
     SelectObject(hdc, smallFont);
-    DrawTextRect(hdc, RECT{ m, 8, W / 2 - 65, 40 }, status.c_str(), DT_LEFT, RGB(100, 110, 125));
-    DrawTextRect(hdc, RECT{ W / 2 - 55, 8, W - m, 40 }, kAppVersion, DT_RIGHT, RGB(16, 122, 186));
+    DrawTextRect(hdc, RECT{ m, 6, W / 2 - 65, 38 }, status.c_str(), DT_LEFT, RGB(180, 190, 202));
+    DrawTextRect(hdc, RECT{ W / 2 - 55, 6, W - m, 38 }, kAppVersion, DT_RIGHT, RGB(70, 165, 220));
 
     const int nameW = 165;
     const int priceW = 195;
@@ -425,36 +426,36 @@ static void PaintPopup(HWND hwnd) {
     auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
     auto colTime  = [&](int y1, int y2) { return RECT{ m, y1, W - m - nameW - priceW - chgW - 4, y2 }; };
 
-    int y0 = 50;
+    int y0 = 46;
     SelectObject(hdc, smallFont);
-    DrawTextRect(hdc, colName(y0, y0 + 18),  L"شاخص", DT_RIGHT, RGB(120, 130, 145));
-    DrawTextRect(hdc, colPrice(y0, y0 + 18), L"قیمت", DT_CENTER, RGB(120, 130, 145));
-    DrawTextRect(hdc, colChg(y0, y0 + 18),   L"تغییر", DT_CENTER, RGB(120, 130, 145));
-    DrawTextRect(hdc, colTime(y0, y0 + 18),  L"زمان", DT_CENTER, RGB(120, 130, 145));
+    DrawTextRect(hdc, colName(y0, y0 + 16),  L"شاخص", DT_RIGHT, RGB(165, 175, 188));
+    DrawTextRect(hdc, colPrice(y0, y0 + 16), L"قیمت", DT_CENTER, RGB(165, 175, 188));
+    DrawTextRect(hdc, colChg(y0, y0 + 16),   L"تغییر", DT_CENTER, RGB(165, 175, 188));
+    DrawTextRect(hdc, colTime(y0, y0 + 16),  L"زمان", DT_CENTER, RGB(165, 175, 188));
 
-    HPEN pen = CreatePen(PS_SOLID, 1, RGB(230, 234, 240));
+    HPEN pen = CreatePen(PS_SOLID, 1, RGB(58, 64, 73));
     HPEN oldPen = (HPEN)SelectObject(hdc, pen);
-    MoveToEx(hdc, m, y0 + 20, nullptr);
-    LineTo(hdc, W - m, y0 + 20);
+    MoveToEx(hdc, m, y0 + 18, nullptr);
+    LineTo(hdc, W - m, y0 + 18);
     SelectObject(hdc, oldPen);
     DeleteObject(pen);
 
     SelectObject(hdc, rowFont);
     for (int i = 0; i < kCount; i++) {
-        int y = 76 + i * 40;
+        int y = 68 + i * 34;
 
         if (i % 2 == 0) {
-            RECT zr{ m - 2, y - 2, W - m + 2, y + 36 };
-            HBRUSH zb = CreateSolidBrush(RGB(250, 251, 253));
+            RECT zr{ m - 2, y - 1, W - m + 2, y + 31 };
+            HBRUSH zb = CreateSolidBrush(RGB(38, 43, 50));
             FillRect(hdc, &zr, zb);
             DeleteObject(zb);
         }
 
-        DrawTextRect(hdc, colName(y, y + 36), kItems[i].label, DT_RIGHT, RGB(25, 30, 40));
+        DrawTextRect(hdc, colName(y, y + 32), kItems[i].label, DT_RIGHT, RGB(242, 244, 247));
 
         auto it = snap.find(kItems[i].key);
         if (it == snap.end() || it->second.p.empty()) {
-            DrawTextRect(hdc, colPrice(y, y + 28), L"—", DT_CENTER, RGB(170, 175, 185));
+            DrawTextRect(hdc, colPrice(y, y + 30), L"—", DT_CENTER, RGB(145, 152, 162));
             continue;
         }
 
@@ -477,13 +478,13 @@ static void PaintPopup(HWND hwnd) {
 
         wchar_t chg[32];
         swprintf_s(chg, L"%+.2f%%", q.dp);
-        DrawTextRect(hdc, colChg(y, y + 28), ToPersianDigits(chg).c_str(), DT_CENTER, c);
+        DrawTextRect(hdc, colChg(y, y + 30), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
         // Decode TGJU "t" correctly (clock or date label) before drawing.
         // This avoids mojibake when the API sends Persian text in UTF-8/CP1256
         // or as JSON unicode escapes.
         std::wstring tShow = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
-        DrawTextRect(hdc, colTime(y, y + 28), tShow.c_str(), DT_CENTER, RGB(110, 120, 135));
+        DrawTextRect(hdc, colTime(y, y + 30), tShow.c_str(), DT_CENTER, c);
     }
 
     if (!error.empty()) {
@@ -524,6 +525,7 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ShowPopup(); StartFetch();
         } else if (ev == WM_MOUSEMOVE) {
             static DWORD last = 0;
+            gLastTrayMoveTick = GetTickCount();
             if (GetTickCount() - last > 900) {
                 last = GetTickCount();
                 ShowPopup(); StartFetch();
@@ -551,7 +553,11 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     }
-    if (msg == WM_TIMER && wp == kTimerId) { StartFetch(); return 0; }
+    if (msg == WM_TIMER && wp == kTimerId) {
+        if (gPopupVisible && GetTickCount() - gLastTrayMoveTick >= 5000) HidePopup();
+        return 0;
+    }
+    if (msg == WM_TIMER && wp == kTimerId + 1) { StartFetch(); return 0; }
     if (msg == WM_DESTROY) {
         KillTimer(hwnd, kTimerId);
         RemoveTray();
@@ -598,12 +604,13 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     gMain = CreateWindowExW(WS_EX_TOOLWINDOW, kClassMain, L"TGJU", 0,
         0, 0, 0, 0, nullptr, nullptr, hi, nullptr);
 
-    int h = 58 + kCount * 40 + 20;
+    int h = 54 + kCount * 34 + 18;
     gPopup = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, kClassPopup, L"TGJU",
         WS_POPUP | WS_BORDER, 100, 100, 700, h, nullptr, nullptr, hi, nullptr);
 
     AddTray(hi);
-    SetTimer(gMain, kTimerId, 5 * 60 * 1000, nullptr);
+    SetTimer(gMain, kTimerId, 1000, nullptr);
+    SetTimer(gMain, kTimerId + 1, 5 * 60 * 1000, nullptr);
     StartFetch();
 
     MSG msg;
