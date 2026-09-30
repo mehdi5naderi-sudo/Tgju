@@ -14,9 +14,7 @@ internal static class Program
     [STAThread]
     static void Main()
     {
-        // Help older Windows / filtered networks negotiate TLS
         try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13; } catch { }
-
         using var app = new TrayApp();
         app.Run();
     }
@@ -155,25 +153,25 @@ internal sealed class TrayApp : IDisposable
             PostMessage(hwnd, WM_DATA_READY, IntPtr.Zero, IntPtr.Zero);
     }
 
-    static HttpClient CreateClient(bool bypassCert)
+    static string ApiUrl(string[] slugs) =>
+        "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
+
+    static HttpClient CreateClient(bool bypassCert, bool tls12Only)
     {
-        var handler = new HttpClientHandler
+        var ssl = tls12Only ? SslProtocols.Tls12 : (SslProtocols.Tls12 | SslProtocols.Tls13);
+        var sockets = new SocketsHttpHandler
         {
             AutomaticDecompression = DecompressionMethods.All,
-            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+            SslOptions = new SslClientAuthenticationOptions
+            {
+                EnabledSslProtocols = ssl,
+                RemoteCertificateValidationCallback = bypassCert
+                    ? static (_, _, _, _) => true
+                    : null
+            }
         };
-
-        if (bypassCert)
-        {
-            handler.ServerCertificateCustomValidationCallback =
-                static (HttpRequestMessage _, X509Certificate2? cert, X509Chain? _, SslPolicyErrors errors) =>
-                {
-                    // Accept any cert — needed on some filtered/ISP networks in IR
-                    return true;
-                };
-        }
-
-        var c = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(25) };
+        var c = new HttpClient(sockets) { Timeout = TimeSpan.FromSeconds(25) };
         c.DefaultRequestVersion = HttpVersion.Version11;
         c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
         c.DefaultRequestHeaders.UserAgent.ParseAdd(
@@ -184,33 +182,104 @@ internal sealed class TrayApp : IDisposable
         return c;
     }
 
-    async Task<(bool ok, string body, string error)> TryFetch(bool bypassCert)
+    async Task<(bool ok, string body, string error)> TryFetchHttp(bool bypassCert, bool tls12Only)
     {
-        var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
-        Log($"GET {api} (bypassCert={bypassCert})");
-
+        var api = ApiUrl(slugs);
+        Log($"GET HttpClient {api} (bypass={bypassCert}, tls12Only={tls12Only})");
         try
         {
-            using var client = CreateClient(bypassCert);
-            using var request = new HttpRequestMessage(HttpMethod.Get, api);
-            using var response = await client.SendAsync(request).ConfigureAwait(false);
+            using var client = CreateClient(bypassCert, tls12Only);
+            using var response = await client.GetAsync(api).ConfigureAwait(false);
             var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             Log($"HTTP {(int)response.StatusCode} len={body.Length}");
             if (body.Length > 0)
                 Log("Body head: " + body[..Math.Min(body.Length, 280)]);
-
             if (!response.IsSuccessStatusCode)
                 return (false, "", $"HTTP {(int)response.StatusCode}");
-
             return (true, body, "");
         }
         catch (Exception ex)
         {
             var msg = ex.Message;
-            if (ex.InnerException != null)
-                msg += " | " + ex.InnerException.Message;
-            Log($"Fetch error (bypassCert={bypassCert}): {ex.GetType().Name}: {msg}");
+            for (var e = ex.InnerException; e != null; e = e.InnerException)
+                msg += " | " + e.Message;
+            Log($"HttpClient error: {ex.GetType().Name}: {msg}");
             return (false, "", msg);
+        }
+    }
+
+    async Task<(bool ok, string body, string error)> TryFetchCurl()
+    {
+        var api = ApiUrl(slugs);
+        Log($"GET curl.exe {api}");
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "curl.exe",
+                Arguments = $"-sS --max-time 25 -H \"User-Agent: Mozilla/5.0\" -H \"Accept: application/json\" \"{api}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var p = System.Diagnostics.Process.Start(psi);
+            if (p == null) return (false, "", "curl start failed");
+            var stdout = await p.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+            var stderr = await p.StandardError.ReadToEndAsync().ConfigureAwait(false);
+            await p.WaitForExitAsync().ConfigureAwait(false);
+            Log($"curl exit={p.ExitCode} len={stdout.Length} err={stderr.Trim()}");
+            if (p.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
+                return (false, "", string.IsNullOrWhiteSpace(stderr) ? $"curl exit {p.ExitCode}" : stderr.Trim());
+            if (stdout.Length > 0)
+                Log("Body head: " + stdout[..Math.Min(stdout.Length, 280)]);
+            return (true, stdout, "");
+        }
+        catch (Exception ex)
+        {
+            Log($"curl error: {ex.Message}");
+            return (false, "", ex.Message);
+        }
+    }
+
+    async Task<(bool ok, string body, string error)> TryFetchPowerShell()
+    {
+        var api = ApiUrl(slugs);
+        Log($"GET powershell {api}");
+        try
+        {
+            var script =
+                "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " +
+                "[Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }; " +
+                $"(Invoke-WebRequest -Uri '{api}' -UseBasicParsing -TimeoutSec 25).Content";
+            var bytes = Encoding.Unicode.GetBytes(script);
+            var b64 = Convert.ToBase64String(bytes);
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " + b64,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var p = System.Diagnostics.Process.Start(psi);
+            if (p == null) return (false, "", "powershell start failed");
+            var stdout = await p.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+            var stderr = await p.StandardError.ReadToEndAsync().ConfigureAwait(false);
+            await p.WaitForExitAsync().ConfigureAwait(false);
+            var errTrim = stderr.Trim();
+            Log($"powershell exit={p.ExitCode} len={stdout.Length} err={(errTrim.Length > 200 ? errTrim[..200] : errTrim)}");
+            if (p.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
+                return (false, "", string.IsNullOrWhiteSpace(stderr) ? $"powershell exit {p.ExitCode}" : stderr.Trim());
+            if (stdout.Length > 0)
+                Log("Body head: " + stdout[..Math.Min(stdout.Length, 280)]);
+            return (true, stdout.Trim(), "");
+        }
+        catch (Exception ex)
+        {
+            Log($"powershell error: {ex.Message}");
+            return (false, "", ex.Message);
         }
     }
 
@@ -223,21 +292,21 @@ internal sealed class TrayApp : IDisposable
 
         try
         {
-            // 1) normal TLS
-            var (ok, body, err) = await TryFetch(bypassCert: false).ConfigureAwait(false);
+            (bool ok, string body, string error) result = (false, "", "");
 
-            // 2) retry with cert bypass (common on filtered IR networks)
-            if (!ok)
-            {
-                Log("Retrying with certificate validation disabled...");
-                (ok, body, err) = await TryFetch(bypassCert: true).ConfigureAwait(false);
-            }
+            result = await TryFetchHttp(bypassCert: false, tls12Only: false).ConfigureAwait(false);
+            if (!result.ok)
+                result = await TryFetchHttp(bypassCert: true, tls12Only: true).ConfigureAwait(false);
+            if (!result.ok)
+                result = await TryFetchCurl().ConfigureAwait(false);
+            if (!result.ok)
+                result = await TryFetchPowerShell().ConfigureAwait(false);
 
-            if (!ok)
-                throw new Exception(err);
+            if (!result.ok)
+                throw new Exception(result.error);
 
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var data = JsonSerializer.Deserialize<ApiResponse>(body, opts);
+            var data = JsonSerializer.Deserialize<ApiResponse>(result.body, opts);
             var indicators = data?.Response?.Indicators ?? new List<Quote>();
             Log($"Parsed indicators={indicators.Count}");
 
@@ -266,7 +335,8 @@ internal sealed class TrayApp : IDisposable
         }
         catch (Exception ex)
         {
-            lastError = ex.Message;
+            lastError = "SSL/شبکه: " + ex.Message;
+            if (lastError.Length > 80) lastError = lastError[..80] + "…";
             statusText = "خطا در دریافت داده";
             Log($"ERROR final: {ex.Message}");
         }
@@ -294,17 +364,14 @@ internal sealed class TrayApp : IDisposable
         if (added)
         {
             n.uVersion = NOTIFYICON_VERSION_4;
-            var ver = Shell_NotifyIcon(NIM_SETVERSION, ref n);
-            Log($"Shell_NotifyIcon(NIM_SETVERSION) => {ver}");
+            Shell_NotifyIcon(NIM_SETVERSION, ref n);
         }
-        else Log("FAILED to add tray icon");
     }
 
     void RemoveTrayIcon()
     {
         var n = new NOTIFYICONDATA { cbSize = Marshal.SizeOf<NOTIFYICONDATA>(), hWnd = hwnd, uID = 1 };
         Shell_NotifyIcon(NIM_DELETE, ref n);
-        Log("Tray icon removed");
     }
 
     void ShowPopup()
@@ -313,17 +380,13 @@ internal sealed class TrayApp : IDisposable
         var screen = MonitorFromPoint(pt, 2);
         var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
         GetMonitorInfo(screen, ref mi);
-
         const int w = 455, h = 400;
         int x = Math.Min(pt.X - w + 16, mi.rcWork.Right - w - 8);
         int y = pt.Y - h - 12;
         if (y < mi.rcWork.Top + 8) y = pt.Y + 24;
         if (x < mi.rcWork.Left + 8) x = mi.rcWork.Left + 8;
-
-        int count;
-        lock (dataLock) count = lastGood.Count;
-        Log($"ShowPopup at ({x},{y}) cursor=({pt.X},{pt.Y}) items={count}");
-
+        int count; lock (dataLock) count = lastGood.Count;
+        Log($"ShowPopup at ({x},{y}) items={count}");
         SetWindowPos(popup, new IntPtr(HWND_TOPMOST), x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
         ShowWindow(popup, SW_SHOWNOACTIVATE);
         popupVisible = true;
@@ -338,7 +401,6 @@ internal sealed class TrayApp : IDisposable
         if (!popupVisible) return;
         ShowWindow(popup, SW_HIDE);
         popupVisible = false;
-        Log("HidePopup");
     }
 
     void ShowContextMenu()
@@ -348,11 +410,9 @@ internal sealed class TrayApp : IDisposable
         AppendMenuW(menu, 0, (UIntPtr)IDM_REFRESH, "به‌روزرسانی");
         AppendMenuW(menu, 0, (UIntPtr)IDM_EXIT, "خروج");
         SetForegroundWindow(hwnd);
-        TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN,
-            pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
+        TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN, pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
         PostMessage(hwnd, 0, IntPtr.Zero, IntPtr.Zero);
         DestroyMenu(menu);
-        Log("Context menu shown");
     }
 
     void HandleTrayActivate()
@@ -367,13 +427,8 @@ internal sealed class TrayApp : IDisposable
         if (msg == WM_TRAY)
         {
             int ev = unchecked((int)(long)lParam) & 0xFFFF;
-            Log($"WM_TRAY event=0x{ev:X4}");
-
-            if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT
-                || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
-            {
+            if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
                 HandleTrayActivate();
-            }
             else if (ev == (int)WM_MOUSEMOVE)
             {
                 if ((DateTime.Now - lastHover).TotalMilliseconds >= 500)
@@ -386,41 +441,19 @@ internal sealed class TrayApp : IDisposable
             }
             return IntPtr.Zero;
         }
-
         if (msg == WM_DATA_READY)
         {
-            if (popupVisible)
-            {
-                InvalidateRect(popup, IntPtr.Zero, true);
-                UpdateWindow(popup);
-            }
+            if (popupVisible) { InvalidateRect(popup, IntPtr.Zero, true); UpdateWindow(popup); }
             return IntPtr.Zero;
         }
-
         if (msg == WM_COMMAND)
         {
             int id = unchecked((int)(long)wParam) & 0xFFFF;
-            if (id == IDM_REFRESH)
-            {
-                Log("Menu: Refresh");
-                ShowPopup();
-                _ = LoadData();
-            }
-            else if (id == IDM_EXIT)
-            {
-                Log("Menu: Exit");
-                DestroyWindow(hwnd);
-            }
+            if (id == IDM_REFRESH) { ShowPopup(); _ = LoadData(); }
+            else if (id == IDM_EXIT) DestroyWindow(hwnd);
             return IntPtr.Zero;
         }
-
-        if (msg == 0x0113 && wParam == (IntPtr)timerId)
-        {
-            Log("Timer tick");
-            _ = LoadData();
-            return IntPtr.Zero;
-        }
-
+        if (msg == 0x0113 && wParam == (IntPtr)timerId) { _ = LoadData(); return IntPtr.Zero; }
         if (msg == WM_DESTROY)
         {
             KillTimer(hWnd, timerId);
@@ -428,33 +461,19 @@ internal sealed class TrayApp : IDisposable
             PostQuitMessage(0);
             return IntPtr.Zero;
         }
-
         return DefWindowProc(hWnd, msg, wParam, lParam);
     }
 
     IntPtr PopupWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        if (msg == WM_PAINT)
-        {
-            PaintPopup(hWnd);
-            return IntPtr.Zero;
-        }
+        if (msg == WM_PAINT) { PaintPopup(hWnd); return IntPtr.Zero; }
         if (msg == WM_MOUSEMOVE)
         {
-            var tme = new TRACKMOUSEEVENT
-            {
-                cbSize = Marshal.SizeOf<TRACKMOUSEEVENT>(),
-                dwFlags = 0x00000002,
-                hwndTrack = hWnd
-            };
+            var tme = new TRACKMOUSEEVENT { cbSize = Marshal.SizeOf<TRACKMOUSEEVENT>(), dwFlags = 0x00000002, hwndTrack = hWnd };
             TrackMouseEvent(ref tme);
             return IntPtr.Zero;
         }
-        if (msg == WM_MOUSELEAVE)
-        {
-            HidePopup();
-            return IntPtr.Zero;
-        }
+        if (msg == WM_MOUSELEAVE) { HidePopup(); return IntPtr.Zero; }
         return DefWindowProc(hWnd, msg, wParam, lParam);
     }
 
@@ -463,70 +482,49 @@ internal sealed class TrayApp : IDisposable
         PAINTSTRUCT ps;
         var dc = BeginPaint(hWnd, out ps);
         GetClientRect(hWnd, out var rc);
-
         var bg = CreateSolidBrush(0x00FFFFFF);
         FillRect(dc, ref rc, bg);
         DeleteObject(bg);
-
         var font = CreateFontW(22, 0, 0, 0, 700, 0, 0, 0, 178, 0, 0, 0, 0, "Segoe UI");
         var small = CreateFontW(18, 0, 0, 0, 400, 0, 0, 0, 178, 0, 0, 0, 0, "Segoe UI");
         var old = SelectObject(dc, font);
-
         DrawTextRtl(dc, "شاخص", 12, 8, 100, 38, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         DrawTextRtl(dc, "قیمت", 112, 8, 270, 38, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         DrawTextRtl(dc, "تغییر / زمان", 282, 8, 443, 38, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
         Dictionary<string, Quote> snapshot;
-        lock (dataLock)
-            snapshot = new Dictionary<string, Quote>(lastGood);
-
+        lock (dataLock) snapshot = new Dictionary<string, Quote>(lastGood);
         bool hasAny = false;
         for (int i = 0; i < slugs.Length; i++)
         {
             int y = 48 + i * 47;
             DrawTextRtl(dc, names[i], 12, y, 112, y + 42, 0x00111111, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
             if (!snapshot.TryGetValue(slugs[i], out var q))
             {
                 SelectObject(dc, small);
                 DrawTextRtl(dc, "—", 112, y, 443, y + 42, 0x00999999, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
                 continue;
             }
-
             hasAny = true;
-            double.TryParse(q.P, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var p);
+            double.TryParse(q.P, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var p);
             var shown = slugs[i] is "ons" or "oil_brent" ? p : p / 10.0;
             var price = slugs[i] is "ons" or "oil_brent" ? shown.ToString("N2") : shown.ToString("N0");
-
             var color = q.Dp > 0 ? 0x00228B22 : q.Dp < 0 ? 0x002323B0 : 0x00008C8C;
             SelectObject(dc, font);
             DrawTextRtl(dc, price, 112, y, 282, y + 42, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
             SelectObject(dc, small);
             var symbol = q.Dp > 0 ? "▲ " : q.Dp < 0 ? "▼ " : "● ";
             var text = symbol + Math.Abs(q.Dp).ToString("0.00") + "%  " + (string.IsNullOrWhiteSpace(q.T) ? "—" : q.T);
             DrawTextRtl(dc, text, 282, y, 443, y + 42, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         }
-
         SelectObject(dc, small);
         var statusColor = string.IsNullOrEmpty(lastError) ? 0x00666666 : 0x000000CC;
-        var bar = statusText;
-        if (!string.IsNullOrEmpty(lastError))
-            bar = statusText + " — " + lastError;
+        var bar = string.IsNullOrEmpty(lastError) ? statusText : statusText + " — " + lastError;
         DrawTextRtl(dc, bar, 12, 370, 443, 395, statusColor, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
         if (!hasAny)
         {
             SelectObject(dc, font);
             DrawTextRtl(dc, statusText, 12, 160, 443, 220, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            if (!string.IsNullOrEmpty(lastError))
-            {
-                SelectObject(dc, small);
-                DrawTextRtl(dc, lastError, 12, 220, 443, 280, 0x000000CC, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            }
         }
-
         SelectObject(dc, old);
         DeleteObject(font);
         DeleteObject(small);
@@ -551,23 +549,14 @@ internal sealed class TrayApp : IDisposable
 
     static void Register(string name, WndProcDelegate proc, IntPtr hInst)
     {
-        var wc = new WNDCLASS
-        {
-            lpfnWndProc = proc,
-            hInstance = hInst,
-            lpszClassName = name,
-            hCursor = LoadCursor(IntPtr.Zero, 32512),
-            hbrBackground = IntPtr.Zero
-        };
+        var wc = new WNDCLASS { lpfnWndProc = proc, hInstance = hInst, lpszClassName = name, hCursor = LoadCursor(IntPtr.Zero, 32512) };
         RegisterClass(ref wc);
     }
 
     delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    static extern ushort RegisterClass(ref WNDCLASS lpWndClass);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    static extern IntPtr CreateWindowEx(int exStyle, string className, string windowName, int style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern ushort RegisterClass(ref WNDCLASS lpWndClass);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateWindowEx(int exStyle, string className, string windowName, int style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
     [DllImport("user32.dll")] static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] static extern bool DestroyWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern void PostQuitMessage(int code);
@@ -627,14 +616,8 @@ internal sealed class TrayApp : IDisposable
         public Guid guidItem; public IntPtr hBalloonIcon;
     }
 
-    public sealed class ApiResponse
-    {
-        [JsonPropertyName("response")] public ApiBody? Response { get; set; }
-    }
-    public sealed class ApiBody
-    {
-        [JsonPropertyName("indicators")] public List<Quote>? Indicators { get; set; }
-    }
+    public sealed class ApiResponse { [JsonPropertyName("response")] public ApiBody? Response { get; set; } }
+    public sealed class ApiBody { [JsonPropertyName("indicators")] public List<Quote>? Indicators { get; set; } }
     public sealed class Quote
     {
         [JsonPropertyName("name")] public string Name { get; set; } = "";
