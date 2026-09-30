@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,6 +14,9 @@ internal static class Program
     [STAThread]
     static void Main()
     {
+        // Help older Windows / filtered networks negotiate TLS
+        try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13; } catch { }
+
         using var app = new TrayApp();
         app.Run();
     }
@@ -73,7 +78,6 @@ internal sealed class TrayApp : IDisposable
     };
     readonly string[] names = { "تتر", "دلار", "گرم ۱۸", "کهربا", "عیار", "انس", "نفت برنت" };
 
-    readonly HttpClient http;
     readonly object dataLock = new();
     readonly Dictionary<string, Quote> lastGood = new();
     readonly WndProcDelegate wndProc;
@@ -99,8 +103,8 @@ internal sealed class TrayApp : IDisposable
         try { File.WriteAllText(logPath, "", Encoding.UTF8); } catch { }
         Log("=== TGJU Desktop started ===");
         Log($"Log file: {logPath}");
+        Log($"OS: {Environment.OSVersion} 64bit={Environment.Is64BitProcess}");
 
-        http = CreateHttpClient();
         wndProc = MainWndProc;
         popupProc = PopupWndProc;
 
@@ -147,9 +151,67 @@ internal sealed class TrayApp : IDisposable
 
     void NotifyUi()
     {
-        // marshal back to UI thread
         if (hwnd != IntPtr.Zero)
             PostMessage(hwnd, WM_DATA_READY, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    static HttpClient CreateClient(bool bypassCert)
+    {
+        var handler = new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+        };
+
+        if (bypassCert)
+        {
+            handler.ServerCertificateCustomValidationCallback =
+                static (HttpRequestMessage _, X509Certificate2? cert, X509Chain? _, SslPolicyErrors errors) =>
+                {
+                    // Accept any cert — needed on some filtered/ISP networks in IR
+                    return true;
+                };
+        }
+
+        var c = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(25) };
+        c.DefaultRequestVersion = HttpVersion.Version11;
+        c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        c.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
+        c.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
+        c.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "fa-IR,fa;q=0.9,en;q=0.8");
+        c.DefaultRequestHeaders.TryAddWithoutValidation("Cache-Control", "no-cache");
+        return c;
+    }
+
+    async Task<(bool ok, string body, string error)> TryFetch(bool bypassCert)
+    {
+        var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
+        Log($"GET {api} (bypassCert={bypassCert})");
+
+        try
+        {
+            using var client = CreateClient(bypassCert);
+            using var request = new HttpRequestMessage(HttpMethod.Get, api);
+            using var response = await client.SendAsync(request).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Log($"HTTP {(int)response.StatusCode} len={body.Length}");
+            if (body.Length > 0)
+                Log("Body head: " + body[..Math.Min(body.Length, 280)]);
+
+            if (!response.IsSuccessStatusCode)
+                return (false, "", $"HTTP {(int)response.StatusCode}");
+
+            return (true, body, "");
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.Message;
+            if (ex.InnerException != null)
+                msg += " | " + ex.InnerException.Message;
+            Log($"Fetch error (bypassCert={bypassCert}): {ex.GetType().Name}: {msg}");
+            return (false, "", msg);
+        }
     }
 
     async Task LoadData()
@@ -161,22 +223,18 @@ internal sealed class TrayApp : IDisposable
 
         try
         {
-            var api = "https://api.tgju.org/v1/widget/tmp?keys=" + string.Join(",", slugs);
-            Log($"GET {api}");
+            // 1) normal TLS
+            var (ok, body, err) = await TryFetch(bypassCert: false).ConfigureAwait(false);
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, api)
+            // 2) retry with cert bypass (common on filtered IR networks)
+            if (!ok)
             {
-                Version = HttpVersion.Version11,
-                VersionPolicy = HttpVersionPolicy.RequestVersionExact
-            };
-            using var response = await http.SendAsync(request).ConfigureAwait(false);
-            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            Log($"HTTP {(int)response.StatusCode} len={body.Length}");
-            if (body.Length > 0)
-                Log("Body head: " + body[..Math.Min(body.Length, 300)]);
+                Log("Retrying with certificate validation disabled...");
+                (ok, body, err) = await TryFetch(bypassCert: true).ConfigureAwait(false);
+            }
 
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"HTTP {(int)response.StatusCode}");
+            if (!ok)
+                throw new Exception(err);
 
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var data = JsonSerializer.Deserialize<ApiResponse>(body, opts);
@@ -193,7 +251,6 @@ internal sealed class TrayApp : IDisposable
                         : null;
                     if (key == null) continue;
                     lastGood[key] = item;
-                    // also index by slug when different
                     if (!string.IsNullOrWhiteSpace(item.Slug) && item.Slug != key)
                         lastGood[item.Slug] = item;
                     Log($"  key={key} p={item.P} dp={item.Dp}");
@@ -211,9 +268,7 @@ internal sealed class TrayApp : IDisposable
         {
             lastError = ex.Message;
             statusText = "خطا در دریافت داده";
-            Log($"ERROR: {ex.GetType().Name}: {ex.Message}");
-            if (ex.InnerException != null)
-                Log($"  Inner: {ex.InnerException.Message}");
+            Log($"ERROR final: {ex.Message}");
         }
         finally
         {
@@ -242,10 +297,7 @@ internal sealed class TrayApp : IDisposable
             var ver = Shell_NotifyIcon(NIM_SETVERSION, ref n);
             Log($"Shell_NotifyIcon(NIM_SETVERSION) => {ver}");
         }
-        else
-        {
-            Log("FAILED to add tray icon");
-        }
+        else Log("FAILED to add tray icon");
     }
 
     void RemoveTrayIcon()
@@ -282,9 +334,7 @@ internal sealed class TrayApp : IDisposable
 
     void HidePopup()
     {
-        // prevent instant hide right after show (mouse still on tray)
-        if ((DateTime.Now - popupShownAt).TotalMilliseconds < 500)
-            return;
+        if ((DateTime.Now - popupShownAt).TotalMilliseconds < 500) return;
         if (!popupVisible) return;
         ShowWindow(popup, SW_HIDE);
         popupVisible = false;
@@ -297,7 +347,6 @@ internal sealed class TrayApp : IDisposable
         var menu = CreatePopupMenu();
         AppendMenuW(menu, 0, (UIntPtr)IDM_REFRESH, "به‌روزرسانی");
         AppendMenuW(menu, 0, (UIntPtr)IDM_EXIT, "خروج");
-
         SetForegroundWindow(hwnd);
         TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN,
             pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
@@ -320,7 +369,6 @@ internal sealed class TrayApp : IDisposable
             int ev = unchecked((int)(long)lParam) & 0xFFFF;
             Log($"WM_TRAY event=0x{ev:X4}");
 
-            // Version-4 selection messages + classic mouse messages
             if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT
                 || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
             {
@@ -366,7 +414,7 @@ internal sealed class TrayApp : IDisposable
             return IntPtr.Zero;
         }
 
-        if (msg == 0x0113 && wParam == (IntPtr)timerId) // WM_TIMER
+        if (msg == 0x0113 && wParam == (IntPtr)timerId)
         {
             Log("Timer tick");
             _ = LoadData();
@@ -396,7 +444,7 @@ internal sealed class TrayApp : IDisposable
             var tme = new TRACKMOUSEEVENT
             {
                 cbSize = Marshal.SizeOf<TRACKMOUSEEVENT>(),
-                dwFlags = 0x00000002, // TME_LEAVE
+                dwFlags = 0x00000002,
                 hwndTrack = hWnd
             };
             TrackMouseEvent(ref tme);
@@ -475,7 +523,7 @@ internal sealed class TrayApp : IDisposable
             if (!string.IsNullOrEmpty(lastError))
             {
                 SelectObject(dc, small);
-                DrawTextRtl(dc, lastError, 12, 220, 443, 270, 0x000000CC, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                DrawTextRtl(dc, lastError, 12, 220, 443, 280, 0x000000CC, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             }
         }
 
@@ -498,26 +546,7 @@ internal sealed class TrayApp : IDisposable
         RemoveTrayIcon();
         if (popup != IntPtr.Zero) DestroyWindow(popup);
         if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
-        http.Dispose();
         Log("=== TGJU Desktop exited ===");
-    }
-
-    static HttpClient CreateHttpClient()
-    {
-        var handler = new HttpClientHandler
-        {
-            UseProxy = true,
-            Proxy = null,
-            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
-            AutomaticDecompression = DecompressionMethods.All
-        };
-        var c = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(25) };
-        c.DefaultRequestVersion = HttpVersion.Version11;
-        c.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
-        c.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
-        c.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "fa-IR,fa;q=0.9,en;q=0.8");
-        return c;
     }
 
     static void Register(string name, WndProcDelegate proc, IntPtr hInst)
@@ -609,7 +638,7 @@ internal sealed class TrayApp : IDisposable
     public sealed class Quote
     {
         [JsonPropertyName("name")] public string Name { get; set; } = "";
-        [JsonPropertyName("slug")] public string Slug { get; set; } = "";
+        [JsonPropertyName("slug")] public stringSlug { get; set; } = "";
         [JsonPropertyName("p")] public string P { get; set; } = "";
         [JsonPropertyName("dp")] public double Dp { get; set; }
         [JsonPropertyName("t")] public string T { get; set; } = "";
