@@ -47,7 +47,6 @@ internal static class Program
 
 internal sealed class TrayApp : IDisposable
 {
-    // --- messages ---
     const uint WM_APP = 0x8000;
     const uint WM_TRAY = WM_APP + 1;
     const uint WM_DATA_READY = WM_APP + 3;
@@ -65,25 +64,15 @@ internal sealed class TrayApp : IDisposable
     const uint NIN_SELECT = WM_USER + 0;
     const uint NIN_KEYSELECT = WM_USER + 1;
 
-    // --- window styles ---
     const int WS_EX_TOOLWINDOW = 0x00000080;
     const int WS_EX_TOPMOST = 0x00000008;
-    const int WS_EX_NOACTIVATE = 0x08000000;
     const int WS_POPUP = unchecked((int)0x80000000);
     const int WS_BORDER = 0x00800000;
-    const int WS_VISIBLE = 0x10000000;
 
     const uint SW_HIDE = 0;
     const uint SW_SHOW = 5;
-    const uint SW_SHOWNOACTIVATE = 4;
-
-    // CRITICAL: must be -1 as IntPtr on both 32/64-bit (not 0xFFFFFFFF uint)
     static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
-
-    const uint SWP_NOACTIVATE = 0x0010;
     const uint SWP_SHOWWINDOW = 0x0040;
-    const uint SWP_NOMOVE = 0x0002;
-    const uint SWP_NOSIZE = 0x0001;
 
     const uint NIM_ADD = 0;
     const uint NIM_DELETE = 2;
@@ -113,8 +102,8 @@ internal sealed class TrayApp : IDisposable
     readonly Dictionary<string, Quote> lastGood = new(StringComparer.OrdinalIgnoreCase);
     readonly WndProcDelegate wndProc;
     readonly WndProcDelegate popupProc;
-    readonly string className = "TGJUTrayNative2";
-    readonly string popupClass = "TGJUPopupNative2";
+    readonly string className = "TGJUTrayNative3";
+    readonly string popupClass = "TGJUPopupNative3";
     readonly string logPath;
 
     IntPtr hwnd;
@@ -137,51 +126,41 @@ internal sealed class TrayApp : IDisposable
 
         Log("=== TGJU Desktop started ===");
         Log($"Log: {logPath}");
-        Log($"OS={Environment.OSVersion} x64={Environment.Is64BitProcess} CLR={Environment.Version}");
-        Log($"HWND_TOPMOST ptr={HWND_TOPMOST.ToInt64()}");
+        Log($"OS={Environment.OSVersion} x64={Environment.Is64BitProcess}");
 
         wndProc = MainWndProc;
         popupProc = PopupWndProc;
 
         var hInst = GetModuleHandle(null);
-        Log($"hInst={hInst}");
-
-        var reg1 = Register(className, wndProc, hInst);
-        var reg2 = Register(popupClass, popupProc, hInst);
-        Log($"RegisterClass main={reg1} popup={reg2} err={GetLastError()}");
+        Register(className, wndProc, hInst);
+        Register(popupClass, popupProc, hInst);
 
         hwnd = CreateWindowEx(WS_EX_TOOLWINDOW, className, "TGJU", 0,
             0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
-        Log($"Main hwnd={hwnd} err={GetLastError()}");
+        Log($"Main hwnd={hwnd}");
 
-        // Popup: TOPMOST + TOOLWINDOW. Start hidden.
         popup = CreateWindowEx(
             WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             popupClass, "TGJU Popup",
             WS_POPUP | WS_BORDER,
             100, 100, 480, 420,
             IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
-        Log($"Popup hwnd={popup} err={GetLastError()}");
+        Log($"Popup hwnd={popup}");
 
         icon = LoadIcon(IntPtr.Zero, new IntPtr(32512));
-        Log($"Icon={icon}");
-
         AddTrayIcon();
         SetTimer(hwnd, timerId, 300000, IntPtr.Zero);
-        Log("Timer set, loading data...");
         _ = LoadData();
     }
 
     public void Run()
     {
-        Log("Message loop start");
         MSG msg;
         while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0)
         {
             TranslateMessage(ref msg);
             DispatchMessage(ref msg);
         }
-        Log("Message loop end");
     }
 
     void Log(string line)
@@ -225,12 +204,8 @@ internal sealed class TrayApp : IDisposable
 
     async Task LoadData()
     {
-        if (loading) { Log("LoadData skipped (already loading)"); return; }
-        if ((DateTime.Now - lastFetch).TotalSeconds < 3 && lastGood.Count > 0)
-        {
-            Log("LoadData skipped (fresh cache)");
-            return;
-        }
+        if (loading) return;
+        if ((DateTime.Now - lastFetch).TotalSeconds < 3 && lastGood.Count > 0) return;
 
         loading = true;
         statusText = "loading...";
@@ -245,8 +220,6 @@ internal sealed class TrayApp : IDisposable
             using var response = await client.GetAsync(api).ConfigureAwait(false);
             var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             Log($"HTTP {(int)response.StatusCode} len={body.Length}");
-            if (body.Length > 0)
-                Log("Body: " + body[..Math.Min(body.Length, 180)]);
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"HTTP {(int)response.StatusCode}");
@@ -261,24 +234,25 @@ internal sealed class TrayApp : IDisposable
                 lastGood.Clear();
                 foreach (var item in indicators)
                 {
-                    if (!string.IsNullOrWhiteSpace(item.Slug))
-                        lastGood[item.Slug] = item;
+                    // API returns name=slug key like price_dollar_rl; also store slug field
                     if (!string.IsNullOrWhiteSpace(item.Name))
                         lastGood[item.Name] = item;
-                    Log($"  + {item.Slug}/{item.Name} p={item.P} dp={item.Dp} t={item.T}");
+                    if (!string.IsNullOrWhiteSpace(item.Slug))
+                        lastGood[item.Slug] = item;
+                    Log($"  + name={item.Name} slug={item.Slug} p={item.P} dp={item.Dp}");
                 }
             }
 
             lastError = "";
             lastFetch = DateTime.Now;
             statusText = $"ok {DateTime.Now:HH:mm:ss}";
-            Log($"LoadData ok items={lastGood.Count}");
+            Log($"LoadData ok keys={lastGood.Count}");
         }
         catch (Exception ex)
         {
             lastError = ex.Message.Length > 80 ? ex.Message[..80] : ex.Message;
             statusText = "error";
-            Log("LoadData ERROR: " + ex);
+            Log("LoadData ERROR: " + ex.Message);
         }
         finally
         {
@@ -300,12 +274,11 @@ internal sealed class TrayApp : IDisposable
             szTip = "TGJU"
         };
         var ok = Shell_NotifyIcon(NIM_ADD, ref n);
-        Log($"NIM_ADD={ok} err={GetLastError()}");
+        Log($"NIM_ADD={ok}");
         if (ok)
         {
             n.uVersion = NOTIFYICON_VERSION_4;
-            var v = Shell_NotifyIcon(NIM_SETVERSION, ref n);
-            Log($"NIM_SETVERSION={v}");
+            Shell_NotifyIcon(NIM_SETVERSION, ref n);
         }
     }
 
@@ -313,7 +286,6 @@ internal sealed class TrayApp : IDisposable
     {
         var n = new NOTIFYICONDATA { cbSize = Marshal.SizeOf<NOTIFYICONDATA>(), hWnd = hwnd, uID = 1 };
         Shell_NotifyIcon(NIM_DELETE, ref n);
-        Log("Tray removed");
     }
 
     void ShowPopup()
@@ -321,9 +293,6 @@ internal sealed class TrayApp : IDisposable
         try
         {
             GetCursorPos(out var pt);
-            Log($"ShowPopup cursor=({pt.X},{pt.Y})");
-
-            // Place above cursor; clamp to primary-ish area
             const int w = 480, h = 420;
             int x = pt.X - w / 2;
             int y = pt.Y - h - 20;
@@ -333,33 +302,24 @@ internal sealed class TrayApp : IDisposable
             int count;
             lock (dataLock) count = lastGood.Count;
 
-            // Use HWND_TOPMOST = -1 (fixed for x64)
-            var posOk = SetWindowPos(popup, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
-            Log($"SetWindowPos ok={posOk} at ({x},{y},{w},{h}) err={GetLastError()}");
-
-            var showOk = ShowWindow(popup, SW_SHOW);
-            Log($"ShowWindow(SW_SHOW) prevVisible={showOk}");
-
+            SetWindowPos(popup, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
+            ShowWindow(popup, SW_SHOW);
             var visible = IsWindowVisible(popup);
-            GetWindowRect(popup, out var wr);
-            Log($"IsWindowVisible={visible} rect=({wr.Left},{wr.Top})-({wr.Right},{wr.Bottom}) items={count}");
+            Log($"ShowPopup at ({x},{y}) visible={visible} items={count}");
 
             popupVisible = true;
             popupShownAt = DateTime.Now;
-
-            var inv = InvalidateRect(popup, IntPtr.Zero, true);
-            var upd = UpdateWindow(popup);
-            Log($"Invalidate={inv} UpdateWindow={upd} paintCount={paintCount}");
+            InvalidateRect(popup, IntPtr.Zero, true);
+            UpdateWindow(popup);
         }
         catch (Exception ex)
         {
-            Log("ShowPopup EX: " + ex);
+            Log("ShowPopup EX: " + ex.Message);
         }
     }
 
     void HidePopup()
     {
-        // Keep visible at least 3s so user can see it
         if ((DateTime.Now - popupShownAt).TotalMilliseconds < 3000) return;
         if (!popupVisible) return;
         ShowWindow(popup, SW_HIDE);
@@ -378,12 +338,11 @@ internal sealed class TrayApp : IDisposable
             pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
         PostMessage(hwnd, 0, IntPtr.Zero, IntPtr.Zero);
         DestroyMenu(menu);
-        Log("Context menu");
     }
 
     void HandleTrayActivate(string reason)
     {
-        Log($"TrayActivate reason={reason}");
+        Log($"TrayActivate {reason}");
         lastHover = DateTime.Now;
         ShowPopup();
         _ = LoadData();
@@ -396,10 +355,9 @@ internal sealed class TrayApp : IDisposable
             if (msg == WM_TRAY)
             {
                 int ev = unchecked((int)(long)lParam) & 0xFFFF;
-                Log($"WM_TRAY ev=0x{ev:X4}");
                 if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT
                     || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
-                    HandleTrayActivate($"click/select 0x{ev:X4}");
+                    HandleTrayActivate($"click 0x{ev:X4}");
                 else if (ev == (int)WM_MOUSEMOVE)
                 {
                     if ((DateTime.Now - lastHover).TotalMilliseconds >= 800)
@@ -415,7 +373,6 @@ internal sealed class TrayApp : IDisposable
 
             if (msg == WM_DATA_READY)
             {
-                Log($"WM_DATA_READY popupVisible={popupVisible}");
                 if (popupVisible)
                 {
                     InvalidateRect(popup, IntPtr.Zero, true);
@@ -427,7 +384,6 @@ internal sealed class TrayApp : IDisposable
             if (msg == WM_COMMAND)
             {
                 int id = unchecked((int)(long)wParam) & 0xFFFF;
-                Log($"WM_COMMAND id={id}");
                 if (id == IDM_REFRESH)
                 {
                     lastFetch = DateTime.MinValue;
@@ -436,7 +392,6 @@ internal sealed class TrayApp : IDisposable
                 }
                 else if (id == IDM_EXIT)
                 {
-                    Log("Exit");
                     DestroyWindow(hwnd);
                 }
                 return IntPtr.Zero;
@@ -444,7 +399,6 @@ internal sealed class TrayApp : IDisposable
 
             if (msg == 0x0113 && wParam == (IntPtr)timerId)
             {
-                Log("Timer");
                 lastFetch = DateTime.MinValue;
                 _ = LoadData();
                 return IntPtr.Zero;
@@ -452,7 +406,6 @@ internal sealed class TrayApp : IDisposable
 
             if (msg == WM_DESTROY)
             {
-                Log("WM_DESTROY");
                 KillTimer(hWnd, timerId);
                 RemoveTrayIcon();
                 PostQuitMessage(0);
@@ -463,7 +416,7 @@ internal sealed class TrayApp : IDisposable
         }
         catch (Exception ex)
         {
-            Log("MainWndProc EX: " + ex);
+            Log("MainWndProc EX: " + ex.Message);
             return IntPtr.Zero;
         }
     }
@@ -492,7 +445,6 @@ internal sealed class TrayApp : IDisposable
             }
             if (msg == WM_MOUSELEAVE)
             {
-                Log("WM_MOUSELEAVE on popup");
                 HidePopup();
                 return IntPtr.Zero;
             }
@@ -500,7 +452,7 @@ internal sealed class TrayApp : IDisposable
         }
         catch (Exception ex)
         {
-            Log("PopupWndProc EX: " + ex);
+            Log("PopupWndProc EX: " + ex.Message);
             return IntPtr.Zero;
         }
     }
@@ -510,36 +462,31 @@ internal sealed class TrayApp : IDisposable
         paintCount++;
         PAINTSTRUCT ps = default;
         var dc = BeginPaint(hWnd, out ps);
-        Log($"PaintPopup #{paintCount} dc={dc} paintRect=({ps.rcPaint.Left},{ps.rcPaint.Top})-({ps.rcPaint.Right},{ps.rcPaint.Bottom})");
-
         try
         {
             if (dc == IntPtr.Zero)
             {
-                Log("BeginPaint returned NULL");
+                Log("BeginPaint NULL");
                 return;
             }
 
             GetClientRect(hWnd, out var rc);
-            int cw = rc.Right - rc.Left;
             int ch = rc.Bottom - rc.Top;
-            Log($"Client size={cw}x{ch}");
 
-            // Bright yellow background so the window is unmistakable
-            var bg = CreateSolidBrush(0x00CCFFFF); // light yellow (COLORREF = 0x00BBGGRR)
+            // light yellow background — CreateSolidBrush is in gdi32
+            var bg = CreateSolidBrush(0x00CCFFFF);
             FillRect(dc, ref rc, bg);
             DeleteObject(bg);
 
             SetBkMode(dc, (int)TRANSPARENT);
-            SetTextColor(dc, 0x00000000); // black
+            SetTextColor(dc, 0x00000000);
 
             var font = CreateFontW(18, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
             var font2 = CreateFontW(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Consolas");
-            if (font == IntPtr.Zero) { font = GetStockObject(17); Log("CreateFont failed, stock"); }
+            if (font == IntPtr.Zero) font = GetStockObject(17);
             if (font2 == IntPtr.Zero) font2 = font;
             var old = SelectObject(dc, font);
 
-            // Header in plain English with TextOutW (most reliable)
             TextAt(dc, 12, 8, "TGJU Prices");
             TextAt(dc, 200, 8, statusText);
             if (!string.IsNullOrEmpty(lastError))
@@ -551,7 +498,7 @@ internal sealed class TrayApp : IDisposable
 
             SelectObject(dc, font2);
             TextAt(dc, 12, 55, "Name");
-            TextAt(dc, 120, 55, "Price");
+            TextAt(dc, 140, 55, "Price");
             TextAt(dc, 280, 55, "Change");
 
             Dictionary<string, Quote> snapshot;
@@ -562,11 +509,11 @@ internal sealed class TrayApp : IDisposable
             for (int i = 0; i < slugs.Length; i++)
             {
                 int y = 80 + i * 40;
-                TextAt(dc, 12, y, namesEn[i] + " / " + namesFa[i]);
+                TextAt(dc, 12, y, namesEn[i]);
 
                 if (!snapshot.TryGetValue(slugs[i], out var q) || q == null)
                 {
-                    TextAt(dc, 120, y, "---");
+                    TextAt(dc, 140, y, "---");
                     continue;
                 }
 
@@ -581,15 +528,15 @@ internal sealed class TrayApp : IDisposable
 
                 var color = q.Dp > 0 ? 0x00008800 : q.Dp < 0 ? 0x000000CC : 0x00555555;
                 SetTextColor(dc, color);
-                TextAt(dc, 120, y, price);
-                TextAt(dc, 280, y, q.Dp.ToString("+0.00;-0.00;0") + "%  " + (q.T ?? ""));
+                TextAt(dc, 140, y, price);
+                TextAt(dc, 280, y, q.Dp.ToString("+0.00;-0.00;0") + "%");
                 SetTextColor(dc, 0x00000000);
             }
 
             SetTextColor(dc, 0x00333333);
-            TextAt(dc, 12, ch - 28, $"drawn={drawn} paints={paintCount}  (click tray icon)");
+            TextAt(dc, 12, ch - 28, $"drawn={drawn} paints={paintCount}");
 
-            Log($"Paint done drawn={drawn} snapshotKeys={snapshot.Count}");
+            Log($"Paint #{paintCount} drawn={drawn} keys={snapshot.Count}");
 
             SelectObject(dc, old);
             if (font != IntPtr.Zero) DeleteObject(font);
@@ -639,6 +586,7 @@ internal sealed class TrayApp : IDisposable
 
     delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    // --- user32 ---
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern ushort RegisterClass(ref WNDCLASS lpWndClass);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateWindowEx(int exStyle, string className, string windowName, int style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
     [DllImport("user32.dll")] static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -653,33 +601,34 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool UpdateWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
-    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr iconName);
     [DllImport("user32.dll")] static extern IntPtr LoadCursor(IntPtr hInstance, int cursor);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
-    [DllImport("kernel32.dll")] static extern uint GetLastError();
     [DllImport("user32.dll")] static extern bool SetTimer(IntPtr hWnd, uint id, uint ms, IntPtr callback);
     [DllImport("user32.dll")] static extern bool KillTimer(IntPtr hWnd, uint id);
     [DllImport("user32.dll")] static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT tme);
     [DllImport("user32.dll")] static extern IntPtr BeginPaint(IntPtr hWnd, out PAINTSTRUCT ps);
     [DllImport("user32.dll")] static extern bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT ps);
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
-    [DllImport("user32.dll")] static extern int SetTextColor(IntPtr hdc, int color);
-    [DllImport("user32.dll")] static extern int SetBkMode(IntPtr hdc, int mode);
     [DllImport("user32.dll")] static extern bool FillRect(IntPtr hdc, ref RECT rect, IntPtr brush);
-    [DllImport("user32.dll")] static extern IntPtr CreateSolidBrush(int color);
-    [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateFontW(int h, int w, int e, int o, int weight, uint italic, uint underline, uint strike, uint charset, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
-    [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
-    [DllImport("gdi32.dll")] static extern IntPtr GetStockObject(int fnObject);
-    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern bool TextOutW(IntPtr hdc, int x, int y, string lpString, int c);
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern bool Shell_NotifyIcon(uint message, ref NOTIFYICONDATA data);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreatePopupMenu();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, UIntPtr uIDNewItem, string lpNewItem);
     [DllImport("user32.dll")] static extern bool DestroyMenu(IntPtr hMenu);
     [DllImport("user32.dll")] static extern bool TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    // --- gdi32 (CreateSolidBrush, text, fonts select) ---
+    [DllImport("gdi32.dll")] static extern IntPtr CreateSolidBrush(int color);
+    [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
+    [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
+    [DllImport("gdi32.dll")] static extern IntPtr GetStockObject(int fnObject);
+    [DllImport("gdi32.dll")] static extern int SetTextColor(IntPtr hdc, int color);
+    [DllImport("gdi32.dll")] static extern int SetBkMode(IntPtr hdc, int mode);
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] static extern bool TextOutW(IntPtr hdc, int x, int y, string lpString, int c);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern bool Shell_NotifyIcon(uint message, ref NOTIFYICONDATA data);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct WNDCLASS
