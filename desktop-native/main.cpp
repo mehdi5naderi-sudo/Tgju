@@ -398,7 +398,7 @@ static void PaintPopup(HWND hwnd) {
     SetBkMode(hdc, TRANSPARENT);
     HFONT titleFont = CreateFontW(26, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    HFONT rowFont = CreateFontW(22, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    HFONT rowFont = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
     HFONT smallFont = CreateFontW(17, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
@@ -417,14 +417,14 @@ static void PaintPopup(HWND hwnd) {
     DrawTextRect(hdc, RECT{ m, 6, W / 2 - 65, 38 }, status.c_str(), DT_LEFT, RGB(180, 190, 202));
     DrawTextRect(hdc, RECT{ W / 2 - 55, 6, W - m, 38 }, kAppVersion, DT_RIGHT, RGB(70, 165, 220));
 
-    const int nameW = 165;
-    const int priceW = 195;
-    const int chgW = 115;
+    const int nameW = 145;
+    const int priceW = 175;
+    const int chgW = 105;
 
     auto colName  = [&](int y1, int y2) { return RECT{ W - m - nameW, y1, W - m, y2 }; };
     auto colPrice = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW, y1, W - m - nameW, y2 }; };
     auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
-    auto colTime  = [&](int y1, int y2) { return RECT{ m, y1, W - m - nameW - priceW - chgW - 4, y2 }; };
+    auto colTime  = [&](int y1, int y2) { return RECT{ m, y1, W - m - nameW - priceW - chgW, y2 }; };
 
     int y0 = 46;
     SelectObject(hdc, smallFont);
