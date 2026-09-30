@@ -14,9 +14,36 @@ internal static class Program
     [STAThread]
     static void Main()
     {
-        try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13; } catch { }
-        using var app = new TrayApp();
-        app.Run();
+        try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12; } catch { }
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            try
+            {
+                var path = Path.Combine(Path.GetTempPath(), "TGJU-desktop.log");
+                File.AppendAllText(path,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] FATAL: {e.ExceptionObject}{Environment.NewLine}",
+                    Encoding.UTF8);
+            }
+            catch { }
+        };
+
+        try
+        {
+            using var app = new TrayApp();
+            app.Run();
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var path = Path.Combine(Path.GetTempPath(), "TGJU-desktop.log");
+                File.AppendAllText(path,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] MAIN EX: {ex}{Environment.NewLine}",
+                    Encoding.UTF8);
+            }
+            catch { }
+        }
     }
 }
 
@@ -34,6 +61,7 @@ internal sealed class TrayApp : IDisposable
     const uint WM_LBUTTONUP = 0x0202;
     const uint WM_RBUTTONUP = 0x0205;
     const uint WM_LBUTTONDBLCLK = 0x0203;
+    const uint WM_ERASEBKGND = 0x0014;
     const uint WM_USER = 0x0400;
     const uint NIN_SELECT = WM_USER + 0;
     const uint NIN_KEYSELECT = WM_USER + 1;
@@ -62,6 +90,7 @@ internal sealed class TrayApp : IDisposable
     const uint DT_SINGLELINE = 0x00000020;
     const uint DT_RTLREADING = 0x00020000;
     const uint DT_NOPREFIX = 0x00000800;
+    const uint DT_WORDBREAK = 0x00000010;
 
     const int IDM_REFRESH = 1001;
     const int IDM_EXIT = 1002;
@@ -92,6 +121,7 @@ internal sealed class TrayApp : IDisposable
     uint timerId = 1;
     DateTime lastHover = DateTime.MinValue;
     DateTime popupShownAt = DateTime.MinValue;
+    DateTime lastFetch = DateTime.MinValue;
     string statusText = "در حال دریافت اطلاعات...";
     string lastError = "";
 
@@ -116,8 +146,8 @@ internal sealed class TrayApp : IDisposable
 
         popup = CreateWindowEx(
             WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
-            popupClass, "TGJU", WS_POPUP | WS_BORDER,
-            0, 0, 455, 400, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
+            popupClass, "TGJU Popup", WS_POPUP | WS_BORDER,
+            0, 0, 460, 410, IntPtr.Zero, IntPtr.Zero, hInst, IntPtr.Zero);
         Log($"Popup hwnd={popup}");
 
         icon = LoadIcon(IntPtr.Zero, new IntPtr(32512));
@@ -178,14 +208,13 @@ internal sealed class TrayApp : IDisposable
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
         c.DefaultRequestHeaders.Accept.ParseAdd("application/json,text/plain,*/*");
         c.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "fa-IR,fa;q=0.9,en;q=0.8");
-        c.DefaultRequestHeaders.TryAddWithoutValidation("Cache-Control", "no-cache");
         return c;
     }
 
     async Task<(bool ok, string body, string error)> TryFetchHttp(bool bypassCert, bool tls12Only)
     {
         var api = ApiUrl(slugs);
-        Log($"GET HttpClient {api} (bypass={bypassCert}, tls12Only={tls12Only})");
+        Log($"GET HttpClient (bypass={bypassCert}, tls12Only={tls12Only})");
         try
         {
             using var client = CreateClient(bypassCert, tls12Only);
@@ -193,7 +222,7 @@ internal sealed class TrayApp : IDisposable
             var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             Log($"HTTP {(int)response.StatusCode} len={body.Length}");
             if (body.Length > 0)
-                Log("Body head: " + body[..Math.Min(body.Length, 280)]);
+                Log("Body head: " + body[..Math.Min(body.Length, 200)]);
             if (!response.IsSuccessStatusCode)
                 return (false, "", $"HTTP {(int)response.StatusCode}");
             return (true, body, "");
@@ -203,104 +232,27 @@ internal sealed class TrayApp : IDisposable
             var msg = ex.Message;
             for (var e = ex.InnerException; e != null; e = e.InnerException)
                 msg += " | " + e.Message;
-            Log($"HttpClient error: {ex.GetType().Name}: {msg}");
+            Log($"HttpClient error: {msg}");
             return (false, "", msg);
-        }
-    }
-
-    async Task<(bool ok, string body, string error)> TryFetchCurl()
-    {
-        var api = ApiUrl(slugs);
-        Log($"GET curl.exe {api}");
-        try
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "curl.exe",
-                Arguments = $"-sS --max-time 25 -H \"User-Agent: Mozilla/5.0\" -H \"Accept: application/json\" \"{api}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var p = System.Diagnostics.Process.Start(psi);
-            if (p == null) return (false, "", "curl start failed");
-            var stdout = await p.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
-            var stderr = await p.StandardError.ReadToEndAsync().ConfigureAwait(false);
-            await p.WaitForExitAsync().ConfigureAwait(false);
-            Log($"curl exit={p.ExitCode} len={stdout.Length} err={stderr.Trim()}");
-            if (p.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
-                return (false, "", string.IsNullOrWhiteSpace(stderr) ? $"curl exit {p.ExitCode}" : stderr.Trim());
-            if (stdout.Length > 0)
-                Log("Body head: " + stdout[..Math.Min(stdout.Length, 280)]);
-            return (true, stdout, "");
-        }
-        catch (Exception ex)
-        {
-            Log($"curl error: {ex.Message}");
-            return (false, "", ex.Message);
-        }
-    }
-
-    async Task<(bool ok, string body, string error)> TryFetchPowerShell()
-    {
-        var api = ApiUrl(slugs);
-        Log($"GET powershell {api}");
-        try
-        {
-            var script =
-                "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " +
-                "[Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }; " +
-                $"(Invoke-WebRequest -Uri '{api}' -UseBasicParsing -TimeoutSec 25).Content";
-            var bytes = Encoding.Unicode.GetBytes(script);
-            var b64 = Convert.ToBase64String(bytes);
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = "-NoProfile -ExecutionPolicy Bypass -EncodedCommand " + b64,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var p = System.Diagnostics.Process.Start(psi);
-            if (p == null) return (false, "", "powershell start failed");
-            var stdout = await p.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
-            var stderr = await p.StandardError.ReadToEndAsync().ConfigureAwait(false);
-            await p.WaitForExitAsync().ConfigureAwait(false);
-            var errTrim = stderr.Trim();
-            Log($"powershell exit={p.ExitCode} len={stdout.Length} err={(errTrim.Length > 200 ? errTrim[..200] : errTrim)}");
-            if (p.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
-                return (false, "", string.IsNullOrWhiteSpace(stderr) ? $"powershell exit {p.ExitCode}" : stderr.Trim());
-            if (stdout.Length > 0)
-                Log("Body head: " + stdout[..Math.Min(stdout.Length, 280)]);
-            return (true, stdout.Trim(), "");
-        }
-        catch (Exception ex)
-        {
-            Log($"powershell error: {ex.Message}");
-            return (false, "", ex.Message);
         }
     }
 
     async Task LoadData()
     {
         if (loading) return;
+        // avoid hammering API on hover spam
+        if ((DateTime.Now - lastFetch).TotalSeconds < 3 && lastGood.Count > 0) return;
+
         loading = true;
         statusText = "در حال دریافت اطلاعات...";
         NotifyUi();
 
         try
         {
-            (bool ok, string body, string error) result = (false, "", "");
-
-            result = await TryFetchHttp(bypassCert: false, tls12Only: false).ConfigureAwait(false);
+            // Prefer the path that works on this machine (TLS1.2 + cert bypass)
+            var result = await TryFetchHttp(bypassCert: true, tls12Only: true).ConfigureAwait(false);
             if (!result.ok)
-                result = await TryFetchHttp(bypassCert: true, tls12Only: true).ConfigureAwait(false);
-            if (!result.ok)
-                result = await TryFetchCurl().ConfigureAwait(false);
-            if (!result.ok)
-                result = await TryFetchPowerShell().ConfigureAwait(false);
+                result = await TryFetchHttp(bypassCert: false, tls12Only: false).ConfigureAwait(false);
 
             if (!result.ok)
                 throw new Exception(result.error);
@@ -315,28 +267,26 @@ internal sealed class TrayApp : IDisposable
                 lastGood.Clear();
                 foreach (var item in indicators)
                 {
-                    var key = !string.IsNullOrWhiteSpace(item.Name) ? item.Name
-                        : !string.IsNullOrWhiteSpace(item.Slug) ? item.Slug
-                        : null;
-                    if (key == null) continue;
-                    lastGood[key] = item;
-                    if (!string.IsNullOrWhiteSpace(item.Slug) && item.Slug != key)
+                    // API puts the slug in "name" and also in "slug"
+                    if (!string.IsNullOrWhiteSpace(item.Slug))
                         lastGood[item.Slug] = item;
-                    Log($"  key={key} p={item.P} dp={item.Dp}");
+                    if (!string.IsNullOrWhiteSpace(item.Name))
+                        lastGood[item.Name] = item;
+                    Log($"  slug={item.Slug} name={item.Name} p={item.P} dp={item.Dp}");
                 }
             }
 
             lastError = "";
+            lastFetch = DateTime.Now;
             int count;
             lock (dataLock) count = lastGood.Count;
             statusText = count > 0
-                ? $"آخرین به‌روزرسانی: {DateTime.Now:HH:mm:ss}"
+                ? $"به‌روزرسانی: {DateTime.Now:HH:mm:ss}"
                 : "داده‌ای دریافت نشد";
         }
         catch (Exception ex)
         {
-            lastError = "SSL/شبکه: " + ex.Message;
-            if (lastError.Length > 80) lastError = lastError[..80] + "…";
+            lastError = ex.Message.Length > 60 ? ex.Message[..60] + "…" : ex.Message;
             statusText = "خطا در دریافت داده";
             Log($"ERROR final: {ex.Message}");
         }
@@ -376,31 +326,43 @@ internal sealed class TrayApp : IDisposable
 
     void ShowPopup()
     {
-        GetCursorPos(out var pt);
-        var screen = MonitorFromPoint(pt, 2);
-        var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-        GetMonitorInfo(screen, ref mi);
-        const int w = 455, h = 400;
-        int x = Math.Min(pt.X - w + 16, mi.rcWork.Right - w - 8);
-        int y = pt.Y - h - 12;
-        if (y < mi.rcWork.Top + 8) y = pt.Y + 24;
-        if (x < mi.rcWork.Left + 8) x = mi.rcWork.Left + 8;
-        int count; lock (dataLock) count = lastGood.Count;
-        Log($"ShowPopup at ({x},{y}) items={count}");
-        SetWindowPos(popup, new IntPtr(HWND_TOPMOST), x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        ShowWindow(popup, SW_SHOWNOACTIVATE);
-        popupVisible = true;
-        popupShownAt = DateTime.Now;
-        InvalidateRect(popup, IntPtr.Zero, true);
-        UpdateWindow(popup);
+        try
+        {
+            GetCursorPos(out var pt);
+            var screen = MonitorFromPoint(pt, 2);
+            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            GetMonitorInfo(screen, ref mi);
+
+            const int w = 460, h = 410;
+            int x = Math.Min(pt.X - w + 16, mi.rcWork.Right - w - 8);
+            int y = pt.Y - h - 12;
+            if (y < mi.rcWork.Top + 8) y = pt.Y + 24;
+            if (x < mi.rcWork.Left + 8) x = mi.rcWork.Left + 8;
+
+            int count;
+            lock (dataLock) count = lastGood.Count;
+            Log($"ShowPopup at ({x},{y}) items={count} visible={popupVisible}");
+
+            SetWindowPos(popup, new IntPtr(HWND_TOPMOST), x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            ShowWindow(popup, SW_SHOWNOACTIVATE);
+            popupVisible = true;
+            popupShownAt = DateTime.Now;
+            InvalidateRect(popup, IntPtr.Zero, true);
+            UpdateWindow(popup);
+        }
+        catch (Exception ex)
+        {
+            Log("ShowPopup EX: " + ex.Message);
+        }
     }
 
     void HidePopup()
     {
-        if ((DateTime.Now - popupShownAt).TotalMilliseconds < 500) return;
+        if ((DateTime.Now - popupShownAt).TotalMilliseconds < 800) return;
         if (!popupVisible) return;
         ShowWindow(popup, SW_HIDE);
         popupVisible = false;
+        Log("HidePopup");
     }
 
     void ShowContextMenu()
@@ -410,7 +372,8 @@ internal sealed class TrayApp : IDisposable
         AppendMenuW(menu, 0, (UIntPtr)IDM_REFRESH, "به‌روزرسانی");
         AppendMenuW(menu, 0, (UIntPtr)IDM_EXIT, "خروج");
         SetForegroundWindow(hwnd);
-        TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN, pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
+        TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN,
+            pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
         PostMessage(hwnd, 0, IntPtr.Zero, IntPtr.Zero);
         DestroyMenu(menu);
     }
@@ -424,132 +387,251 @@ internal sealed class TrayApp : IDisposable
 
     IntPtr MainWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        if (msg == WM_TRAY)
+        try
         {
-            int ev = unchecked((int)(long)lParam) & 0xFFFF;
-            if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
-                HandleTrayActivate();
-            else if (ev == (int)WM_MOUSEMOVE)
+            if (msg == WM_TRAY)
             {
-                if ((DateTime.Now - lastHover).TotalMilliseconds >= 500)
+                int ev = unchecked((int)(long)lParam) & 0xFFFF;
+                if (ev == (int)NIN_SELECT || ev == (int)NIN_KEYSELECT
+                    || ev == (int)WM_LBUTTONUP || ev == (int)WM_LBUTTONDBLCLK)
+                {
                     HandleTrayActivate();
+                }
+                else if (ev == (int)WM_MOUSEMOVE)
+                {
+                    if ((DateTime.Now - lastHover).TotalMilliseconds >= 600)
+                        HandleTrayActivate();
+                }
+                else if (ev == (int)WM_RBUTTONUP || ev == (int)WM_CONTEXTMENU)
+                {
+                    HidePopup();
+                    ShowContextMenu();
+                }
+                return IntPtr.Zero;
             }
-            else if (ev == (int)WM_RBUTTONUP || ev == (int)WM_CONTEXTMENU)
+
+            if (msg == WM_DATA_READY)
             {
-                HidePopup();
-                ShowContextMenu();
+                if (popupVisible)
+                {
+                    InvalidateRect(popup, IntPtr.Zero, true);
+                    UpdateWindow(popup);
+                }
+                return IntPtr.Zero;
             }
-            return IntPtr.Zero;
+
+            if (msg == WM_COMMAND)
+            {
+                int id = unchecked((int)(long)wParam) & 0xFFFF;
+                if (id == IDM_REFRESH)
+                {
+                    lastFetch = DateTime.MinValue;
+                    ShowPopup();
+                    _ = LoadData();
+                }
+                else if (id == IDM_EXIT)
+                {
+                    Log("Exit requested");
+                    DestroyWindow(hwnd);
+                }
+                return IntPtr.Zero;
+            }
+
+            if (msg == 0x0113 && wParam == (IntPtr)timerId)
+            {
+                lastFetch = DateTime.MinValue;
+                _ = LoadData();
+                return IntPtr.Zero;
+            }
+
+            if (msg == WM_DESTROY)
+            {
+                KillTimer(hWnd, timerId);
+                RemoveTrayIcon();
+                PostQuitMessage(0);
+                return IntPtr.Zero;
+            }
+
+            return DefWindowProc(hWnd, msg, wParam, lParam);
         }
-        if (msg == WM_DATA_READY)
+        catch (Exception ex)
         {
-            if (popupVisible) { InvalidateRect(popup, IntPtr.Zero, true); UpdateWindow(popup); }
+            Log("MainWndProc EX: " + ex);
             return IntPtr.Zero;
         }
-        if (msg == WM_COMMAND)
-        {
-            int id = unchecked((int)(long)wParam) & 0xFFFF;
-            if (id == IDM_REFRESH) { ShowPopup(); _ = LoadData(); }
-            else if (id == IDM_EXIT) DestroyWindow(hwnd);
-            return IntPtr.Zero;
-        }
-        if (msg == 0x0113 && wParam == (IntPtr)timerId) { _ = LoadData(); return IntPtr.Zero; }
-        if (msg == WM_DESTROY)
-        {
-            KillTimer(hWnd, timerId);
-            RemoveTrayIcon();
-            PostQuitMessage(0);
-            return IntPtr.Zero;
-        }
-        return DefWindowProc(hWnd, msg, wParam, lParam);
     }
 
     IntPtr PopupWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        if (msg == WM_PAINT) { PaintPopup(hWnd); return IntPtr.Zero; }
-        if (msg == WM_MOUSEMOVE)
+        try
         {
-            var tme = new TRACKMOUSEEVENT { cbSize = Marshal.SizeOf<TRACKMOUSEEVENT>(), dwFlags = 0x00000002, hwndTrack = hWnd };
-            TrackMouseEvent(ref tme);
+            if (msg == WM_PAINT)
+            {
+                PaintPopup(hWnd);
+                return IntPtr.Zero;
+            }
+            if (msg == WM_ERASEBKGND)
+            {
+                // prevent flicker / blank erase; we paint fully in WM_PAINT
+                return (IntPtr)1;
+            }
+            if (msg == WM_MOUSEMOVE)
+            {
+                var tme = new TRACKMOUSEEVENT
+                {
+                    cbSize = Marshal.SizeOf<TRACKMOUSEEVENT>(),
+                    dwFlags = 0x00000002, // TME_LEAVE
+                    hwndTrack = hWnd
+                };
+                TrackMouseEvent(ref tme);
+                return IntPtr.Zero;
+            }
+            if (msg == WM_MOUSELEAVE)
+            {
+                HidePopup();
+                return IntPtr.Zero;
+            }
+            return DefWindowProc(hWnd, msg, wParam, lParam);
+        }
+        catch (Exception ex)
+        {
+            Log("PopupWndProc EX: " + ex);
             return IntPtr.Zero;
         }
-        if (msg == WM_MOUSELEAVE) { HidePopup(); return IntPtr.Zero; }
-        return DefWindowProc(hWnd, msg, wParam, lParam);
     }
 
     void PaintPopup(IntPtr hWnd)
     {
-        PAINTSTRUCT ps;
+        PAINTSTRUCT ps = default;
         var dc = BeginPaint(hWnd, out ps);
-        GetClientRect(hWnd, out var rc);
-        var bg = CreateSolidBrush(0x00FFFFFF);
-        FillRect(dc, ref rc, bg);
-        DeleteObject(bg);
-        var font = CreateFontW(22, 0, 0, 0, 700, 0, 0, 0, 178, 0, 0, 0, 0, "Segoe UI");
-        var small = CreateFontW(18, 0, 0, 0, 400, 0, 0, 0, 178, 0, 0, 0, 0, "Segoe UI");
-        var old = SelectObject(dc, font);
-        DrawTextRtl(dc, "شاخص", 12, 8, 100, 38, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        DrawTextRtl(dc, "قیمت", 112, 8, 270, 38, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        DrawTextRtl(dc, "تغییر / زمان", 282, 8, 443, 38, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        Dictionary<string, Quote> snapshot;
-        lock (dataLock) snapshot = new Dictionary<string, Quote>(lastGood);
-        bool hasAny = false;
-        for (int i = 0; i < slugs.Length; i++)
+        try
         {
-            int y = 48 + i * 47;
-            DrawTextRtl(dc, names[i], 12, y, 112, y + 42, 0x00111111, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            if (!snapshot.TryGetValue(slugs[i], out var q))
+            GetClientRect(hWnd, out var rc);
+            Log($"PaintPopup client={rc.Right - rc.Left}x{rc.Bottom - rc.Top}");
+
+            // white background
+            var bg = CreateSolidBrush(0x00FFFFFF);
+            FillRect(dc, ref rc, bg);
+            DeleteObject(bg);
+
+            // light border frame
+            var pen = CreateSolidBrush(0x00DDDDDD);
+            var frame = new RECT { Left = 0, Top = 0, Right = rc.Right, Bottom = 1 };
+            FillRect(dc, ref frame, pen);
+            DeleteObject(pen);
+
+            var font = CreateFontW(20, 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
+            var small = CreateFontW(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0, "Segoe UI");
+            if (font == IntPtr.Zero) font = GetStockObject(17); // DEFAULT_GUI_FONT
+            if (small == IntPtr.Zero) small = font;
+            var old = SelectObject(dc, font);
+
+            SetBkMode(dc, (int)TRANSPARENT);
+
+            DrawTextRtl(dc, "شاخص", 8, 6, 100, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawTextRtl(dc, "قیمت", 100, 6, 280, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawTextRtl(dc, "تغییر / زمان", 280, 6, 450, 32, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            Dictionary<string, Quote> snapshot;
+            lock (dataLock)
+                snapshot = new Dictionary<string, Quote>(lastGood, StringComparer.OrdinalIgnoreCase);
+
+            bool hasAny = false;
+            for (int i = 0; i < slugs.Length; i++)
             {
+                int y = 40 + i * 48;
+                DrawTextRtl(dc, names[i], 8, y, 100, y + 40, 0x00111111, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+                if (!snapshot.TryGetValue(slugs[i], out var q) || q == null)
+                {
+                    SelectObject(dc, small);
+                    DrawTextRtl(dc, "—", 100, y, 450, y + 40, 0x00999999, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                    SelectObject(dc, font);
+                    continue;
+                }
+
+                hasAny = true;
+                var pStr = (q.P ?? "").Replace(",", "");
+                double.TryParse(pStr, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var p);
+
+                string price;
+                if (slugs[i] is "ons" or "oil_brent")
+                    price = p.ToString("N2");
+                else
+                    price = (p / 10.0).ToString("N0");
+
+                var color = q.Dp > 0 ? 0x00228B22 : q.Dp < 0 ? 0x002323B0 : 0x00008C8C;
+                SelectObject(dc, font);
+                DrawTextRtl(dc, price, 100, y, 280, y + 40, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
                 SelectObject(dc, small);
-                DrawTextRtl(dc, "—", 112, y, 443, y + 42, 0x00999999, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-                continue;
+                var symbol = q.Dp > 0 ? "+" : q.Dp < 0 ? "-" : "=";
+                var t = string.IsNullOrWhiteSpace(q.T) ? "-" : q.T;
+                var text = symbol + Math.Abs(q.Dp).ToString("0.00") + "%  " + t;
+                DrawTextRtl(dc, text, 280, y, 450, y + 40, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                SelectObject(dc, font);
             }
-            hasAny = true;
-            double.TryParse(q.P, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var p);
-            var shown = slugs[i] is "ons" or "oil_brent" ? p : p / 10.0;
-            var price = slugs[i] is "ons" or "oil_brent" ? shown.ToString("N2") : shown.ToString("N0");
-            var color = q.Dp > 0 ? 0x00228B22 : q.Dp < 0 ? 0x002323B0 : 0x00008C8C;
-            SelectObject(dc, font);
-            DrawTextRtl(dc, price, 112, y, 282, y + 42, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
             SelectObject(dc, small);
-            var symbol = q.Dp > 0 ? "▲ " : q.Dp < 0 ? "▼ " : "● ";
-            var text = symbol + Math.Abs(q.Dp).ToString("0.00") + "%  " + (string.IsNullOrWhiteSpace(q.T) ? "—" : q.T);
-            DrawTextRtl(dc, text, 282, y, 443, y + 42, color, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            var statusColor = string.IsNullOrEmpty(lastError) ? 0x00666666 : 0x000000CC;
+            var bar = string.IsNullOrEmpty(lastError) ? statusText : statusText + " | " + lastError;
+            DrawTextRtl(dc, bar, 8, 380, 450, 405, statusColor, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            if (!hasAny)
+            {
+                SelectObject(dc, font);
+                DrawTextRtl(dc, statusText, 8, 160, 450, 220, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            }
+
+            Log($"PaintPopup done hasAny={hasAny} status={statusText}");
+
+            SelectObject(dc, old);
+            if (font != IntPtr.Zero) DeleteObject(font);
+            if (small != IntPtr.Zero && small != font) DeleteObject(small);
         }
-        SelectObject(dc, small);
-        var statusColor = string.IsNullOrEmpty(lastError) ? 0x00666666 : 0x000000CC;
-        var bar = string.IsNullOrEmpty(lastError) ? statusText : statusText + " — " + lastError;
-        DrawTextRtl(dc, bar, 12, 370, 443, 395, statusColor, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        if (!hasAny)
+        catch (Exception ex)
         {
-            SelectObject(dc, font);
-            DrawTextRtl(dc, statusText, 12, 160, 443, 220, 0x00555555, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            Log("PaintPopup EX: " + ex);
         }
-        SelectObject(dc, old);
-        DeleteObject(font);
-        DeleteObject(small);
-        EndPaint(hWnd, ref ps);
+        finally
+        {
+            EndPaint(hWnd, ref ps);
+        }
     }
 
     static void DrawTextRtl(IntPtr dc, string text, int l, int t, int r, int b, int color, uint flags)
     {
+        if (string.IsNullOrEmpty(text)) text = " ";
         SetTextColor(dc, color);
         SetBkMode(dc, (int)TRANSPARENT);
         var rect = new RECT { Left = l, Top = t, Right = r, Bottom = b };
-        DrawTextW(dc, text, text.Length, ref rect, flags | DT_RTLREADING | DT_NOPREFIX);
+        DrawTextW(dc, text, -1, ref rect, flags | DT_RTLREADING | DT_NOPREFIX);
     }
 
     public void Dispose()
     {
-        RemoveTrayIcon();
-        if (popup != IntPtr.Zero) DestroyWindow(popup);
-        if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
+        try
+        {
+            RemoveTrayIcon();
+            if (popup != IntPtr.Zero) DestroyWindow(popup);
+            if (hwnd != IntPtr.Zero) DestroyWindow(hwnd);
+        }
+        catch { }
         Log("=== TGJU Desktop exited ===");
     }
 
     static void Register(string name, WndProcDelegate proc, IntPtr hInst)
     {
-        var wc = new WNDCLASS { lpfnWndProc = proc, hInstance = hInst, lpszClassName = name, hCursor = LoadCursor(IntPtr.Zero, 32512) };
+        var wc = new WNDCLASS
+        {
+            style = 0x0003, // CS_HREDRAW | CS_VREDRAW
+            lpfnWndProc = proc,
+            hInstance = hInst,
+            lpszClassName = name,
+            hCursor = LoadCursor(IntPtr.Zero, 32512),
+            hbrBackground = IntPtr.Zero
+        };
         RegisterClass(ref wc);
     }
 
@@ -585,8 +667,10 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool FillRect(IntPtr hdc, ref RECT rect, IntPtr brush);
     [DllImport("user32.dll")] static extern IntPtr CreateSolidBrush(int color);
     [DllImport("user32.dll")] static extern bool DeleteObject(IntPtr obj);
+    [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr obj);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateFontW(int h, int w, int e, int o, int weight, uint italic, uint underline, uint strike, uint charset, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
     [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
+    [DllImport("gdi32.dll")] static extern IntPtr GetStockObject(int fnObject);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern bool Shell_NotifyIcon(uint message, ref NOTIFYICONDATA data);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreatePopupMenu();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool AppendMenuW(IntPtr hMenu, uint uFlags, UIntPtr uIDNewItem, string lpNewItem);
@@ -596,28 +680,55 @@ internal sealed class TrayApp : IDisposable
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    struct WNDCLASS { public uint style; public WndProcDelegate lpfnWndProc; public int cbClsExtra, cbWndExtra; public IntPtr hInstance, hIcon, hCursor, hbrBackground; public string lpszMenuName; public string lpszClassName; }
+    struct WNDCLASS
+    {
+        public uint style;
+        public WndProcDelegate lpfnWndProc;
+        public int cbClsExtra, cbWndExtra;
+        public IntPtr hInstance, hIcon, hCursor, hbrBackground;
+        public string lpszMenuName;
+        public string lpszClassName;
+    }
     [StructLayout(LayoutKind.Sequential)] struct MSG { public IntPtr hWnd; public uint message; public IntPtr wParam, lParam; public uint time; public POINT pt; }
     [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] struct RECT { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
-    [StructLayout(LayoutKind.Sequential)] struct PAINTSTRUCT { public IntPtr hdc; public bool fErase; public RECT rcPaint; public bool fRestore; public bool fIncUpdate; [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)] public byte[] rgbReserved; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct PAINTSTRUCT
+    {
+        public IntPtr hdc;
+        public bool fErase;
+        public RECT rcPaint;
+        public bool fRestore;
+        public bool fIncUpdate;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)] public byte[] rgbReserved;
+    }
     [StructLayout(LayoutKind.Sequential)] struct TRACKMOUSEEVENT { public int cbSize; public uint dwFlags; public IntPtr hwndTrack; public uint dwHoverTime; }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct NOTIFYICONDATA
     {
-        public int cbSize; public IntPtr hWnd; public uint uID, uFlags, uCallbackMessage; public IntPtr hIcon;
+        public int cbSize;
+        public IntPtr hWnd;
+        public uint uID, uFlags, uCallbackMessage;
+        public IntPtr hIcon;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string szTip;
         public uint dwState, dwStateMask;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string szInfo;
         public uint uVersion;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string szInfoTitle;
         public uint dwInfoFlags;
-        public Guid guidItem; public IntPtr hBalloonIcon;
+        public Guid guidItem;
+        public IntPtr hBalloonIcon;
     }
 
-    public sealed class ApiResponse { [JsonPropertyName("response")] public ApiBody? Response { get; set; } }
-    public sealed class ApiBody { [JsonPropertyName("indicators")] public List<Quote>? Indicators { get; set; } }
+    public sealed class ApiResponse
+    {
+        [JsonPropertyName("response")] public ApiBody? Response { get; set; }
+    }
+    public sealed class ApiBody
+    {
+        [JsonPropertyName("indicators")] public List<Quote>? Indicators { get; set; }
+    }
     public sealed class Quote
     {
         [JsonPropertyName("name")] public string Name { get; set; } = "";
