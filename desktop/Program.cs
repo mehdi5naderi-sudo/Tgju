@@ -205,7 +205,7 @@ internal sealed class TrayApp : IDisposable
     {
         if (msg == WM_TRAY)
         {
-            int ev = unchecked((int)(long)lParam);
+            int ev = unchecked((int)(long)lParam) & 0xFFFF;
             if (ev == WM_MOUSEMOVE || ev == WM_LBUTTONUP)
             {
                 if ((DateTime.Now - lastHover).TotalSeconds >= 1)
