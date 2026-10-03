@@ -98,6 +98,22 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         // automatically share the available height. In 6-item mode all six rows
         // remain visible and share the height evenly.
         v.setViewVisibility(R.id.row6,hasSixth?View.VISIBLE:View.GONE);
+        // When the indicator title is on the far right, mirror the row so the
+        // value block stays on the left and the percentage/time block moves left.
+        for(int i=0;i<SLOT_COUNT;i++){
+            int row=ROW_IDS[i], meta=META_IDS[i], pctId=PCT_IDS[i], timeId=TIME_IDS[i];
+            if(namePosition==3){
+                v.setInt(row,"setLayoutDirection",View.LAYOUT_DIRECTION_RTL);
+                v.setInt(meta,"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.START);
+                v.setInt(pctId,"setGravity",android.view.Gravity.START);
+                v.setInt(timeId,"setGravity",android.view.Gravity.START);
+            }else{
+                v.setInt(row,"setLayoutDirection",View.LAYOUT_DIRECTION_LTR);
+                v.setInt(meta,"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.END);
+                v.setInt(pctId,"setGravity",android.view.Gravity.END);
+                v.setInt(timeId,"setGravity",android.view.Gravity.END);
+            }
+        }
         v.setTextViewTextSize(R.id.requestTime,2,rs);
         v.setTextColor(R.id.requestTime,muted);
         v.setViewVisibility(R.id.requestTime,showRefresh?View.VISIBLE:View.GONE);
