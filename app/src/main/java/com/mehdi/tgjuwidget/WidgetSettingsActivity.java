@@ -26,7 +26,7 @@ public class WidgetSettingsActivity extends Activity {
     private int widgetId=AppWidgetManager.INVALID_APPWIDGET_ID;
     private boolean launchedFromIcon=false;
     private Spinner[] spinners=new Spinner[SLOT_COUNT];
-    private EditText priceSize,pctSize,timeSize,refreshSize,nameSize,rowSpace,padding,bgColor,mutedColor,bgAlpha;
+    private EditText priceSize,pctSize,timeSize,refreshSize,nameSize,rowSpace,metaGap,padding,bgColor,mutedColor,bgAlpha;
     private Spinner language,dateFormat,namePosition,metaWidth;
     private Switch showNames,showPct,showTime,showRefresh;
 
@@ -58,7 +58,7 @@ public class WidgetSettingsActivity extends Activity {
         showPct=sw(root,"نمایش درصد تغییر",true);showTime=sw(root,"نمایش ساعت/تاریخ",true);showRefresh=sw(root,"نمایش زمان رفرش",true);
         root.addView(label("ظاهر"),lpTop());
         bgColor=field(root,"رنگ پس‌زمینه (HEX)","#000000");bgAlpha=field(root,"شفافیت پس‌زمینه (%)","100");mutedColor=field(root,"رنگ متن ساعت/نام/رفرش (HEX)","#AAAAAA");
-        rowSpace=field(root,"فاصله ردیف‌ها (dp)","0");padding=field(root,"فاصله داخلی ویجت (dp)","4");
+        rowSpace=field(root,"فاصله ردیف‌ها (dp)","0");metaGap=field(root,"فاصله عمودی درصد و تاریخ آپدیت (dp)","0");padding=field(root,"فاصله داخلی ویجت (dp)","4");
         root.addView(label("رنگ افزایش/کاهش ثابت است: سبز، قرمز، زرد"),lpTop());
         Button save=new Button(this);save.setText("ذخیره");save.setOnClickListener(v->save());root.addView(save,lpTop());setContentView(scroll);
     }
@@ -78,7 +78,7 @@ public class WidgetSettingsActivity extends Activity {
         priceSize.setText(String.valueOf(p.getInt("priceSize",18)));pctSize.setText(String.valueOf(p.getInt("pctSize",10)));timeSize.setText(String.valueOf(p.getInt("timeSize",8)));refreshSize.setText(String.valueOf(p.getInt("refreshSize",7)));nameSize.setText(String.valueOf(p.getInt("nameSize",8)));
         language.setSelection(p.getString("lang","fa").equals("en")?1:0);dateFormat.setSelection(p.getInt("dateFormat",0));
         showNames.setChecked(p.getBoolean("showNames",true));int oldPos=p.getInt("namePosition",1);namePosition.setSelection(oldPos>=1&&oldPos<=3?oldPos-1:0);metaWidth.setSelection(widthSelection(p.getInt("metaWidth",40)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
-        bgColor.setText(hexColor(p,"bgColor",Color.BLACK));bgAlpha.setText(String.valueOf(p.getInt("bgAlpha",100)));mutedColor.setText(hexColor(p,"mutedColor",Color.LTGRAY));rowSpace.setText(String.valueOf(p.getInt("rowSpace",0)));padding.setText(String.valueOf(p.getInt("padding",4)));
+        bgColor.setText(hexColor(p,"bgColor",Color.BLACK));bgAlpha.setText(String.valueOf(p.getInt("bgAlpha",100)));mutedColor.setText(hexColor(p,"mutedColor",Color.LTGRAY));rowSpace.setText(String.valueOf(p.getInt("rowSpace",0)));metaGap.setText(String.valueOf(p.getInt("metaGap",0)));padding.setText(String.valueOf(p.getInt("padding",4)));
     }
     private int widthSelection(int width){if(width<=20)return 0;if(width<=25)return 1;if(width<=30)return 2;if(width<=35)return 3;if(width<=40)return 4;if(width<=45)return 5;return 6;}
     private int selectedMetaWidth(){return 20+metaWidth.getSelectedItemPosition()*5;}
@@ -92,7 +92,7 @@ public class WidgetSettingsActivity extends Activity {
         e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
         e.putBoolean("showNames",showNames.isChecked()).putInt("namePosition",namePosition.getSelectedItemPosition()+1).putInt("metaWidth",selectedMetaWidth()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
         e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("bgAlpha",num(bgAlpha,100,0,100)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
-        e.putInt("rowSpace",num(rowSpace,0,0,8)).putInt("padding",num(padding,4,0,12)).apply();
+        e.putInt("rowSpace",num(rowSpace,0,0,8)).putInt("metaGap",num(metaGap,0,0,8)).putInt("padding",num(padding,4,0,12)).apply();
         AppWidgetManager manager=AppWidgetManager.getInstance(this);
         if(launchedFromIcon){int[] ids=getWidgetIds();for(int id:ids){if(id!=widgetId)copySettings(widgetId,id);manager.updateAppWidget(id,TgjuWidgetProvider.buildViews(this,id));}}
         else if(widgetId!=0)manager.updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
@@ -106,6 +106,6 @@ public class WidgetSettingsActivity extends Activity {
         to.putInt("priceSize",from.getInt("priceSize",18)).putInt("pctSize",from.getInt("pctSize",10)).putInt("timeSize",from.getInt("timeSize",8)).putInt("refreshSize",from.getInt("refreshSize",7)).putInt("nameSize",from.getInt("nameSize",8));
         to.putString("lang",from.getString("lang","fa")).putInt("dateFormat",from.getInt("dateFormat",0));
         to.putBoolean("showNames",from.getBoolean("showNames",true)).putInt("namePosition",from.getInt("namePosition",0)).putInt("metaWidth",from.getInt("metaWidth",54)).putBoolean("showPct",from.getBoolean("showPct",true)).putBoolean("showTime",from.getBoolean("showTime",true)).putBoolean("showRefresh",from.getBoolean("showRefresh",true));
-        to.putInt("bgColor",from.getInt("bgColor",Color.BLACK)).putInt("bgAlpha",from.getInt("bgAlpha",100)).putInt("mutedColor",from.getInt("mutedColor",Color.LTGRAY)).putInt("rowSpace",from.getInt("rowSpace",0)).putInt("padding",from.getInt("padding",4)).apply();
+        to.putInt("bgColor",from.getInt("bgColor",Color.BLACK)).putInt("bgAlpha",from.getInt("bgAlpha",100)).putInt("mutedColor",from.getInt("mutedColor",Color.LTGRAY)).putInt("rowSpace",from.getInt("rowSpace",0)).putInt("metaGap",from.getInt("metaGap",0)).putInt("padding",from.getInt("padding",4)).apply();
     }
 }
