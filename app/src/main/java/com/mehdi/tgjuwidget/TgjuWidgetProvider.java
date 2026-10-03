@@ -80,7 +80,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
             v.setTextViewTextSize(TIME_IDS[i],2,ts);
             if (android.os.Build.VERSION.SDK_INT >= 31) v.setViewLayoutWidth(META_IDS[i], metaWidth, android.util.TypedValue.COMPLEX_UNIT_DIP);
-            if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);\n            if(metaGap!=0)v.setViewLayoutMargin(PCT_IDS[i],RemoteViews.MARGIN_BOTTOM,metaGap,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            if(metaGap!=0)v.setViewLayoutMargin(PCT_IDS[i],RemoteViews.MARGIN_BOTTOM,metaGap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             v.setTextColor(NAME_IDS[i],muted); v.setTextColor(NAME_RIGHT_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
             v.setViewVisibility(NAME_IDS[i],View.GONE);
             v.setViewVisibility(NAME_INLINE_IDS[i],showNames&&namePosition==1?View.VISIBLE:View.GONE);
