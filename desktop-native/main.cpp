@@ -37,7 +37,7 @@ static const ItemDef kItems[] = {
     { "crypto-tether-irr", L"تتر",            Mode::TomanDiv10 },
     { "sekee",             L"سکه امامی",      Mode::TomanDiv10 },
     { "geram18",           L"طلای ۱۸ عیار",   Mode::TomanDiv10 },
-    { "bourse",            L"شاخص بورس",      Mode::Index0 },
+    { "gc30",              L"شاخص بورس",      Mode::Index0 },
     { "ime_fund_kahroba",  L"کهربا",          Mode::TomanDiv10 },
     { "ime_fund_ayar",     L"عیار",           Mode::TomanDiv10 },
     { "ons",               L"انس طلا",        Mode::AsIs2 },
@@ -98,12 +98,9 @@ static std::string Narrow(const std::wstring& w) {
 static std::wstring Wide(const std::string& s) {
     if (s.empty()) return {};
 
-    // API text is normally UTF-8, but some TGJU fields can contain
-    // JSON unicode escapes or legacy Windows-1256 text. Decode robustly.
     std::wstring out;
     out.reserve(s.size());
 
-    // First handle JSON unicode escapes such as \\u06f1.
     for (size_t i = 0; i < s.size(); ) {
         if (i + 5 < s.size() && s[i] == '\\' && s[i + 1] == 'u') {
             unsigned int v = 0;
@@ -127,7 +124,6 @@ static std::wstring Wide(const std::string& s) {
         ++i;
     }
 
-    // If no unicode escapes were present, decode the original bytes.
     if (out.size() == s.size()) {
         int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
             s.c_str(), (int)s.size(), nullptr, 0);
@@ -146,13 +142,9 @@ static std::wstring Wide(const std::string& s) {
         }
     }
 
-    // The escaped path above may have produced UTF-16 code units directly.
-    // For normal ASCII/Persian text this is already the desired result.
     bool hasHigh = false;
     for (wchar_t ch : out) if (ch > 0x7F) { hasHigh = true; break; }
     if (hasHigh) return out;
-
-    // ASCII-only text is safe as-is.
     return out;
 }
 
@@ -192,7 +184,7 @@ static std::wstring FormatNumber(double v, int decimals) {
 }
 
 static std::string ExtractStrNear(const std::string& body, size_t from, const char* key, size_t window = 1500) {
-    std::string pat = std::string("\"") + key + "\":\"";
+    std::string pat = std::string(""") + key + "":"";
     size_t start = (from > 500) ? from - 500 : 0;
     size_t endSearch = (from + window < body.size()) ? from + window : body.size();
 
@@ -211,7 +203,7 @@ static std::string ExtractStrNear(const std::string& body, size_t from, const ch
 }
 
 static double ExtractNumNear(const std::string& body, size_t from, const char* key, size_t window = 1500) {
-    std::string pat = std::string("\"") + key + "\":";
+    std::string pat = std::string(""") + key + "":";
     size_t start = (from > 500) ? from - 500 : 0;
     size_t endSearch = (from + window < body.size()) ? from + window : body.size();
     size_t p = body.find(pat, start);
@@ -278,14 +270,13 @@ static void ParseAndStore(const std::string& body) {
     std::map<std::string, Quote> next;
 
     for (int i = 0; i < kCount; i++) {
-        std::string needle = std::string("\"name\":\"") + kItems[i].key + "\"";
+        std::string needle = std::string(""name":"") + kItems[i].key + """;
         auto pos = body.find(needle);
         if (pos == std::string::npos) {
             Log(std::string("missing ") + kItems[i].key);
             continue;
         }
 
-        // Restrict extraction to this indicator's JSON object.
         size_t objectEnd = body.find('}', pos);
         if (objectEnd == std::string::npos) objectEnd = body.size();
         std::string obj = body.substr(pos, objectEnd - pos + 1);
@@ -494,9 +485,6 @@ static void PaintPopup(HWND hwnd) {
         swprintf_s(chg, L"%+.2f%%", q.dp);
         DrawTextRect(hdc, colChg(y, y + 30), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
-        // Decode TGJU "t" correctly (clock or date label) before drawing.
-        // This avoids mojibake when the API sends Persian text in UTF-8/CP1256
-        // or as JSON unicode escapes.
         std::wstring tShow = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
         DrawTextRect(hdc, colTime(y, y + 30), tShow.c_str(), DT_CENTER, c);
     }
