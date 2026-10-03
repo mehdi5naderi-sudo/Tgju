@@ -10,15 +10,17 @@ const catalog=[
  {slug:'ime_fund_kahroba',name:'کهربا',unit:'تومان'},
  {slug:'ime_fund_ayar',name:'عیار',unit:'تومان'},
  {slug:'ons',name:'انس',unit:'USD'},
- {slug:'oil_brent',name:'نفت برنت',unit:'USD'}
+ {slug:'oil_brent',name:'نفت برنت',unit:'USD'},
+ {slug:'gc30',name:'شاخص بورس',unit:''},
+ {slug:'sekee',name:'سکه امامی',unit:'تومان'}
 ];
 const defaultSlugs=catalog.map(x=>x.slug),storageKey='tgju-selected-v1';
 const box=document.getElementById('tgju-data'),refreshBtn=document.getElementById('refreshBtn'),lastRefresh=document.getElementById('lastRefresh');
 let selected=loadSelection();
 function faDigits(value){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}
 function numberText(number,decimals=0){if(!Number.isFinite(number))return '—';return faDigits(number.toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals}))}
-function priceText(item){let number;if(item.name==='oil_brent'||item.name==='ons')number=Number(item.p);else if((item.name==='crypto-tether-irr'||item.name==='crypto-tether')&&item.p_irr)number=Number(String(item.p_irr).replace(/,/g,''))/10;else number=Number(item.p)/10;const decimals=(item.name==='ons'||item.name==='oil_brent')?2:0;return numberText(number,decimals)}
-function getChange(item){const percent=Number(item.dp);if(Number.isFinite(percent)){if(percent>0)return{className:'up',symbol:'▲'};if(percent<0)return{className:'down',symbol:'▼'};return{className:'flat',symbol:'●'}}const direction=item.dt;if(direction==='high')return{className:'up',symbol:'▲'};if(direction==='low')return{className:'down',symbol:'▼'};return{className:'flat',symbol:'●'}}
+function priceText(item){let number;if(item.name==='gc30')number=Number(item.p);else if(item.name==='oil_brent'||item.name==='ons')number=Number(item.p);else if((item.name==='crypto-tether-irr'||item.name==='crypto-tether')&&item.p_irr)number=Number(String(item.p_irr).replace(/,/g,''))/10;else number=Number(item.p)/10;const decimals=(item.name==='ons'||item.name==='oil_brent')?2:0;return numberText(number,decimals)}
+function getChange(item){const direction=item.dt;if(direction==='high')return{className:'up',symbol:'▲'};if(direction==='low')return{className:'down',symbol:'▼'};const percent=Number(item.dp);if(Number.isFinite(percent)){if(percent>0)return{className:'up',symbol:'▲'};if(percent<0)return{className:'down',symbol:'▼'};return{className:'flat',symbol:'●'}}if(direction==='high')return{className:'up',symbol:'▲'};if(direction==='low')return{className:'down',symbol:'▼'};return{className:'flat',symbol:'●'}}
 function diffText(item){const percent=Number(item.dp);if(!Number.isFinite(percent))return '';return Math.abs(percent).toFixed(2)+'%'}
 function loadSelection(){try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(Array.isArray(saved)){const valid=saved.filter(s=>catalog.some(x=>x.slug===s));const missing=defaultSlugs.filter(s=>!valid.includes(s));return valid.concat(missing)}}catch(e){}return defaultSlugs.slice()}
 function render(items){const map=new Map(items.map(item=>[item.name,item]));const active=selected.map(slug=>catalog.find(x=>x.slug===slug)).filter(Boolean);box.innerHTML=active.map(w=>{const item=map.get(w.slug);if(!item)return '<div class="row"><div class="name">'+w.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';const change=getChange(item),percent=diffText(item);return '<div class="row"><div class="name">'+w.name+'</div><div class="price '+change.className+'">'+priceText(item)+' <span style="font-size:12px;color:#aaa">'+w.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percent+'</span><span class="time">'+faDigits(item.t||'—')+'</span></div></div>'}).join('')}
