@@ -67,7 +67,7 @@ static bool gFetching = false;
 
 struct UiSettings {
     int fontSize=22, smallFontSize=17, rowGap=34;
-    int nameW=145, priceW=175, chgW=105, timeW=130, margin=18;
+    int nameW=105, priceW=135, chgW=80, timeW=85, margin=10;
     int fontWeight=700, fontBrightness=100, closeDelay=5, refreshMinutes=5;
 };
 static UiSettings gSettings;
@@ -86,11 +86,11 @@ static void LoadSettings(){
     gSettings.fontSize=GetPrivateProfileIntW(L"Display",L"FontSize",22,p.c_str());
     gSettings.smallFontSize=GetPrivateProfileIntW(L"Display",L"SmallFontSize",17,p.c_str());
     gSettings.rowGap=GetPrivateProfileIntW(L"Layout",L"RowGap",34,p.c_str());
-    gSettings.nameW=GetPrivateProfileIntW(L"Columns",L"Name",145,p.c_str());
-    gSettings.priceW=GetPrivateProfileIntW(L"Columns",L"Price",175,p.c_str());
-    gSettings.chgW=GetPrivateProfileIntW(L"Columns",L"Change",105,p.c_str());
-    gSettings.timeW=GetPrivateProfileIntW(L"Columns",L"Time",130,p.c_str());
-    gSettings.margin=GetPrivateProfileIntW(L"Layout",L"Margin",18,p.c_str());
+    gSettings.nameW=GetPrivateProfileIntW(L"Columns",L"Name",105,p.c_str());
+    gSettings.priceW=GetPrivateProfileIntW(L"Columns",L"Price",135,p.c_str());
+    gSettings.chgW=GetPrivateProfileIntW(L"Columns",L"Change",80,p.c_str());
+    gSettings.timeW=GetPrivateProfileIntW(L"Columns",L"Time",85,p.c_str());
+    gSettings.margin=GetPrivateProfileIntW(L"Layout",L"Margin",10,p.c_str());
     gSettings.fontWeight=GetPrivateProfileIntW(L"Display",L"FontWeight",700,p.c_str());
     gSettings.fontBrightness=GetPrivateProfileIntW(L"Display",L"FontBrightness",100,p.c_str());
     gSettings.closeDelay=GetPrivateProfileIntW(L"Behavior",L"CloseDelay",5,p.c_str());
@@ -121,20 +121,19 @@ static void SaveSettings(){
 }
 static void ResizePopup(){
     if(!gPopup)return;
-    int W=std::max(520,gSettings.margin*2+gSettings.nameW+gSettings.priceW+gSettings.chgW+gSettings.timeW);
+    int W=std::max(425,gSettings.margin*2+gSettings.nameW+gSettings.priceW+gSettings.chgW+gSettings.timeW);
     int H=54+kCount*gSettings.rowGap+18;
     SetWindowPos(gPopup,nullptr,0,0,W,H,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
     InvalidateRect(gPopup,nullptr,TRUE);
 }
 static void ApplySettings(){
     SaveSettings();
-    if(gMain){KillTimer(gMain,kTimerId+1);SetTimer(gMain,kTimerId+1,(UINT)gSettings.refreshMinutes*60U*1000U,nullptr);}
     ResizePopup();
 }
 static void PresetCompact(){
     gSettings=UiSettings{};
     gSettings.fontSize=22;gSettings.smallFontSize=16;gSettings.rowGap=30;
-    gSettings.nameW=135;gSettings.priceW=165;gSettings.chgW=98;gSettings.timeW=112;gSettings.margin=14;
+    gSettings.nameW=105;gSettings.priceW=135;gSettings.chgW=80;gSettings.timeW=85;gSettings.margin=10;
     ApplySettings();
 }
 static void PresetReadable(){
@@ -173,7 +172,6 @@ static void AddSettingsMenu(HMENU menu){
     HMENU chg=CreatePopupMenu();AddSubItem(chg,CMD_CHG_NARROW,L"کم");AddSubItem(chg,CMD_CHG_MED,L"متوسط",true);AddSubItem(chg,CMD_CHG_WIDE,L"زیاد");
     HMENU time=CreatePopupMenu();AddSubItem(time,CMD_TIME_NARROW,L"کم");AddSubItem(time,CMD_TIME_MED,L"متوسط",true);AddSubItem(time,CMD_TIME_WIDE,L"زیاد");
     HMENU close=CreatePopupMenu();AddSubItem(close,CMD_CLOSE_3,L"۳ ثانیه");AddSubItem(close,CMD_CLOSE_5,L"۵ ثانیه",true);AddSubItem(close,CMD_CLOSE_10,L"۱۰ ثانیه");
-    HMENU refresh=CreatePopupMenu();AddSubItem(refresh,CMD_REFRESH_1,L"۱ دقیقه");AddSubItem(refresh,CMD_REFRESH_5,L"۵ دقیقه",true);AddSubItem(refresh,CMD_REFRESH_10,L"۱۰ دقیقه");
     HMENU margin=CreatePopupMenu();AddSubItem(margin,CMD_MARGIN_SMALL,L"کم");AddSubItem(margin,CMD_MARGIN_MED,L"متوسط",true);AddSubItem(margin,CMD_MARGIN_LARGE,L"زیاد");
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)font,L"اندازه فونت");
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)bright,L"روشنایی فونت");
@@ -187,7 +185,6 @@ static void AddSettingsMenu(HMENU menu){
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)margin,L"حاشیه داخلی");
     AppendMenuW(settings,MF_SEPARATOR,0,nullptr);
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)close,L"زمان بسته‌شدن");
-    AppendMenuW(settings,MF_POPUP,(UINT_PTR)refresh,L"دوره به‌روزرسانی");
     AppendMenuW(settings,MF_SEPARATOR,0,nullptr);
     AppendMenuW(settings,MF_STRING,CMD_PRESET_COMPACT,L"پروفایل فشرده");
     AppendMenuW(settings,MF_STRING,CMD_PRESET_READABLE,L"پروفایل خوانا");
@@ -479,7 +476,7 @@ static void StartFetch() {
 
 static void ShowPopup() {
     POINT pt; GetCursorPos(&pt);
-    const int w = std::max(520,gSettings.margin*2+gSettings.nameW+gSettings.priceW+gSettings.chgW+gSettings.timeW);
+    const int w = std::max(425,gSettings.margin*2+gSettings.nameW+gSettings.priceW+gSettings.chgW+gSettings.timeW);
     const int h = 54+kCount*gSettings.rowGap+18;
     int x = pt.x - w + 24;
     int y = pt.y - h - 12;
@@ -550,14 +547,14 @@ static void PaintPopup(HWND hwnd) {
     DrawTextRect(hdc, RECT{ m, 6, W / 2 - 65, 38 }, status.c_str(), DT_LEFT, BrightColor(RGB(180, 190, 202)));
     DrawTextRect(hdc, RECT{ W / 2 - 55, 6, W - m, 38 }, kAppVersion, DT_RIGHT, BrightColor(RGB(70, 165, 220)));
 
-    const int nameW = 145;
-    const int priceW = 175;
-    const int chgW = 105;
+    const int nameW = gSettings.nameW;
+    const int priceW = gSettings.priceW;
+    const int chgW = gSettings.chgW;
 
     auto colName  = [&](int y1, int y2) { return RECT{ W - m - nameW, y1, W - m, y2 }; };
     auto colPrice = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW, y1, W - m - nameW, y2 }; };
     auto colChg   = [&](int y1, int y2) { return RECT{ W - m - nameW - priceW - chgW, y1, W - m - nameW - priceW, y2 }; };
-    const int timeW = 110;
+    const int timeW = gSettings.timeW;
     auto colTime  = [&](int y1,int y2){return RECT{m,y1,m+timeW,y2};};
 
     int y0 = 46;
@@ -657,13 +654,6 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         UINT ev = LOWORD(lp);
         if (ev == NIN_SELECT || ev == NIN_KEYSELECT || ev == WM_LBUTTONUP || ev == WM_LBUTTONDBLCLK) {
             ShowPopup(); StartFetch();
-        } else if (ev == WM_MOUSEMOVE) {
-            static DWORD last = 0;
-            gLastTrayMoveTick = GetTickCount();
-            if (GetTickCount() - last > 900) {
-                last = GetTickCount();
-                ShowPopup(); StartFetch();
-            }
         } else if (ev == WM_RBUTTONUP || ev == WM_CONTEXTMENU) {
             POINT pt; GetCursorPos(&pt);
             HMENU menu = CreatePopupMenu();
@@ -691,7 +681,6 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case CMD_TIME_NARROW:gSettings.timeW=105;break;case CMD_TIME_MED:gSettings.timeW=130;break;case CMD_TIME_WIDE:gSettings.timeW=160;break;
         case CMD_MARGIN_SMALL:gSettings.margin=10;break;case CMD_MARGIN_MED:gSettings.margin=18;break;case CMD_MARGIN_LARGE:gSettings.margin=26;break;
         case CMD_CLOSE_3:gSettings.closeDelay=3;break;case CMD_CLOSE_5:gSettings.closeDelay=5;break;case CMD_CLOSE_10:gSettings.closeDelay=10;break;
-        case CMD_REFRESH_1:gSettings.refreshMinutes=1;break;case CMD_REFRESH_5:gSettings.refreshMinutes=5;break;case CMD_REFRESH_10:gSettings.refreshMinutes=10;break;
         case CMD_PRESET_COMPACT:PresetCompact();break;case CMD_PRESET_READABLE:PresetReadable();break;case CMD_RESET:gSettings=UiSettings{};ApplySettings();break;
         default:break;}
         if(LOWORD(wp)>=CMD_FONT_SMALL && LOWORD(wp)<=CMD_RESET){if(LOWORD(wp)!=CMD_PRESET_COMPACT&&LOWORD(wp)!=CMD_PRESET_READABLE&&LOWORD(wp)!=CMD_RESET)ApplySettings();if(gPopupVisible)UpdateWindow(gPopup);}
@@ -709,10 +698,8 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (gPopupVisible && GetTickCount() - gLastTrayMoveTick >= (DWORD)gSettings.closeDelay*1000U) HidePopup();
         return 0;
     }
-    if (msg == WM_TIMER && wp == kTimerId + 1) { StartFetch(); return 0; }
     if (msg == WM_DESTROY) {
         KillTimer(hwnd, kTimerId);
-        KillTimer(hwnd, kTimerId+1);
         RemoveTray();
         PostQuitMessage(0);
         return 0;
@@ -764,8 +751,6 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
 
     AddTray(hi);
     SetTimer(gMain, kTimerId, 1000, nullptr);
-    SetTimer(gMain,kTimerId+1,(UINT)gSettings.refreshMinutes*60U*1000U,nullptr);
-    StartFetch();
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
