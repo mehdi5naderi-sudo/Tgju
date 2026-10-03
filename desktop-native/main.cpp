@@ -33,15 +33,15 @@ struct ItemDef {
 };
 
 static const ItemDef kItems[] = {
-    { "price_dollar_rl",   L"دلار",           Mode::TomanDiv10 },
     { "crypto-tether-irr", L"تتر",            Mode::TomanDiv10 },
-    { "sekee",             L"سکه امامی",      Mode::TomanDiv10 },
+    { "price_dollar_rl",   L"دلار",           Mode::TomanDiv10 },
     { "geram18",           L"طلای ۱۸ عیار",   Mode::TomanDiv10 },
-    { "gc30",              L"شاخص بورس",      Mode::Index0 },
     { "ime_fund_kahroba",  L"کهربا",          Mode::TomanDiv10 },
     { "ime_fund_ayar",     L"عیار",           Mode::TomanDiv10 },
     { "ons",               L"انس طلا",        Mode::AsIs2 },
     { "oil_brent",         L"نفت برنت",       Mode::AsIs2 },
+    { "gc30",              L"شاخص بورس",      Mode::Index0 },
+    { "sekee",             L"سکه امامی",      Mode::TomanDiv10 },
 };
 static const int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 
