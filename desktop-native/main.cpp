@@ -657,8 +657,6 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         } else if (ev == WM_RBUTTONUP || ev == WM_CONTEXTMENU) {
             POINT pt; GetCursorPos(&pt);
             HMENU menu = CreatePopupMenu();
-            AppendMenuW(menu, MF_STRING, 1001, L"به‌روزرسانی");
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
             AddSettingsMenu(menu);
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
             AppendMenuW(menu, MF_STRING, 1002, L"خروج");
@@ -669,7 +667,6 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     if (msg == WM_COMMAND) {
-        if (LOWORD(wp) == 1001) { ShowPopup(); StartFetch(); }
         switch(LOWORD(wp)){
         case CMD_FONT_SMALL:gSettings.fontSize=20;break;case CMD_FONT_MED:gSettings.fontSize=22;break;case CMD_FONT_LARGE:gSettings.fontSize=26;break;
         case CMD_BRIGHT_LOW:gSettings.fontBrightness=85;break;case CMD_BRIGHT_MED:gSettings.fontBrightness=100;break;case CMD_BRIGHT_HIGH:gSettings.fontBrightness=120;break;
