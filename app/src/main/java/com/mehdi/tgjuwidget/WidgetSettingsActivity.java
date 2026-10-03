@@ -58,7 +58,7 @@ public class WidgetSettingsActivity extends Activity {
         showPct=sw(root,"نمایش درصد تغییر",true);showTime=sw(root,"نمایش ساعت/تاریخ",true);showRefresh=sw(root,"نمایش زمان رفرش",true);
         root.addView(label("ظاهر"),lpTop());
         bgColor=field(root,"رنگ پس‌زمینه (HEX)","#000000");bgAlpha=field(root,"شفافیت پس‌زمینه (%)","100");mutedColor=field(root,"رنگ متن ساعت/نام/رفرش (HEX)","#AAAAAA");
-        rowSpace=field(root,"فاصله ردیف‌ها (dp)","0");metaGap=field(root,"فاصله عمودی درصد و تاریخ آپدیت (dp)","0");padding=field(root,"فاصله داخلی ویجت (dp)","4");
+        rowSpace=field(root,"فاصله ردیف‌ها (dp)","0");metaGap=field(root,"فاصله درصد و تاریخ آپدیت (dp)","0");padding=field(root,"فاصله داخلی ویجت (dp)","4");
         root.addView(label("رنگ افزایش/کاهش ثابت است: سبز، قرمز، زرد"),lpTop());
         Button save=new Button(this);save.setText("ذخیره");save.setOnClickListener(v->save());root.addView(save,lpTop());setContentView(scroll);
     }
@@ -92,7 +92,7 @@ public class WidgetSettingsActivity extends Activity {
         e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
         e.putBoolean("showNames",showNames.isChecked()).putInt("namePosition",namePosition.getSelectedItemPosition()+1).putInt("metaWidth",selectedMetaWidth()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
         e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("bgAlpha",num(bgAlpha,100,0,100)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
-        e.putInt("rowSpace",num(rowSpace,0,0,8)).putInt("metaGap",num(metaGap,0,0,8)).putInt("padding",num(padding,4,0,12)).apply();
+        e.putInt("rowSpace",num(rowSpace,0,0,8)).putInt("metaGap",num(metaGap,0,-4,8)).putInt("padding",num(padding,4,0,12)).apply();
         AppWidgetManager manager=AppWidgetManager.getInstance(this);
         if(launchedFromIcon){int[] ids=getWidgetIds();for(int id:ids){if(id!=widgetId)copySettings(widgetId,id);manager.updateAppWidget(id,TgjuWidgetProvider.buildViews(this,id));}}
         else if(widgetId!=0)manager.updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
