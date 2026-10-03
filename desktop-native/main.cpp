@@ -514,6 +514,33 @@ static void PaintPopup(HWND hwnd) {
     EndPaint(hwnd, &ps);
 }
 
+static HICON CreateTrayIcon(){
+    const int S=32;
+    HDC dc=GetDC(nullptr);
+    HBITMAP color=CreateCompatibleBitmap(dc,S,S);
+    HDC mem=CreateCompatibleDC(dc);
+    HBITMAP old=(HBITMAP)SelectObject(mem,color);
+    HBRUSH bg=CreateSolidBrush(RGB(24,30,38));
+    RECT r{0,0,S,S}; FillRect(mem,&r,bg); DeleteObject(bg);
+    HBRUSH blue=CreateSolidBrush(RGB(40,145,205));
+    HBRUSH green=CreateSolidBrush(RGB(0,190,105));
+    HBRUSH light=CreateSolidBrush(RGB(90,180,235));
+    RECT b1{5,18,10,27}; FillRect(mem,&b1,blue);
+    RECT b2{12,13,17,27}; FillRect(mem,&b2,light);
+    RECT b3{19,9,24,27}; FillRect(mem,&b3,green);
+    HPEN pen=CreatePen(PS_SOLID,2,RGB(245,247,250));
+    HPEN oldPen=(HPEN)SelectObject(mem,pen);
+    MoveToEx(mem,4,15,nullptr); LineTo(mem,13,11); LineTo(mem,20,7); LineTo(mem,28,4);
+    SelectObject(mem,oldPen); DeleteObject(pen);
+    DeleteObject(blue); DeleteObject(green); DeleteObject(light);
+    SelectObject(mem,old); DeleteDC(mem); ReleaseDC(nullptr,dc);
+    HBITMAP mask=CreateBitmap(S,S,1,1,nullptr);
+    ICONINFO ii{}; ii.fIcon=TRUE; ii.hbmColor=color; ii.hbmMask=mask;
+    HICON icon=CreateIconIndirect(&ii);
+    DeleteObject(color); DeleteObject(mask);
+    return icon;
+}
+
 static void AddTray(HINSTANCE) {
     memset(&gNid, 0, sizeof(gNid));
     gNid.cbSize = sizeof(gNid);
