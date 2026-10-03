@@ -27,7 +27,7 @@ jobs:
         working-directory: desktop-native
         shell: cmd
         run: |
-          cl /nologo /O2 /EHsc /utf-8 /DUNICODE /D_UNICODE main.cpp /Fe:TGJU-native.exe /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib shell32.lib winhttp.lib
+          cl /nologo /O1 /GL /Gy /EHsc /utf-8 /DUNICODE /D_UNICODE main.cpp /Fe:TGJU-native.exe /link /LTCG /OPT:REF /OPT:ICF /INCREMENTAL:NO /DEBUG:NONE /SUBSYSTEM:WINDOWS user32.lib gdi32.lib shell32.lib winhttp.lib
 
       - name: Report size
         shell: pwsh
