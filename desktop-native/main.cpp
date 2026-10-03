@@ -1,3 +1,6 @@
-#include "tgju_p0.inc"
-#include "tgju_p1.inc"
-#include "tgju_p2.inc"
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#define UNICODE
+#define _UNICODE
+#include <windows.h>
+#error RESTORE_INCOMPLETE - please checkout 1933ca1 for main.cpp
