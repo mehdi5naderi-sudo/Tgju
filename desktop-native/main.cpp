@@ -159,18 +159,76 @@ enum {
 static void AddSubItem(HMENU sub,UINT id,const wchar_t* text,bool checked=false){
     AppendMenuW(sub,MF_STRING|(checked?MF_CHECKED:0),id,text);
 }
+
+static HICON CreateTrayIcon(){
+    const int S=32;
+    HDC dc=GetDC(nullptr);
+    HBITMAP color=CreateCompatibleBitmap(dc,S,S);
+    HDC mem=CreateCompatibleDC(dc);
+    HBITMAP old=(HBITMAP)SelectObject(mem,color);
+    HBRUSH bg=CreateSolidBrush(RGB(24,30,38));
+    RECT r{0,0,S,S}; FillRect(mem,&r,bg); DeleteObject(bg);
+    HBRUSH blue=CreateSolidBrush(RGB(40,145,205));
+    HBRUSH green=CreateSolidBrush(RGB(0,190,105));
+    HBRUSH light=CreateSolidBrush(RGB(90,180,235));
+    RECT b1{5,18,10,27}; FillRect(mem,&b1,blue);
+    RECT b2{12,13,17,27}; FillRect(mem,&b2,light);
+    RECT b3{19,9,24,27}; FillRect(mem,&b3,green);
+    HPEN pen=CreatePen(PS_SOLID,2,RGB(245,247,250));
+    HPEN oldPen=(HPEN)SelectObject(mem,pen);
+    MoveToEx(mem,4,15,nullptr); LineTo(mem,13,11); LineTo(mem,20,7); LineTo(mem,28,4);
+    SelectObject(mem,oldPen); DeleteObject(pen);
+    DeleteObject(blue); DeleteObject(green); DeleteObject(light);
+    SelectObject(mem,old); DeleteDC(mem); ReleaseDC(nullptr,dc);
+    HBITMAP mask=CreateBitmap(S,S,1,1,nullptr);
+    ICONINFO ii{}; ii.fIcon=TRUE; ii.hbmColor=color; ii.hbmMask=mask;
+    HICON icon=CreateIconIndirect(&ii);
+    DeleteObject(color); DeleteObject(mask);
+    return icon;
+}
+static bool IsFontSmall(){return gSettings.fontSize==20;}
+static bool IsFontMed(){return gSettings.fontSize==22;}
+static bool IsFontLarge(){return gSettings.fontSize==26;}
+static bool IsBrightLow(){return gSettings.fontBrightness==85;}
+static bool IsBrightMed(){return gSettings.fontBrightness==100;}
+static bool IsBrightHigh(){return gSettings.fontBrightness==120;}
+static bool IsWeightNormal(){return gSettings.fontWeight==400;}
+static bool IsWeightSemi(){return gSettings.fontWeight==600;}
+static bool IsWeightBold(){return gSettings.fontWeight==700;}
+static bool IsRowTight(){return gSettings.rowGap==29;}
+static bool IsRowMed(){return gSettings.rowGap==34;}
+static bool IsRowLoose(){return gSettings.rowGap==40;}
+static bool IsNameNarrow(){return gSettings.nameW==125;}
+static bool IsNameMed(){return gSettings.nameW==145;}
+static bool IsNameWide(){return gSettings.nameW==170;}
+static bool IsPriceNarrow(){return gSettings.priceW==150;}
+static bool IsPriceMed(){return gSettings.priceW==175;}
+static bool IsPriceWide(){return gSettings.priceW==205;}
+static bool IsChgNarrow(){return gSettings.chgW==90;}
+static bool IsChgMed(){return gSettings.chgW==105;}
+static bool IsChgWide(){return gSettings.chgW==125;}
+static bool IsTimeNarrow(){return gSettings.timeW==105;}
+static bool IsTimeMed(){return gSettings.timeW==130;}
+static bool IsTimeWide(){return gSettings.timeW==160;}
+static bool IsClose3(){return gSettings.closeDelay==3;}
+static bool IsClose5(){return gSettings.closeDelay==5;}
+static bool IsClose10(){return gSettings.closeDelay==10;}
+static bool IsMarginSmall(){return gSettings.margin==10;}
+static bool IsMarginMed(){return gSettings.margin==18;}
+static bool IsMarginLarge(){return gSettings.margin==26;}
+
 static void AddSettingsMenu(HMENU menu){
     HMENU settings=CreatePopupMenu();
-    HMENU font=CreatePopupMenu();AddSubItem(font,CMD_FONT_SMALL,L"کوچک");AddSubItem(font,CMD_FONT_MED,L"متوسط",true);AddSubItem(font,CMD_FONT_LARGE,L"بزرگ");
-    HMENU bright=CreatePopupMenu();AddSubItem(bright,CMD_BRIGHT_LOW,L"کم");AddSubItem(bright,CMD_BRIGHT_MED,L"متوسط",true);AddSubItem(bright,CMD_BRIGHT_HIGH,L"روشن");
-    HMENU weight=CreatePopupMenu();AddSubItem(weight,CMD_WEIGHT_NORMAL,L"معمولی");AddSubItem(weight,CMD_WEIGHT_SEMI,L"نیمه‌پررنگ");AddSubItem(weight,CMD_WEIGHT_BOLD,L"پررنگ",true);
-    HMENU rows=CreatePopupMenu();AddSubItem(rows,CMD_ROW_TIGHT,L"فشرده");AddSubItem(rows,CMD_ROW_MED,L"متوسط",true);AddSubItem(rows,CMD_ROW_LOOSE,L"باز");
-    HMENU name=CreatePopupMenu();AddSubItem(name,CMD_NAME_NARROW,L"کم");AddSubItem(name,CMD_NAME_MED,L"متوسط",true);AddSubItem(name,CMD_NAME_WIDE,L"زیاد");
-    HMENU price=CreatePopupMenu();AddSubItem(price,CMD_PRICE_NARROW,L"کم");AddSubItem(price,CMD_PRICE_MED,L"متوسط",true);AddSubItem(price,CMD_PRICE_WIDE,L"زیاد");
-    HMENU chg=CreatePopupMenu();AddSubItem(chg,CMD_CHG_NARROW,L"کم");AddSubItem(chg,CMD_CHG_MED,L"متوسط",true);AddSubItem(chg,CMD_CHG_WIDE,L"زیاد");
-    HMENU time=CreatePopupMenu();AddSubItem(time,CMD_TIME_NARROW,L"کم");AddSubItem(time,CMD_TIME_MED,L"متوسط",true);AddSubItem(time,CMD_TIME_WIDE,L"زیاد");
-    HMENU close=CreatePopupMenu();AddSubItem(close,CMD_CLOSE_3,L"۳ ثانیه");AddSubItem(close,CMD_CLOSE_5,L"۵ ثانیه",true);AddSubItem(close,CMD_CLOSE_10,L"۱۰ ثانیه");
-    HMENU margin=CreatePopupMenu();AddSubItem(margin,CMD_MARGIN_SMALL,L"کم");AddSubItem(margin,CMD_MARGIN_MED,L"متوسط",true);AddSubItem(margin,CMD_MARGIN_LARGE,L"زیاد");
+    HMENU font=CreatePopupMenu();AddSubItem(font,CMD_FONT_SMALL,L"کوچک",IsFontSmall());AddSubItem(font,CMD_FONT_MED,L"متوسط",IsFontMed());AddSubItem(font,CMD_FONT_LARGE,L"بزرگ",IsFontLarge());
+    HMENU bright=CreatePopupMenu();AddSubItem(bright,CMD_BRIGHT_LOW,L"کم",IsBrightLow());AddSubItem(bright,CMD_BRIGHT_MED,L"متوسط",IsBrightMed());AddSubItem(bright,CMD_BRIGHT_HIGH,L"روشن",IsBrightHigh());
+    HMENU weight=CreatePopupMenu();AddSubItem(weight,CMD_WEIGHT_NORMAL,L"معمولی",IsWeightNormal());AddSubItem(weight,CMD_WEIGHT_SEMI,L"نیمه‌پررنگ",IsWeightSemi());AddSubItem(weight,CMD_WEIGHT_BOLD,L"پررنگ",IsWeightBold());
+    HMENU rows=CreatePopupMenu();AddSubItem(rows,CMD_ROW_TIGHT,L"فشرده",IsRowTight());AddSubItem(rows,CMD_ROW_MED,L"متوسط",IsRowMed());AddSubItem(rows,CMD_ROW_LOOSE,L"باز",IsRowLoose());
+    HMENU name=CreatePopupMenu();AddSubItem(name,CMD_NAME_NARROW,L"کم",IsNameNarrow());AddSubItem(name,CMD_NAME_MED,L"متوسط",IsNameMed());AddSubItem(name,CMD_NAME_WIDE,L"زیاد",IsNameWide());
+    HMENU price=CreatePopupMenu();AddSubItem(price,CMD_PRICE_NARROW,L"کم",IsPriceNarrow());AddSubItem(price,CMD_PRICE_MED,L"متوسط",IsPriceMed());AddSubItem(price,CMD_PRICE_WIDE,L"زیاد",IsPriceWide());
+    HMENU chg=CreatePopupMenu();AddSubItem(chg,CMD_CHG_NARROW,L"کم",IsChgNarrow());AddSubItem(chg,CMD_CHG_MED,L"متوسط",IsChgMed());AddSubItem(chg,CMD_CHG_WIDE,L"زیاد",IsChgWide());
+    HMENU time=CreatePopupMenu();AddSubItem(time,CMD_TIME_NARROW,L"کم",IsTimeNarrow());AddSubItem(time,CMD_TIME_MED,L"متوسط",IsTimeMed());AddSubItem(time,CMD_TIME_WIDE,L"زیاد",IsTimeWide());
+    HMENU close=CreatePopupMenu();AddSubItem(close,CMD_CLOSE_3,L"۳ ثانیه",IsClose3());AddSubItem(close,CMD_CLOSE_5,L"۵ ثانیه",IsClose5());AddSubItem(close,CMD_CLOSE_10,L"۱۰ ثانیه",IsClose10());
+    HMENU margin=CreatePopupMenu();AddSubItem(margin,CMD_MARGIN_SMALL,L"کم",IsMarginSmall());AddSubItem(margin,CMD_MARGIN_MED,L"متوسط",IsMarginMed());AddSubItem(margin,CMD_MARGIN_LARGE,L"زیاد",IsMarginLarge());
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)font,L"اندازه فونت");
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)bright,L"روشنایی فونت");
     AppendMenuW(settings,MF_POPUP,(UINT_PTR)weight,L"ضخامت فونت");
@@ -634,7 +692,7 @@ static void AddTray(HINSTANCE) {
     gNid.uID = 1;
     gNid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     gNid.uCallbackMessage = WM_TRAY;
-    gNid.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    gNid.hIcon = CreateTrayIcon();
     wcscpy_s(gNid.szTip, L"شاخص‌های TGJU");
     Shell_NotifyIconW(NIM_ADD, &gNid);
     gNid.uVersion = NOTIFYICON_VERSION_4;
@@ -643,6 +701,7 @@ static void AddTray(HINSTANCE) {
 
 static void RemoveTray() {
     Shell_NotifyIconW(NIM_DELETE, &gNid);
+    if (gNid.hIcon) { DestroyIcon(gNid.hIcon); gNid.hIcon=nullptr; }
 }
 
 static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
