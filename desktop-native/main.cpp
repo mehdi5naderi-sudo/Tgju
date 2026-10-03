@@ -184,7 +184,7 @@ static std::wstring FormatNumber(double v, int decimals) {
 }
 
 static std::string ExtractStrNear(const std::string& body, size_t from, const char* key, size_t window = 1500) {
-    std::string pat = std::string(""") + key + "":"";
+    std::string pat = std::string("\"") + key + "\":\"";
     size_t start = (from > 500) ? from - 500 : 0;
     size_t endSearch = (from + window < body.size()) ? from + window : body.size();
 
@@ -203,7 +203,7 @@ static std::string ExtractStrNear(const std::string& body, size_t from, const ch
 }
 
 static double ExtractNumNear(const std::string& body, size_t from, const char* key, size_t window = 1500) {
-    std::string pat = std::string(""") + key + "":";
+    std::string pat = std::string("\"") + key + "\":";
     size_t start = (from > 500) ? from - 500 : 0;
     size_t endSearch = (from + window < body.size()) ? from + window : body.size();
     size_t p = body.find(pat, start);
@@ -270,7 +270,7 @@ static void ParseAndStore(const std::string& body) {
     std::map<std::string, Quote> next;
 
     for (int i = 0; i < kCount; i++) {
-        std::string needle = std::string(""name":"") + kItems[i].key + """;
+        std::string needle = std::string("\"name\":\"") + kItems[i].key + "\"";
         auto pos = body.find(needle);
         if (pos == std::string::npos) {
             Log(std::string("missing ") + kItems[i].key);
