@@ -1,6 +1,43 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111111"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg" type="image/svg+xml"><title>قیمت بازار TGJU</title><style>body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}main{width:min(720px,94vw);margin:10px auto;background:#181818;border-radius:16px;padding:14px;box-sizing:border-box}h1{text-align:center;font-size:24px;margin:0 0 6px}.controls{text-align:center;margin:0 0 5px;display:flex;justify-content:center;gap:7px;flex-wrap:wrap}button{font-family:inherit}.controlBtn{background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;padding:8px 15px;font-size:15px;cursor:pointer}.controlBtn:disabled{opacity:.5;cursor:default}#lastRefresh{text-align:center;color:#aaa;font-size:13px;margin:5px 0 8px}.row{display:grid;grid-template-columns:minmax(100px,1fr) minmax(180px,1.7fr) minmax(145px,1fr);align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid #2b2b2b;min-height:50px;box-sizing:border-box}.name{min-width:0;color:#ddd;font-size:17px;text-align:right;white-space:nowrap}.price{min-width:0;text-align:center;font-size:20px;font-weight:bold;direction:ltr;white-space:nowrap}.price.up{color:#55c878}.price.down{color:#ef6666}.price.flat{color:#e5c04a}.meta{min-width:0;text-align:left;direction:ltr;font-size:14px;white-space:nowrap}.up{color:#55c878}.down{color:#ef6666}.flat{color:#e5c04a}.time{display:block;margin-top:3px;color:#aaa;font-size:12px}.loading,.error{text-align:center;color:#aaa;padding:20px;font-size:16px}.error{color:#e77}</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111111"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg" type="image/svg+xml"><title>قیمت بازار TGJU</title><style>
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}
+main{width:min(720px,100%);margin:10px auto;background:#181818;border-radius:16px;padding:14px}
+h1{text-align:center;font-size:24px;margin:0 0 6px}
+.controls{text-align:center;margin:0 0 5px;display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
+button{font-family:inherit}
+.controlBtn{background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;padding:8px 15px;font-size:15px;cursor:pointer}
+.controlBtn:disabled{opacity:.5;cursor:default}
+#lastRefresh{text-align:center;color:#aaa;font-size:13px;margin:5px 0 8px}
+.row{display:grid;grid-template-columns:minmax(92px,1fr) minmax(0,1.7fr) minmax(112px,1fr);align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid #2b2b2b;min-height:50px}
+.name{min-width:0;color:#ddd;font-size:17px;text-align:right;white-space:nowrap}
+.price{min-width:0;text-align:center;font-size:20px;font-weight:bold;direction:ltr;white-space:nowrap;font-variant-numeric:tabular-nums}
+.price.up{color:#55c878}.price.down{color:#ef6666}.price.flat{color:#e5c04a}
+.meta{min-width:0;text-align:left;direction:ltr;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.up{color:#55c878}.down{color:#ef6666}.flat{color:#e5c04a}
+.time{display:block;margin-top:3px;color:#aaa;font-size:12px}
+.loading,.error{text-align:center;color:#aaa;padding:20px;font-size:16px}.error{color:#e77}
+@media(max-width:520px){
+ main{width:100%;margin:0;padding:10px 8px;border-radius:0;min-height:100vh}
+ h1{font-size:22px}
+ .row{grid-template-columns: minmax(68px,0.82fr) minmax(0,1.55fr) minmax(78px,0.9fr);gap:4px;padding:10px 1px;min-height:54px}
+ .name{font-size:clamp(13px,3.7vw,16px)}
+ .price{font-size:clamp(13px,4.1vw,18px);letter-spacing:-.35px}
+ .price span{font-size:10px!important}
+ .meta{font-size:clamp(11px,3.1vw,13px)}
+ .time{font-size:11px}
+ .controlBtn{min-height:42px}
+}
+@media(max-width:360px){
+ main{padding-left:5px;padding-right:5px}
+ .row{grid-template-columns:64px minmax(0,1fr) 72px;gap:3px}
+ .name{font-size:12px}
+ .price{font-size:12px;letter-spacing:-.5px}
+ .meta{font-size:10px}
+ .time{font-size:10px}
+}
+</style></head>
 <body><main><h1>قیمت بازار</h1><div class="controls"><button class="controlBtn" id="refreshBtn" type="button">↻ بروزرسانی</button></div><div id="lastRefresh">آخرین رفرش: —</div><div id="tgju-data"><div class="loading">در حال دریافت اطلاعات...</div></div></main><script>
 (function(){
 const catalog=[
