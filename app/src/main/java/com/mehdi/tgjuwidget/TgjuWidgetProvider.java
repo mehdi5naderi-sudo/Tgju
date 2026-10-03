@@ -61,7 +61,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     public static RemoteViews buildViews(Context c,int id){
         RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
         android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
-        int bgBase=p.getInt("bgColor",Color.BLACK), bgAlpha=p.getInt("bgAlpha",100), bg=Color.argb((int)(Math.max(0,Math.min(100,bgAlpha))*2.55f),Color.red(bgBase),Color.green(bgBase),Color.blue(bgBase)), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",4), gap=p.getInt("rowSpace",0);
+        int bgBase=p.getInt("bgColor",Color.BLACK), bgAlpha=p.getInt("bgAlpha",100), metaGap=p.getInt("metaGap",0), bg=Color.argb((int)(Math.max(0,Math.min(100,bgAlpha))*2.55f),Color.red(bgBase),Color.green(bgBase),Color.blue(bgBase)), muted=p.getInt("mutedColor",Color.LTGRAY), pad=p.getInt("padding",4), gap=p.getInt("rowSpace",0);
         float ps=p.getInt("priceSize",18), pct=p.getInt("pctSize",10), ts=p.getInt("timeSize",8), rs=p.getInt("refreshSize",7), ns=p.getInt("nameSize",8);
         boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
         int metaWidth=p.getInt("metaWidth",40);
@@ -80,7 +80,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewTextSize(PCT_IDS[i],2,pct);
             v.setTextViewTextSize(TIME_IDS[i],2,ts);
             if (android.os.Build.VERSION.SDK_INT >= 31) v.setViewLayoutWidth(META_IDS[i], metaWidth, android.util.TypedValue.COMPLEX_UNIT_DIP);
-            if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            if(gap>0)v.setViewLayoutMargin(ROW_IDS[i],RemoteViews.MARGIN_BOTTOM,gap,android.util.TypedValue.COMPLEX_UNIT_DIP);\n            if(metaGap>0)v.setViewLayoutMargin(PCT_IDS[i],RemoteViews.MARGIN_BOTTOM,metaGap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             v.setTextColor(NAME_IDS[i],muted); v.setTextColor(NAME_RIGHT_IDS[i],muted); v.setTextColor(TIME_IDS[i],muted);
             v.setViewVisibility(NAME_IDS[i],View.GONE);
             v.setViewVisibility(NAME_INLINE_IDS[i],showNames&&namePosition==1?View.VISIBLE:View.GONE);
