@@ -56,8 +56,6 @@ static HWND gMain = nullptr;
 static HWND gPopup = nullptr;
 static NOTIFYICONDATAW gNid{};
 static bool gPopupVisible = false;
-static DWORD gPopupShownTick = 0;
-static DWORD gLastTrayMoveTick = 0;
 static std::map<std::string, Quote> gData;
 static CRITICAL_SECTION gCs;
 static std::wstring gStatus = L"در حال دریافت…";
@@ -486,8 +484,6 @@ static void ShowPopup() {
     SetWindowPos(gPopup, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
     ShowWindow(gPopup, SW_SHOWNOACTIVATE);
     gPopupVisible = true;
-    gPopupShownTick = GetTickCount();
-    gLastTrayMoveTick = GetTickCount();
     InvalidateRect(gPopup, nullptr, TRUE);
     UpdateWindow(gPopup);
 }
@@ -691,12 +687,7 @@ static LRESULT CALLBACK MainProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     }
-    if (msg == WM_TIMER && wp == kTimerId) {
-        if (gPopupVisible && GetTickCount() - gLastTrayMoveTick >= (DWORD)gSettings.closeDelay*1000U) HidePopup();
-        return 0;
-    }
     if (msg == WM_DESTROY) {
-        KillTimer(hwnd, kTimerId);
         RemoveTray();
         PostQuitMessage(0);
         return 0;
@@ -747,7 +738,6 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, PWSTR, int) {
     gPopup=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_TOPMOST,kClassPopup,L"TGJU",WS_POPUP|WS_BORDER,100,100,popupW,h,nullptr,nullptr,hi,nullptr);
 
     AddTray(hi);
-    SetTimer(gMain, kTimerId, 1000, nullptr);
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
