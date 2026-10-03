@@ -1,0 +1,12 @@
+--- a/desktop-native/main.cpp
++++ b/desktop-native/main.cpp
+@@ -66,8 +66,8 @@
+ static bool gFetching = false;
+ 
+ struct UiSettings {
+-    int fontSize=22, smallFontSize=17, rowGap=34;
+-    int nameW=145, priceW=175, chgW=105, timeW=130, margin=18;
++    int fontSize=20, smallFontSize=14, rowGap=28;
++    int nameW=88, priceW=95, chgW=68, timeW=62, margin=8;
+     int fontWeight=700, fontBrightness=100, closeDelay=5, refreshMinutes=5;
+ };
