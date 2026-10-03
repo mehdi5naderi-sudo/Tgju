@@ -102,8 +102,9 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         // value | percentage/time | fixed-width title.
         for(int i=0;i<SLOT_COUNT;i++){
             v.setInt(ROW_IDS[i],"setLayoutDirection",View.LAYOUT_DIRECTION_LTR);
-            v.setInt(META_IDS[i],"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.END);
-            v.setInt(PCT_IDS[i],"setGravity",android.view.Gravity.END);
+            v.setInt(META_IDS[i],"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.RIGHT);
+            v.setInt(PCT_IDS[i],"setGravity",android.view.Gravity.RIGHT);
+            v.setInt(NAME_RIGHT_IDS[i],"setGravity",android.view.Gravity.RIGHT|android.view.Gravity.CENTER_VERTICAL);
             v.setInt(TIME_IDS[i],"setGravity",android.view.Gravity.END);
         }
         v.setTextViewTextSize(R.id.requestTime,2,rs);
