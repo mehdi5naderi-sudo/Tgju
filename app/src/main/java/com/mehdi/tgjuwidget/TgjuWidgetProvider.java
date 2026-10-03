@@ -195,17 +195,21 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         boolean showNames=p.getBoolean("showNames",true);
         for(int i=0;i<SLOT_COUNT;i++){
             String k=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:""); JSONObject o=k.isEmpty()?null:d.get(k);
-            String price="—",pct="—",time="—"; int color=Color.LTGRAY;
+            String price="—",pct="—",time="—"; int color=Color.LTGRAY; int timeTextColor=Color.LTGRAY;
             if(o!=null){
                 price=price(o,k); double dp=o.optDouble("dp",Double.NaN); String dt=o.optString("dt","");
                 if(!Double.isNaN(dp)){pct=percent(dp,en);color="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
-                time=formatTimeOrDate(o.optString("t","—"),p.getInt("dateFormat",0),en);
-                p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,color).apply();
+                String rawTime=o.optString("t","—");
+                time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),en);
+                timeTextColor=timeColor(rawTime,color);
+                p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time)
+                        .putInt("lastColor"+i,color).putInt("lastTimeColor"+i,timeTextColor).apply();
             } else {
                 price=p.getString("lastPrice"+i,"—");
                 pct=p.getString("lastPct"+i,"—");
                 time=p.getString("lastTime"+i,"—");
                 color=p.getInt("lastColor"+i,Color.LTGRAY);
+                timeTextColor=p.getInt("lastTimeColor"+i,color);
             }
             String name=showNames&&!k.isEmpty()?nameFor(k,en):"";
             v.setTextViewText(NAME_IDS[i],name);
@@ -221,7 +225,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(PRICE_VERTICAL_IDS[i],digits(price,en)); v.setTextColor(PRICE_VERTICAL_IDS[i],color);
             v.setTextViewText(PRICE_RIGHT_IDS[i],digits(price,en)); v.setTextColor(PRICE_RIGHT_IDS[i],color);
             v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],color);
-            v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],color);
+            v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],timeTextColor);
         }
         v.setTextViewText(R.id.requestTime,digits(request,en));
         v.setTextColor(R.id.requestTime,ok?p.getInt("mutedColor",Color.LTGRAY):RED);
@@ -271,6 +275,29 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if(s==null)return "—";
         if(en)return s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replace('٬',',').replace('٫','.').replace('٪','%');
         return s.replace('0','۰').replace('1','۱').replace('2','۲').replace('3','۳').replace('4','۴').replace('5','۵').replace('6','۶').replace('7','۷').replace('8','۸').replace('9','۹').replace(',', '٬').replace('.', '٫').replace('%','٪');
+    }
+
+    private static int timeColor(String rawTime,int changeColor){
+        if(rawTime==null)return changeColor;
+        String raw=rawTime.trim();
+        if(raw.isEmpty()||"—".equals(raw))return changeColor;
+        String normalized=raw.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3')
+                .replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7')
+                .replace('۸','8').replace('۹','9');
+        java.util.regex.Matcher m=java.util.regex.Pattern
+                .compile("(?:^|\\s)(\\d{1,2}):(\\d{2})(?::(\\d{2}))?(?:\\s|$)")
+                .matcher(normalized);
+        if(!m.find())return changeColor;
+        int h=Integer.parseInt(m.group(1)), min=Integer.parseInt(m.group(2));
+        int sec=m.group(3)==null?0:Integer.parseInt(m.group(3));
+        if(h>23||min>59||sec>59)return changeColor;
+        java.util.Calendar changed=java.util.Calendar.getInstance();
+        changed.set(java.util.Calendar.HOUR_OF_DAY,h);
+        changed.set(java.util.Calendar.MINUTE,min);
+        changed.set(java.util.Calendar.SECOND,sec);
+        changed.set(java.util.Calendar.MILLISECOND,0);
+        long age=System.currentTimeMillis()-changed.getTimeInMillis();
+        return age>=0&&age<=5*60*1000?changeColor:Color.WHITE;
     }
 
     private static String formatTimeOrDate(String t,int fmt,boolean en){
