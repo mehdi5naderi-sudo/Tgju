@@ -501,7 +501,8 @@ static void PaintPopup(HWND hwnd) {
         DrawTextRect(hdc, colPrice(y, y + 28), price.c_str(), DT_CENTER, c);
 
         wchar_t chg[32];
-        swprintf_s(chg, L"%+.2f%%", q.dp);
+        double shownChange = (q.dt == "low") ? -std::abs(q.dp) : std::abs(q.dp);
+        swprintf_s(chg, L"%+.2f%%", shownChange);
         DrawTextRect(hdc, colChg(y, y + 30), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
         std::wstring tShow = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
