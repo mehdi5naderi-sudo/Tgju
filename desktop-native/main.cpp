@@ -378,6 +378,25 @@ static void DrawTextRect(HDC hdc, RECT r, const wchar_t* text, UINT align, COLOR
         align | DT_RTLREADING | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
 }
 
+static COLORREF TimeColor(const std::string& raw, COLORREF changeColor) {
+    std::string t=raw;
+    for(char& c:t) if(c>='0'&&c<='9') {}
+    size_t colon=t.find(':');
+    if(colon==std::string::npos) return changeColor;
+    int h=0,m=0,sec=0;
+    if(sscanf_s(t.c_str()+colon-2,"%2d:%2d:%2d",&h,&m,&sec)!=3) {
+        if(sscanf_s(t.c_str()+colon-2,"%2d:%2d",&h,&m)!=2) return changeColor;
+        sec=0;
+    }
+    if(h>23||m>59||sec>59) return changeColor;
+    SYSTEMTIME now; GetLocalTime(&now);
+    SYSTEMTIME changed=now; changed.wHour=(WORD)h; changed.wMinute=(WORD)m; changed.wSecond=(WORD)sec; changed.wMilliseconds=0;
+    FILETIME a{},b{}; SystemTimeToFileTime(&now,&a); SystemTimeToFileTime(&changed,&b);
+    ULARGE_INTEGER ua{},ub{}; ua.LowPart=a.dwLowDateTime; ua.HighPart=a.dwHighDateTime; ub.LowPart=b.dwLowDateTime; ub.HighPart=b.dwHighDateTime;
+    if(ua.QuadPart<ub.QuadPart) return RGB(255,255,255);
+    return ua.QuadPart-ub.QuadPart<=5ULL*60*10000000?changeColor:RGB(255,255,255);
+}
+
 static void PaintPopup(HWND hwnd) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
@@ -477,7 +496,7 @@ static void PaintPopup(HWND hwnd) {
 
         const bool isNegative = q.dt == "low";
         const bool isPositive = q.dt == "high";
-        COLORREF c = BrightColor(isNegative ? RGB(210,25,35) : (isPositive ? RGB(0,140,70) : RGB(90,95,105)));
+        COLORREF c = BrightColor(isNegative ? RGB(239,102,102) : (isPositive ? RGB(85,200,120) : RGB(229,192,74)));
 
         DrawTextRect(hdc, colPrice(y, y + 28), price.c_str(), DT_CENTER, c);
 
@@ -486,7 +505,7 @@ static void PaintPopup(HWND hwnd) {
         DrawTextRect(hdc, colChg(y, y + 30), ToPersianDigits(chg).c_str(), DT_CENTER, c);
 
         std::wstring tShow = q.t.empty() ? L"—" : ToPersianDigits(Wide(q.t));
-        DrawTextRect(hdc, colTime(y, y + 30), tShow.c_str(), DT_CENTER, c);
+        DrawTextRect(hdc, colTime(y, y + 30), tShow.c_str(), DT_CENTER, BrightColor(TimeColor(q.t,c)));
     }
 
     if (!error.empty()) {
