@@ -27,7 +27,7 @@ public class WidgetSettingsActivity extends Activity {
     private boolean launchedFromIcon=false;
     private Spinner[] spinners=new Spinner[SLOT_COUNT];
     private EditText priceSize,pctSize,timeSize,refreshSize,nameSize,rowSpace,metaGap,padding,bgColor,mutedColor,bgAlpha;
-    private Spinner language,dateFormat,namePosition,metaWidth;
+    private Spinner language,dateFormat,dateOrder,namePosition,metaWidth;
     private Switch showNames,showPct,showTime,showRefresh;
 
     @Override public void onCreate(Bundle state){
@@ -76,7 +76,7 @@ public class WidgetSettingsActivity extends Activity {
         Map<String,Integer> idx=new HashMap<>();for(int i=0;i<KEYS.length;i++)idx.put(KEYS[i],i);
         for(int i=0;i<SLOT_COUNT;i++){String k=p.getString("key"+i,i<5?KEYS[i]:"");if(i==5){int sel=0;for(int j=0;j<KEYS.length;j++)if(KEYS[j].equals(k)){sel=j+1;break;}spinners[i].setSelection(sel);}else spinners[i].setSelection(idx.containsKey(k)?idx.get(k):i);}
         priceSize.setText(String.valueOf(p.getInt("priceSize",18)));pctSize.setText(String.valueOf(p.getInt("pctSize",10)));timeSize.setText(String.valueOf(p.getInt("timeSize",8)));refreshSize.setText(String.valueOf(p.getInt("refreshSize",7)));nameSize.setText(String.valueOf(p.getInt("nameSize",8)));
-        language.setSelection(p.getString("lang","fa").equals("en")?1:0);int savedDateFormat=p.getInt("dateFormat",0);dateFormat.setSelection(Math.max(0,Math.min(dateFormat.getCount()-1,savedDateFormat)));
+        language.setSelection(p.getString("lang","fa").equals("en")?1:0);int savedDateFormat=p.getInt("dateFormat",0);dateFormat.setSelection(Math.max(0,Math.min(dateFormat.getCount()-1,savedDateFormat)));dateOrder.setSelection(Math.max(0,Math.min(dateOrder.getCount()-1,p.getInt("dateOrder",0))));
         showNames.setChecked(p.getBoolean("showNames",true));int oldPos=p.getInt("namePosition",1);namePosition.setSelection(oldPos>=1&&oldPos<=3?oldPos-1:0);metaWidth.setSelection(widthSelection(p.getInt("metaWidth",40)));showPct.setChecked(p.getBoolean("showPct",true));showTime.setChecked(p.getBoolean("showTime",true));showRefresh.setChecked(p.getBoolean("showRefresh",true));
         bgColor.setText(hexColor(p,"bgColor",Color.BLACK));bgAlpha.setText(String.valueOf(p.getInt("bgAlpha",100)));mutedColor.setText(hexColor(p,"mutedColor",Color.LTGRAY));rowSpace.setText(String.valueOf(p.getInt("rowSpace",0)));metaGap.setText(String.valueOf(p.getInt("metaGap",0)));padding.setText(String.valueOf(p.getInt("padding",4)));
     }
@@ -89,7 +89,7 @@ public class WidgetSettingsActivity extends Activity {
         android.content.SharedPreferences.Editor e=getSharedPreferences("widget_"+widgetId,Context.MODE_PRIVATE).edit();
         for(int i=0;i<SLOT_COUNT;i++){if(i==5){int sel=spinners[i].getSelectedItemPosition();e.putString("key"+i,sel==0?"":KEYS[sel-1]);}else e.putString("key"+i,KEYS[spinners[i].getSelectedItemPosition()]);}
         e.putInt("priceSize",num(priceSize,18,8,30)).putInt("pctSize",num(pctSize,10,6,20)).putInt("timeSize",num(timeSize,8,6,18)).putInt("refreshSize",num(refreshSize,7,5,18)).putInt("nameSize",num(nameSize,8,5,16));
-        e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition());
+        e.putString("lang",language.getSelectedItemPosition()==1?"en":"fa").putInt("dateFormat",dateFormat.getSelectedItemPosition()).putInt("dateOrder",dateOrder.getSelectedItemPosition());
         e.putBoolean("showNames",showNames.isChecked()).putInt("namePosition",namePosition.getSelectedItemPosition()+1).putInt("metaWidth",selectedMetaWidth()).putBoolean("showPct",showPct.isChecked()).putBoolean("showTime",showTime.isChecked()).putBoolean("showRefresh",showRefresh.isChecked());
         e.putInt("bgColor",color(bgColor.getText().toString(),Color.BLACK)).putInt("bgAlpha",num(bgAlpha,100,0,100)).putInt("mutedColor",color(mutedColor.getText().toString(),Color.LTGRAY));
         e.putInt("rowSpace",num(rowSpace,0,0,8)).putInt("metaGap",num(metaGap,0,-4,8)).putInt("padding",num(padding,4,0,12)).apply();
@@ -104,7 +104,7 @@ public class WidgetSettingsActivity extends Activity {
         android.content.SharedPreferences.Editor to=getSharedPreferences("widget_"+toId,Context.MODE_PRIVATE).edit();
         for(int i=0;i<SLOT_COUNT;i++)to.putString("key"+i,from.getString("key"+i,i<5?KEYS[i]:""));
         to.putInt("priceSize",from.getInt("priceSize",18)).putInt("pctSize",from.getInt("pctSize",10)).putInt("timeSize",from.getInt("timeSize",8)).putInt("refreshSize",from.getInt("refreshSize",7)).putInt("nameSize",from.getInt("nameSize",8));
-        to.putString("lang",from.getString("lang","fa")).putInt("dateFormat",from.getInt("dateFormat",0));
+        to.putString("lang",from.getString("lang","fa")).putInt("dateFormat",from.getInt("dateFormat",0)).putInt("dateOrder",from.getInt("dateOrder",0));
         to.putBoolean("showNames",from.getBoolean("showNames",true)).putInt("namePosition",from.getInt("namePosition",0)).putInt("metaWidth",from.getInt("metaWidth",54)).putBoolean("showPct",from.getBoolean("showPct",true)).putBoolean("showTime",from.getBoolean("showTime",true)).putBoolean("showRefresh",from.getBoolean("showRefresh",true));
         to.putInt("bgColor",from.getInt("bgColor",Color.BLACK)).putInt("bgAlpha",from.getInt("bgAlpha",100)).putInt("mutedColor",from.getInt("mutedColor",Color.LTGRAY)).putInt("rowSpace",from.getInt("rowSpace",0)).putInt("metaGap",from.getInt("metaGap",0)).putInt("padding",from.getInt("padding",4)).apply();
     }
