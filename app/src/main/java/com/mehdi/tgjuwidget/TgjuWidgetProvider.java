@@ -313,7 +313,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if(t==null||t.isEmpty()||"—".equals(t))return "—";
         if(t.contains(":")){String[] parts=t.trim().split("\\s+");String clock=parts[0];String[] hm=clock.split(":");if(hm.length>=2)return hm[0]+":"+hm[1];}
         if(!t.matches(".*[۰-۹0-9].*"))return t;
-        if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return d+" - "+m;case 2:return d+"."+m;case 3:return d+"/"+m+"/1405";case 4:return d+" "+parts[1];default:return d+"/"+m;}}}
+        if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return "\u200E"+d+" - "+m+"\u200E";case 2:return "\u200E"+d+"."+m+"\u200E";case 3:return "\u200E"+d+"/"+m+"/1405\u200E";case 4:return d+" "+parts[1];default:return "\u200E"+d+"/"+m+"\u200E";}}}
         return t;
     }
     private static int parseNum(String s){try{String x=s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replaceAll("[^0-9]","");return Integer.parseInt(x);}catch(Exception e){return 0;}}
