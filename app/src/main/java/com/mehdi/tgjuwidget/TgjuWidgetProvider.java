@@ -209,7 +209,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 price=price(o,k); double dp=o.optDouble("dp",Double.NaN); String dt=o.optString("dt","");
                 if(!Double.isNaN(dp)){pct=percent(dp,en);color="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
                 String rawTime=o.optString("t","—");
-                time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),en);
+                time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);
                 timeTextColor=timeColor(rawTime,color);
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time)
                         .putInt("lastColor"+i,color).putInt("lastTimeColor"+i,timeTextColor).apply();
@@ -309,11 +309,11 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         return age>=0&&age<=5*60*1000?changeColor:Color.WHITE;
     }
 
-    private static String formatTimeOrDate(String t,int fmt,boolean en){
+    private static String formatTimeOrDate(String t,int fmt,int dateOrder,boolean en){
         if(t==null||t.isEmpty()||"—".equals(t))return "—";
         if(t.contains(":")){String[] parts=t.trim().split("\\s+");String clock=parts[0];String[] hm=clock.split(":");if(hm.length>=2)return hm[0]+":"+hm[1];}
         if(!t.matches(".*[۰-۹0-9].*"))return t;
-        if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return "\u202A"+d+" - "+m+"\u202C";case 2:return "\u202A"+d+"."+m+"\u202C";case 3:return "\u202A1405/"+m+"/"+d+"\u202C";case 4:return d+" "+parts[1];default:return "\u202A"+d+"/"+m+"\u202C";}}}
+        if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return "\u202A"+(dateOrder==1?d+" - "+m:m+" - "+d)+"\u202C";case 2:return "\u202A"+(dateOrder==1?d+"."+m:m+"."+d)+"\u202C";case 3:return "\u202A1405/"+m+"/"+d+"\u202C";case 4:return d+" "+parts[1];default:return "\u202A"+(dateOrder==1?d+"/"+m:m+"/"+d)+"\u202C";}}}
         return t;
     }
     private static int parseNum(String s){try{String x=s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replaceAll("[^0-9]","");return Integer.parseInt(x);}catch(Exception e){return 0;}}
