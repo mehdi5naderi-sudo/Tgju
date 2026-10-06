@@ -105,7 +105,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setInt(META_IDS[i],"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.RIGHT);
             v.setInt(PCT_IDS[i],"setGravity",android.view.Gravity.RIGHT);
             v.setInt(NAME_RIGHT_IDS[i],"setGravity",android.view.Gravity.RIGHT|android.view.Gravity.CENTER_VERTICAL);
-            v.setInt(TIME_IDS[i],"setGravity",android.view.Gravity.END);
+            v.setInt(TIME_IDS[i],"setGravity",android.view.Gravity.END);\n            v.setInt(TIME_IDS[i],"setTextDirection",android.view.View.TEXT_DIRECTION_RTL);
         }
         v.setTextViewTextSize(R.id.requestTime,2,rs);
         v.setTextColor(R.id.requestTime,muted);
