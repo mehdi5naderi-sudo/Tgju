@@ -20,7 +20,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/meta1" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
             <TextView android:id="@+id/pct1" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
-            <TextView android:id="@+id/time1" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+            <TextView android:id="@+id/time1" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="rtl" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight1" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
@@ -44,7 +44,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/meta2" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
             <TextView android:id="@+id/pct2" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
-            <TextView android:id="@+id/time2" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+            <TextView android:id="@+id/time2" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="rtl" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight2" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
@@ -68,7 +68,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/meta3" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
             <TextView android:id="@+id/pct3" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
-            <TextView android:id="@+id/time3" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+            <TextView android:id="@+id/time3" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="rtl" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight3" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
@@ -92,7 +92,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/meta4" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
             <TextView android:id="@+id/pct4" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
-            <TextView android:id="@+id/time4" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+            <TextView android:id="@+id/time4" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="rtl" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight4" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
@@ -116,7 +116,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/meta5" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
             <TextView android:id="@+id/pct5" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
-            <TextView android:id="@+id/time5" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+            <TextView android:id="@+id/time5" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="rtl" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight5" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
@@ -140,7 +140,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/meta6" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
             <TextView android:id="@+id/pct6" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
-            <TextView android:id="@+id/time6" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+            <TextView android:id="@+id/time6" android:layout_width="match_parent" android:layout_height="wrap_content" android:textDirection="rtl" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight6" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
