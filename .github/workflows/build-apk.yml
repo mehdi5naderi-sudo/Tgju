@@ -1,5 +1,5 @@
 name: Build TGJU Widget Release APK
-# Trigger release build for latest widget changes
+# Trigger release build for latest widget changes (2026-10-06)
 
 on:
   workflow_dispatch:
