@@ -48,7 +48,7 @@ public class WidgetSettingsActivity extends Activity {
         root.addView(label("اندازه فونت (sp)"),lpTop());
         priceSize=field(root,"قیمت","18");pctSize=field(root,"درصد","10");timeSize=field(root,"ساعت/تاریخ","8");refreshSize=field(root,"متن رفرش","7");nameSize=field(root,"نام شاخص","8");
         root.addView(label("زبان کل ویجت"),lpTop());language=spinner(root,new String[]{"فارسی","English"});
-        root.addView(label("فرمت تاریخ بدون ساعت"),lpTop());dateFormat=spinner(root,new String[]{"23/06","23 - 06","23.06","23/06/1405","23 شهریور","مخفی"});
+        root.addView(label("فرمت تاریخ بدون ساعت"),lpTop());dateFormat=spinner(root,new String[]{"23/06","23 - 06","23.06","1405/07/23","23 شهریور","مخفی"});
         root.addView(label("نمایش اطلاعات"),lpTop());
         showNames=sw(root,"نمایش نام شاخص‌ها",true);
         root.addView(label("محل نام شاخص"),lpTop());
