@@ -105,7 +105,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setInt(META_IDS[i],"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.RIGHT);
             v.setInt(PCT_IDS[i],"setGravity",android.view.Gravity.RIGHT);
             v.setInt(NAME_RIGHT_IDS[i],"setGravity",android.view.Gravity.RIGHT|android.view.Gravity.CENTER_VERTICAL);
-            v.setInt(TIME_IDS[i],"setGravity",(p.getInt("dateFormat",0)==6||p.getInt("dateFormat",0)==8)?android.view.Gravity.CENTER:android.view.Gravity.END);
+            v.setInt(TIME_IDS[i],"setGravity",android.view.Gravity.END);
         }
         v.setTextViewTextSize(R.id.requestTime,2,rs);
         v.setTextColor(R.id.requestTime,muted);
@@ -313,10 +313,9 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if(t==null||t.isEmpty()||"—".equals(t))return "—";
         if(t.contains(":")){String[] parts=t.trim().split("\\s+");String clock=parts[0];String[] hm=clock.split(":");if(hm.length>=2)return hm[0]+":"+hm[1];}
         if(!t.matches(".*[۰-۹0-9].*"))return t;
-        if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return d+" - "+m;case 2:return d+"."+m;case 3:return d+"/"+m+"/1405";case 4:return d+" "+parts[1];case 6:return d+" "+parts[1];case 7:return digitsFa(d)+" "+parts[1];case 8:return digitsFa(d)+" "+parts[1];case 9:return parts[1]+" "+d;case 10:return d+"\u00A0"+parts[1];default:return d+"/"+m;}}}
+        if(t.contains(" ")&&!t.contains(":")){String[] parts=t.trim().split("\\s+");if(parts.length>=2){int day=parseNum(parts[0]);int month=month(parts[1]);if(fmt==5)return "";String d=String.format(Locale.US,"%02d",day),m=String.format(Locale.US,"%02d",month);switch(fmt){case 1:return d+" - "+m;case 2:return d+"."+m;case 3:return d+"/"+m+"/1405";case 4:return d+" "+parts[1];default:return d+"/"+m;}}}
         return t;
     }
-    private static String digitsFa(String s){return s.replace("0","۰").replace("1","۱").replace("2","۲").replace("3","۳").replace("4","۴").replace("5","۵").replace("6","۶").replace("7","۷").replace("8","۸").replace("9","۹");}
     private static int parseNum(String s){try{String x=s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replaceAll("[^0-9]","");return Integer.parseInt(x);}catch(Exception e){return 0;}}
     private static int month(String s){String[]m={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};for(int i=0;i<m.length;i++)if(s.contains(m[i]))return i+1;return 0;}
 }
