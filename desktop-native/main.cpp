@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include "resource.h"
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "shell32.lib")
@@ -331,7 +332,7 @@ static HICON CreateTrayIcon(){
 }
 
 static void AddTray(HINSTANCE) {
-    memset(&gNid,0,sizeof(gNid));gNid.cbSize=sizeof(gNid);gNid.hWnd=gMain;gNid.uID=1;gNid.uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;gNid.uCallbackMessage=WM_TRAY;gNid.hIcon=CreateTrayIcon();wcscpy_s(gNid.szTip,L"شاخص‌های TGJU");Shell_NotifyIconW(NIM_ADD,&gNid);gNid.uVersion=NOTIFYICON_VERSION_4;Shell_NotifyIconW(NIM_SETVERSION,&gNid);
+    memset(&gNid,0,sizeof(gNid));gNid.cbSize=sizeof(gNid);gNid.hWnd=gMain;gNid.uID=1;gNid.uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;gNid.uCallbackMessage=WM_TRAY;gNid.hIcon=LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_TGJU));wcscpy_s(gNid.szTip,L"شاخص‌های TGJU");Shell_NotifyIconW(NIM_ADD,&gNid);gNid.uVersion=NOTIFYICON_VERSION_4;Shell_NotifyIconW(NIM_SETVERSION,&gNid);
 }
 static void RemoveTray(){Shell_NotifyIconW(NIM_DELETE,&gNid);if(gNid.hIcon){DestroyIcon(gNid.hIcon);gNid.hIcon=nullptr;}}
 
