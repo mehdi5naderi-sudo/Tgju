@@ -115,7 +115,7 @@ def fetch_prices(chat_id):
             row["price"].rjust(price_width),
         ])
         lines.append("  ".join(html.escape(part) for part in parts))
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 def price_keyboard():
     return {"inline_keyboard": [
