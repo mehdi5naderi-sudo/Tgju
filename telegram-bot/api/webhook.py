@@ -140,6 +140,45 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/__repair":
+            secret = os.environ.get("TGJU_WEBHOOK_SECRET", "")
+            if not secret or not os.environ.get("TGJU_BOT_TOKEN"):
+                body = json.dumps({"ok": False, "error": "Missing required environment variables"}).encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            try:
+                registered = telegram("setWebhook", {
+                    "url": "https://tgju-telegram-bot-aflh.onrender.com/",
+                    "secret_token": secret
+                })
+                info = telegram("getWebhookInfo", {})
+                details = info.get("result", {}) if isinstance(info, dict) else {}
+                try:
+                    fetch_prices()
+                    tgju_ok = True
+                except Exception:
+                    tgju_ok = False
+                result = {
+                    "ok": bool(registered.get("ok")) and bool(info.get("ok")),
+                    "webhook_registered": bool(registered.get("result")),
+                    "webhook_url": details.get("url", ""),
+                    "pending_update_count": details.get("pending_update_count"),
+                    "last_error_message": details.get("last_error_message"),
+                    "tgju_api_ok": tgju_ok
+                }
+                body = json.dumps(result, ensure_ascii=False).encode("utf-8")
+                self.send_response(200 if result["ok"] else 502)
+            except Exception as exc:
+                body = json.dumps({"ok": False, "error": type(exc).__name__}).encode("utf-8")
+                self.send_response(502)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path == "/__diag":
             query = urllib.parse.parse_qs(parsed.query)
             secret = os.environ.get("TGJU_WEBHOOK_SECRET", "")
