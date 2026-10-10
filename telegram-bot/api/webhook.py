@@ -1,28 +1,28 @@
 import html
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler
 
 TGJU_KEYS = [
-    ("crypto-tether-irr", "تتر", "تومان"),
-    ("price_dollar_rl", "دلار", "تومان"),
-    ("geram18", "گرم ۱۸", "تومان"),
-    ("sekee", "امامی", "تومان"),
-    ("ime_fund_kahroba", "کهربا", "تومان"),
-    ("ime_fund_ayar", "عیار", "تومان"),
-    ("ons", "انس", "USD"),
-    ("oil_brent", "نفت برنت", "USD"),
-    ("gc30", "شاخص بورس", ""),
+    ("crypto-tether-irr", "تتر", ""),
+    ("price_dollar_rl", "دلار", ""),
+    ("geram18", "گرم", ""),
+    ("sekee", "امامی", ""),
+    ("ime_fund_kahroba", "کهربا", ""),
+    ("ime_fund_ayar", "عیار", ""),
+    ("ons", "انس", ""),
+    ("oil_brent", "برنت", ""),
+    ("gc30", "بورس", ""),
 ]
 
 # Preferences are per chat for the lifetime of this running instance.
-# Telegram bots cannot set the actual font size of messages.
 CHAT_SETTINGS = {}
 
 def settings_for(chat_id):
-    return CHAT_SETTINGS.setdefault(str(chat_id), {"bold_prices": True, "show_change": True})
+    return CHAT_SETTINGS.setdefault(str(chat_id), {"show_change": True, "show_time": True})
 
 def api_json(url, payload=None, headers=None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -61,9 +61,14 @@ def format_price(item, slug):
 def format_change(item):
     pct = numeric(item.get("dp"))
     if pct is None:
-        return "تغییر: —"
+        return "—"
     sign = "+" if pct > 0 else ("−" if pct < 0 else "")
-    return f"تغییر: {fa_digits(sign + f'{abs(pct):.2f}%')}"
+    return fa_digits(sign + f"{abs(pct):.2f}")
+
+def format_time(value):
+    text = str(value or "—").strip()
+    # If the source includes HH:MM:SS, omit seconds.
+    return fa_digits(re.sub(r"(\d{1,2}:\d{2}):\d{2}", r"\1", text))
 
 def fetch_prices(chat_id):
     settings = settings_for(chat_id)
@@ -73,27 +78,26 @@ def fetch_prices(chat_id):
     response = data.get("response", {}) if isinstance(data, dict) else {}
     items = response.get("indicators", []) if isinstance(response, dict) else []
     by_slug = {str(item.get("name", "")): item for item in items if isinstance(item, dict)}
-    lines = ["<b>📊 قیمت بازار TGJU</b>", ""]
+    lines = ["<b>📊 قیمت بازار TGJU</b>"]
     found = 0
-    for slug, label, unit in TGJU_KEYS:
+    for slug, label, _unit in TGJU_KEYS:
         item = by_slug.get(slug)
         if not item:
             lines.append(f"{html.escape(label)}: داده موجود نیست")
             continue
         found += 1
-        price = format_price(item, slug)
-        unit_text = f" {unit}" if unit else ""
-        timestamp = html.escape(str(item.get("t") or "—"))
-        if settings["bold_prices"]:
-            lines.append(f"<b>{html.escape(label)}  {html.escape(price + unit_text)}</b>")
-        else:
-            lines.append(f"{html.escape(label)}  <code>{html.escape(price + unit_text)}</code>")
+        price = html.escape(format_price(item, slug))
+        lines.append(f"{html.escape(label)}  {price}")
+        details = []
         if settings["show_change"]:
-            lines.append(f"{format_change(item)}   <i>{timestamp}</i>")
-        lines.append("")
+            details.append("تغییر " + format_change(item))
+        if settings["show_time"]:
+            details.append(format_time(item.get("t")))
+        if details:
+            lines.append("   ".join(html.escape(part) for part in details))
     if not found:
         raise RuntimeError("TGJU API returned no indicators")
-    lines.append("<i>منبع: TGJU | دریافت تازه در زمان درخواست</i>")
+    lines.append("<i>منبع: TGJU</i>")
     return "\n".join(lines)
 
 def price_keyboard():
@@ -104,11 +108,11 @@ def price_keyboard():
 
 def settings_keyboard(chat_id):
     settings = settings_for(chat_id)
-    bold_label = "✅ قیمت پررنگ" if settings["bold_prices"] else "قیمت معمولی"
-    change_label = "✅ نمایش درصد تغییر" if settings["show_change"] else "نمایش درصد تغییر"
+    change_label = ("✅ " if settings["show_change"] else "☐ ") + "نمایش درصد تغییر"
+    time_label = ("✅ " if settings["show_time"] else "☐ ") + "نمایش زمان بروزرسانی"
     return {"inline_keyboard": [
-        [{"text": bold_label, "callback_data": "toggle_bold"}],
         [{"text": change_label, "callback_data": "toggle_change"}],
+        [{"text": time_label, "callback_data": "toggle_time"}],
         [{"text": "↩️ بازگشت به قیمت‌ها", "callback_data": "back_prices"}],
     ]}
 
@@ -121,10 +125,9 @@ def reply(chat_id, text, markup=None):
 def show_settings(chat_id):
     settings = settings_for(chat_id)
     text = (
-        "<b>⚙️ تنظیمات نمایش</b>\n\n"
-        f"حالت قیمت: {'پررنگ' if settings['bold_prices'] else 'معمولی'}\n"
-        f"درصد تغییر: {'روشن' if settings['show_change'] else 'خاموش'}\n\n"
-        "توجه: اندازهٔ واقعی فونت را باید از تنظیمات تلگرام گوشی تغییر دهید."
+        "<b>⚙️ تنظیمات نمایش</b>\n"
+        f"درصد تغییر: {'روشن' if settings['show_change'] else 'خاموش'}\n"
+        f"زمان بروزرسانی: {'روشن' if settings['show_time'] else 'خاموش'}"
     )
     return reply(chat_id, text, settings_keyboard(chat_id))
 
@@ -149,11 +152,11 @@ class handler(BaseHTTPRequestHandler):
                 action = callback.get("data", "")
                 if action == "open_settings":
                     show_settings(chat_id)
-                elif action == "toggle_bold":
-                    settings_for(chat_id)["bold_prices"] = not settings_for(chat_id)["bold_prices"]
-                    show_settings(chat_id)
                 elif action == "toggle_change":
                     settings_for(chat_id)["show_change"] = not settings_for(chat_id)["show_change"]
+                    show_settings(chat_id)
+                elif action == "toggle_time":
+                    settings_for(chat_id)["show_time"] = not settings_for(chat_id)["show_time"]
                     show_settings(chat_id)
                 elif action in ("refresh_prices", "back_prices"):
                     try:
