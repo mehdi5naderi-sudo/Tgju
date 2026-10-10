@@ -139,6 +139,41 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(b"ok")
 
     def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/__diag":
+            query = urllib.parse.parse_qs(parsed.query)
+            secret = os.environ.get("TGJU_WEBHOOK_SECRET", "")
+            if not secret or query.get("key", [""])[0] != secret:
+                self.send_response(404)
+                self.end_headers()
+                return
+            result = {"token_configured": bool(os.environ.get("TGJU_BOT_TOKEN")), "secret_configured": bool(secret)}
+            try:
+                info = telegram("getWebhookInfo", {})
+                result["telegram_api_ok"] = bool(info.get("ok"))
+                data = info.get("result", {}) if isinstance(info, dict) else {}
+                result["webhook_url"] = data.get("url", "")
+                result["pending_update_count"] = data.get("pending_update_count")
+                result["last_error_date"] = data.get("last_error_date")
+                result["last_error_message"] = data.get("last_error_message")
+                result["allowed_updates"] = data.get("allowed_updates")
+            except Exception as exc:
+                result["telegram_api_ok"] = False
+                result["telegram_error"] = type(exc).__name__
+            try:
+                prices = fetch_prices()
+                result["tgju_api_ok"] = True
+                result["price_lines"] = len(prices.splitlines())
+            except Exception as exc:
+                result["tgju_api_ok"] = False
+                result["tgju_error"] = type(exc).__name__
+            body = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
