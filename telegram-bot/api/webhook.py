@@ -98,21 +98,24 @@ def fetch_prices(chat_id):
     if not found:
         raise RuntimeError("TGJU API returned no indicators")
 
-    # Align with spaces only; keep the normal Telegram message typography.
+    # Restore the previous spacing style, with time and change first.
     name_width = max(len("امامی"), max(len(row["name"]) for row in rows))
-    price_width = max(len(row["price"]) for row in rows)
-    change_width = max([len(row["change"]) for row in rows]) if settings["show_change"] else 0
-    time_width = max([len(row["time"]) for row in rows]) if settings["show_time"] else 0
+    price_width = max(len("قیمت"), max(len(row["price"]) for row in rows))
+    change_width = max([len("درصد")] + [len(row["change"]) for row in rows]) if settings["show_change"] else 0
+    time_width = max([len("زمان")] + [len(row["time"]) for row in rows]) if settings["show_time"] else 0
     lines = ["<b>📊 قیمت بازار TGJU</b>"]
     for row in rows:
-        name = row["name"] + (" " * (name_width - len(row["name"]) + 2))
-        parts = [name, row["price"].rjust(price_width)]
-        if settings["show_change"]:
-            parts.append(row["change"].rjust(change_width))
+        parts = []
         if settings["show_time"]:
             parts.append(row["time"].rjust(time_width))
-        lines.append("   ".join(html.escape(part) for part in parts))
-    return "\n".join(lines)
+        if settings["show_change"]:
+            parts.append(row["change"].rjust(change_width))
+        parts.extend([
+            row["name"].ljust(name_width),
+            row["price"].rjust(price_width),
+        ])
+        lines.append("  ".join(html.escape(part) for part in parts))
+    return "\\n".join(lines)
 
 def price_keyboard():
     return {"inline_keyboard": [
