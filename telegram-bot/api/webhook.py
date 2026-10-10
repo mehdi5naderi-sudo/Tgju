@@ -80,26 +80,45 @@ def fetch_prices(chat_id):
     response = data.get("response", {}) if isinstance(data, dict) else {}
     items = response.get("indicators", []) if isinstance(response, dict) else []
     by_slug = {str(item.get("name", "")): item for item in items if isinstance(item, dict)}
-    lines = ["<b>📊 قیمت بازار TGJU</b>"]
+
+    rows = []
     found = 0
     for slug, label, _unit in TGJU_KEYS:
         item = by_slug.get(slug)
         if not item:
-            lines.append(f"{html.escape(label)}: داده موجود نیست")
+            rows.append({"name": label, "price": "داده موجود نیست", "change": "", "time": ""})
             continue
         found += 1
-        price = html.escape(format_price(item, slug))
-        details = []
-        if settings["show_change"]:
-            details.append(format_change(item))
-        if settings["show_time"]:
-            details.append(format_time(item.get("t")))
-        suffix = ("  " + "   ".join(html.escape(part) for part in details)) if details else ""
-        lines.append(f"{html.escape(label)}  {price}{suffix}")
+        rows.append({
+            "name": label,
+            "price": format_price(item, slug),
+            "change": format_change(item) if settings["show_change"] else "",
+            "time": format_time(item.get("t")) if settings["show_time"] else "",
+        })
     if not found:
         raise RuntimeError("TGJU API returned no indicators")
-    lines.append("<i>منبع: TGJU</i>")
-    return "\n".join(lines)
+
+    # Keep every column fixed-width, using the امامی row as the visual reference.
+    name_width = max(len("امامی"), max(len(row["name"]) for row in rows))
+    price_width = max(len("قیمت"), max(len(row["price"]) for row in rows))
+    change_width = max([len("درصد")] + [len(row["change"]) for row in rows]) if settings["show_change"] else 0
+    time_width = max([len("زمان")] + [len(row["time"]) for row in rows]) if settings["show_time"] else 0
+
+    headers = [f"{'شاخص':<{name_width}}", f"{'قیمت':>{price_width}}"]
+    if settings["show_change"]:
+        headers.append(f"{'درصد':>{change_width}}")
+    if settings["show_time"]:
+        headers.append(f"{'زمان':>{time_width}}")
+    formatted = ["  ".join(headers)]
+    for row in rows:
+        cells = [f"{row['name']:<{name_width}}", f"{row['price']:>{price_width}}"]
+        if settings["show_change"]:
+            cells.append(f"{row['change']:>{change_width}}")
+        if settings["show_time"]:
+            cells.append(f"{row['time']:>{time_width}}")
+        formatted.append("  ".join(cells))
+
+    return "<b>📊 قیمت بازار TGJU</b>\\n<pre>" + html.escape("\\n".join(formatted)) + "</pre>\\n<i>منبع: TGJU</i>"
 
 def price_keyboard():
     return {"inline_keyboard": [
