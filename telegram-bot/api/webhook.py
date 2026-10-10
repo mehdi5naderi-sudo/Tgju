@@ -62,7 +62,9 @@ def format_change(item):
     pct = numeric(item.get("dp"))
     if pct is None:
         return "—"
-    sign = "+" if pct > 0 else ("−" if pct < 0 else "")
+    # TGJU's dp is an absolute change value; direction comes from dt.
+    direction = str(item.get("dt", "")).strip().lower()
+    sign = "+" if direction == "high" else ("−" if direction == "low" else "")
     return fa_digits(sign + f"{abs(pct):.2f}")
 
 def format_time(value):
