@@ -1,3 +1,4 @@
+import html
 import json
 import os
 import urllib.parse
@@ -15,6 +16,13 @@ TGJU_KEYS = [
     ("oil_brent", "نفت برنت", "USD"),
     ("gc30", "شاخص بورس", ""),
 ]
+
+# Preferences are per chat for the lifetime of this running instance.
+# Telegram bots cannot set the actual font size of messages.
+CHAT_SETTINGS = {}
+
+def settings_for(chat_id):
+    return CHAT_SETTINGS.setdefault(str(chat_id), {"bold_prices": True, "show_change": True})
 
 def api_json(url, payload=None, headers=None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -37,9 +45,7 @@ def numeric(value):
         return None
 
 def format_price(item, slug):
-    if slug == "gc30":
-        value = numeric(item.get("p"))
-    elif slug in ("ons", "oil_brent"):
+    if slug in ("gc30", "ons", "oil_brent"):
         value = numeric(item.get("p"))
     elif slug == "crypto-tether-irr" and item.get("p_irr"):
         value = numeric(item.get("p_irr"))
@@ -53,22 +59,14 @@ def format_price(item, slug):
     return fa_digits(f"{value:,.{decimals}f}")
 
 def format_change(item):
-    direction = str(item.get("dt", "")).lower()
     pct = numeric(item.get("dp"))
-    if direction == "high":
-        symbol = "🟢 ▲"
-    elif direction == "low":
-        symbol = "🔴 ▼"
-    elif pct is not None and pct > 0:
-        symbol = "🟢 ▲"
-    elif pct is not None and pct < 0:
-        symbol = "🔴 ▼"
-    else:
-        symbol = "🟡 ●"
-    pct_text = f"{abs(pct):.2f}%" if pct is not None else "—"
-    return f"{symbol} {fa_digits(pct_text)}"
+    if pct is None:
+        return "تغییر: —"
+    sign = "+" if pct > 0 else ("−" if pct < 0 else "")
+    return f"تغییر: {fa_digits(sign + f'{abs(pct):.2f}%')}"
 
-def fetch_prices():
+def fetch_prices(chat_id):
+    settings = settings_for(chat_id)
     keys = ",".join(slug for slug, _, _ in TGJU_KEYS)
     url = "https://api.tgju.org/v1/widget/tmp?keys=" + urllib.parse.quote(keys, safe=",")
     data = api_json(url)
@@ -80,27 +78,55 @@ def fetch_prices():
     for slug, label, unit in TGJU_KEYS:
         item = by_slug.get(slug)
         if not item:
-            lines.append(f"{label}: داده موجود نیست")
+            lines.append(f"{html.escape(label)}: داده موجود نیست")
             continue
         found += 1
         price = format_price(item, slug)
         unit_text = f" {unit}" if unit else ""
-        change = format_change(item)
-        timestamp = item.get("t") or "—"
-        lines.append(f"<b>{label}</b>  <code>{price}{unit_text}</code>")
-        lines.append(f"{change}   <i>{timestamp}</i>")
+        timestamp = html.escape(str(item.get("t") or "—"))
+        if settings["bold_prices"]:
+            lines.append(f"<b>{html.escape(label)}  {html.escape(price + unit_text)}</b>")
+        else:
+            lines.append(f"{html.escape(label)}  <code>{html.escape(price + unit_text)}</code>")
+        if settings["show_change"]:
+            lines.append(f"{format_change(item)}   <i>{timestamp}</i>")
         lines.append("")
     if not found:
         raise RuntimeError("TGJU API returned no indicators")
     lines.append("<i>منبع: TGJU | دریافت تازه در زمان درخواست</i>")
     return "\n".join(lines)
 
-def reply(chat_id, text, keyboard=True):
-    markup = {"inline_keyboard": [[{"text": "↻ بروزرسانی قیمت‌ها", "callback_data": "refresh_prices"}]]} if keyboard else None
+def price_keyboard():
+    return {"inline_keyboard": [
+        [{"text": "↻ بروزرسانی قیمت‌ها", "callback_data": "refresh_prices"}],
+        [{"text": "⚙️ تنظیمات", "callback_data": "open_settings"}],
+    ]}
+
+def settings_keyboard(chat_id):
+    settings = settings_for(chat_id)
+    bold_label = "✅ قیمت پررنگ" if settings["bold_prices"] else "قیمت معمولی"
+    change_label = "✅ نمایش درصد تغییر" if settings["show_change"] else "نمایش درصد تغییر"
+    return {"inline_keyboard": [
+        [{"text": bold_label, "callback_data": "toggle_bold"}],
+        [{"text": change_label, "callback_data": "toggle_change"}],
+        [{"text": "↩️ بازگشت به قیمت‌ها", "callback_data": "back_prices"}],
+    ]}
+
+def reply(chat_id, text, markup=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
     if markup:
         payload["reply_markup"] = markup
     return telegram("sendMessage", payload)
+
+def show_settings(chat_id):
+    settings = settings_for(chat_id)
+    text = (
+        "<b>⚙️ تنظیمات نمایش</b>\n\n"
+        f"حالت قیمت: {'پررنگ' if settings['bold_prices'] else 'معمولی'}\n"
+        f"درصد تغییر: {'روشن' if settings['show_change'] else 'خاموش'}\n\n"
+        "توجه: اندازهٔ واقعی فونت را باید از تنظیمات تلگرام گوشی تغییر دهید."
+    )
+    return reply(chat_id, text, settings_keyboard(chat_id))
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -120,16 +146,32 @@ class handler(BaseHTTPRequestHandler):
             if callback:
                 chat_id = callback.get("message", {}).get("chat", {}).get("id")
                 telegram("answerCallbackQuery", {"callback_query_id": callback.get("id")})
+                action = callback.get("data", "")
+                if action == "open_settings":
+                    show_settings(chat_id)
+                elif action == "toggle_bold":
+                    settings_for(chat_id)["bold_prices"] = not settings_for(chat_id)["bold_prices"]
+                    show_settings(chat_id)
+                elif action == "toggle_change":
+                    settings_for(chat_id)["show_change"] = not settings_for(chat_id)["show_change"]
+                    show_settings(chat_id)
+                elif action in ("refresh_prices", "back_prices"):
+                    try:
+                        reply(chat_id, fetch_prices(chat_id), price_keyboard())
+                    except Exception:
+                        reply(chat_id, "⚠️ دریافت قیمت‌ها از TGJU ناموفق بود. کمی بعد دوباره تلاش کنید.")
             elif message:
                 chat_id = message.get("chat", {}).get("id")
-            if chat_id is not None:
-                if callback or (message and str(message.get("text", "")).strip().lower() in ("/start", "/price", "/prices", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی")):
+                command = str(message.get("text", "")).strip().lower()
+                if command in ("/settings", "تنظیمات"):
+                    show_settings(chat_id)
+                elif command in ("/start", "/price", "/prices", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی"):
                     try:
-                        reply(chat_id, fetch_prices())
+                        reply(chat_id, fetch_prices(chat_id), price_keyboard())
                     except Exception:
-                        reply(chat_id, "⚠️ دریافت قیمت‌ها از TGJU ناموفق بود. کمی بعد دوباره تلاش کنید.", keyboard=False)
-                elif message:
-                    reply(chat_id, "برای دریافت قیمت‌های تازه، دستور /price را بفرستید.")
+                        reply(chat_id, "⚠️ دریافت قیمت‌ها از TGJU ناموفق بود. کمی بعد دوباره تلاش کنید.")
+                else:
+                    reply(chat_id, "برای قیمت‌ها /price و برای تنظیمات /settings را بفرستید.")
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"ok")
@@ -143,3 +185,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
         self.wfile.write("TGJU Telegram bot webhook is running".encode("utf-8"))
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
