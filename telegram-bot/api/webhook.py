@@ -87,14 +87,13 @@ def fetch_prices(chat_id):
             continue
         found += 1
         price = html.escape(format_price(item, slug))
-        lines.append(f"{html.escape(label)}  {price}")
         details = []
         if settings["show_change"]:
-            details.append("تغییر " + format_change(item))
+            details.append(format_change(item))
         if settings["show_time"]:
             details.append(format_time(item.get("t")))
-        if details:
-            lines.append("   ".join(html.escape(part) for part in details))
+        suffix = ("  " + "   ".join(html.escape(part) for part in details)) if details else ""
+        lines.append(f"{html.escape(label)}  {price}{suffix}")
     if not found:
         raise RuntimeError("TGJU API returned no indicators")
     lines.append("<i>منبع: TGJU</i>")
