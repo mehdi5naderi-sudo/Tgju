@@ -198,9 +198,11 @@ def home():
 def health():
     return {"ok": True}, 200
 
-@app.post("/telegram/" + os.environ.get("WEBHOOK_SECRET", "unset"))
-def webhook():
-    # Route is additionally protected by a random secret path set as an env var.
+@app.post("/telegram/<secret>")
+def webhook(secret):
+    # The webhook URL contains a secret path to prevent forged updates.
+    if not secrets.compare_digest(secret, WEBHOOK_SECRET):
+        abort(404)
     data = request.get_json(silent=True) or {}
     try:
         if data.get("message"):
