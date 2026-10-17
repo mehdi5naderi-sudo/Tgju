@@ -119,6 +119,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         Intent r=new Intent(c,TgjuWidgetProvider.class).setAction(ACTION_REFRESH).setData(Uri.parse("tgju://refresh/"+id));
         PendingIntent rp=PendingIntent.getBroadcast(c,id,r,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         v.setOnClickPendingIntent(R.id.root,rp);
+        // In scroll mode the ListView consumes taps, so route row taps to the same refresh action.
+        v.setPendingIntentTemplate(R.id.rowsList,rp);
 
         Intent s=new Intent(c,WidgetSettingsActivity.class).setAction("com.mehdi.tgjuwidget.SETTINGS").setData(Uri.parse("tgju://settings/"+id)).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id);
         PendingIntent sp=PendingIntent.getActivity(c,id+10000,s,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
@@ -353,6 +355,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,valueColor).putInt("lastTimeColor"+i,timeTextColor).apply();
             }
             RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_item);
+            row.setOnClickFillInIntent(R.id.itemRow,new Intent());
             row.setViewLayoutHeight(R.id.itemRow,30,android.util.TypedValue.COMPLEX_UNIT_DIP);
             row.setTextViewTextSize(R.id.price,2,ps);row.setTextViewTextSize(R.id.priceInline,2,ps);row.setTextViewTextSize(R.id.priceVertical,2,ps);row.setTextViewTextSize(R.id.priceRight,2,ps);
             row.setTextViewTextSize(R.id.name,2,ns);row.setTextViewTextSize(R.id.nameInline,2,ns);row.setTextViewTextSize(R.id.nameVertical,2,ns);row.setTextViewTextSize(R.id.nameRight,2,ns);
