@@ -69,6 +69,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         int selectedCount=0; for(int i=0;i<SLOT_COUNT;i++) if(!p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"").isEmpty()) selectedCount++;
         boolean scrollMode=selectedCount>6;
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
+        v.setViewVisibility(R.id.rowsStatic,scrollMode?View.GONE:View.VISIBLE);
+        v.setViewVisibility(R.id.rowsList,scrollMode?View.VISIBLE:View.GONE);
         if(android.os.Build.VERSION.SDK_INT>=31){
             for(int i=0;i<SLOT_COUNT;i++) v.setViewLayoutHeight(ROW_IDS[i],scrollMode?30:0,android.util.TypedValue.COMPLEX_UNIT_DIP);
         }
@@ -122,6 +124,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         PendingIntent sp=PendingIntent.getActivity(c,id+10000,s,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         v.setOnClickPendingIntent(R.id.settingsButton,sp);
         v.setTextViewText(R.id.settingsButton,"⚙");
+        setListItems(c,v,id,null);
         return v;
     }
 
@@ -241,6 +244,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         }
         v.setTextViewText(R.id.requestTime,digits(request,en));
         v.setTextColor(R.id.requestTime,ok?p.getInt("mutedColor",Color.LTGRAY):RED);
+        setListItems(c,v,id,d);
         m.updateAppWidget(id,v);
     }
 
@@ -323,4 +327,60 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     }
     private static int parseNum(String s){try{String x=s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replaceAll("[^0-9]","");return Integer.parseInt(x);}catch(Exception e){return 0;}}
     private static int month(String s){String[]m={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};for(int i=0;i<m.length;i++)if(s.contains(m[i]))return i+1;return 0;}
+    // Native RemoteViews collection: ListView is supported in app widgets and scrolls internally.
+    private void setListItems(Context c,RemoteViews widget,int id,Map<String,JSONObject> data){
+        if(android.os.Build.VERSION.SDK_INT<31)return;
+        android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
+        int count=0;
+        for(int i=0;i<SLOT_COUNT;i++)if(!p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"").isEmpty())count++;
+        if(count<=6)return;
+        boolean en="en".equals(p.getString("lang","fa"));
+        boolean showNames=p.getBoolean("showNames",true),showPct=p.getBoolean("showPct",true),showTime=p.getBoolean("showTime",true);
+        int namePosition=p.getInt("namePosition",1),muted=p.getInt("mutedColor",Color.LTGRAY),metaWidth=p.getInt("metaWidth",40);
+        float ps=p.getInt("priceSize",18),pctSize=p.getInt("pctSize",10),ts=p.getInt("timeSize",8),ns=p.getInt("nameSize",8);
+        RemoteViews.RemoteCollectionItems.Builder builder=new RemoteViews.RemoteCollectionItems.Builder();
+        long itemId=0;
+        for(int i=0;i<SLOT_COUNT;i++){
+            String k=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"");
+            if(k.isEmpty())continue;
+            JSONObject o=data==null?null:data.get(k);
+            String price=p.getString("lastPrice"+i,"—"),pct=p.getString("lastPct"+i,"—"),time=p.getString("lastTime"+i,"—");
+            int valueColor=p.getInt("lastColor"+i,Color.LTGRAY),timeTextColor=p.getInt("lastTimeColor"+i,valueColor);
+            if(o!=null){
+                price=price(o,k);double dp=o.optDouble("dp",Double.NaN);String dt=o.optString("dt","");
+                if(!Double.isNaN(dp)){pct=percent(dp,en);valueColor="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
+                String rawTime=o.optString("t","—");time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);timeTextColor=timeColor(rawTime,valueColor);
+                p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,valueColor).putInt("lastTimeColor"+i,timeTextColor).apply();
+            }
+            RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_item);
+            row.setViewLayoutHeight(R.id.itemRow,28,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            row.setTextViewTextSize(R.id.price,2,ps);row.setTextViewTextSize(R.id.priceInline,2,ps);row.setTextViewTextSize(R.id.priceVertical,2,ps);row.setTextViewTextSize(R.id.priceRight,2,ps);
+            row.setTextViewTextSize(R.id.name,2,ns);row.setTextViewTextSize(R.id.nameInline,2,ns);row.setTextViewTextSize(R.id.nameVertical,2,ns);row.setTextViewTextSize(R.id.nameRight,2,ns);
+            row.setTextViewTextSize(R.id.pct,2,pctSize);row.setTextViewTextSize(R.id.time,2,ts);
+            row.setViewLayoutWidth(R.id.meta,metaWidth,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            String name=showNames?nameFor(k,en):"";
+            row.setTextViewText(R.id.name,name);row.setTextViewText(R.id.nameInline,name);row.setTextViewText(R.id.nameVertical,name);row.setTextViewText(R.id.nameRight,name);
+            row.setTextColor(R.id.name,muted);row.setTextColor(R.id.nameInline,muted);row.setTextColor(R.id.nameVertical,muted);row.setTextColor(R.id.nameRight,muted);row.setTextColor(R.id.time,timeTextColor);
+            row.setTextViewText(R.id.price,digits(price,en));row.setTextColor(R.id.price,valueColor);
+            row.setTextViewText(R.id.priceInline,digits(price,en));row.setTextColor(R.id.priceInline,valueColor);
+            row.setTextViewText(R.id.priceVertical,digits(price,en));row.setTextColor(R.id.priceVertical,valueColor);
+            row.setTextViewText(R.id.priceRight,digits(price,en));row.setTextColor(R.id.priceRight,valueColor);
+            row.setTextViewText(R.id.pct,digits(pct,en));row.setTextColor(R.id.pct,valueColor);row.setTextViewText(R.id.time,digits(time,en));
+            row.setViewVisibility(R.id.name,View.GONE);
+            row.setViewVisibility(R.id.nameInline,showNames&&namePosition==1?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.nameVertical,showNames&&namePosition==2?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.nameRight,showNames&&namePosition==3?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.price,namePosition==0?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.priceInline,namePosition==1?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.priceVertical,namePosition==2?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.priceRight,namePosition==3?View.VISIBLE:View.GONE);
+            row.setViewVisibility(R.id.pct,showPct?View.VISIBLE:View.GONE);row.setViewVisibility(R.id.time,showTime?View.VISIBLE:View.GONE);
+            row.setInt(R.id.itemRow,"setLayoutDirection",View.LAYOUT_DIRECTION_LTR);
+            row.setInt(R.id.meta,"setGravity",android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.RIGHT);
+            row.setInt(R.id.pct,"setGravity",android.view.Gravity.RIGHT);row.setInt(R.id.nameRight,"setGravity",android.view.Gravity.RIGHT|android.view.Gravity.CENTER_VERTICAL);row.setInt(R.id.time,"setGravity",android.view.Gravity.END);
+            builder.addItem(itemId++,row);
+        }
+        widget.setRemoteAdapter(R.id.rowsList,builder.build());
+    }
+
 }
