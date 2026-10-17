@@ -1,7 +1,6 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@android:color/transparent" android:clickable="true">
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="4dp">
-    <ScrollView android:id="@+id/rowsScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:scrollbars="vertical">
-    <LinearLayout android:id="@+id/rowsContainer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
+    <LinearLayout android:id="@+id/rowsStatic" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical">
     <LinearLayout android:id="@+id/row1" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:layoutDirection="ltr">
         <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
             <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|start">
@@ -216,7 +215,7 @@
         <TextView android:id="@+id/nameRight9" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
     </LinearLayout>
-    </ScrollView>
+    <ListView android:id="@+id/rowsList" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:divider="@android:color/transparent" android:dividerHeight="0dp" android:scrollbars="vertical" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="14dp" android:orientation="horizontal" android:gravity="center" android:layoutDirection="ltr"><TextView android:id="@+id/settingsButton" android:layout_width="22dp" android:layout_height="14dp" android:translationY="-4dp" android:gravity="center" android:text="⚙" android:textColor="@color/text_muted" android:textSize="12sp" android:clickable="true" android:focusable="true"/><TextView android:id="@+id/requestTime" android:layout_width="wrap_content" android:layout_height="match_parent" android:gravity="center" android:textColor="@color/text_muted" android:textSize="7sp" android:singleLine="true"/></LinearLayout>
     </LinearLayout>
 </FrameLayout>
