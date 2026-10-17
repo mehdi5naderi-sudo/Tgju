@@ -70,7 +70,6 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         boolean scrollMode=selectedCount>6;
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
         if(android.os.Build.VERSION.SDK_INT>=31){
-            v.setViewLayoutHeight(R.id.rowsContainer,scrollMode?android.view.ViewGroup.LayoutParams.WRAP_CONTENT:android.view.ViewGroup.LayoutParams.MATCH_PARENT);
             for(int i=0;i<SLOT_COUNT;i++) v.setViewLayoutHeight(ROW_IDS[i],scrollMode?30:0,android.util.TypedValue.COMPLEX_UNIT_DIP);
         }
         for(int i=0;i<SLOT_COUNT;i++){
