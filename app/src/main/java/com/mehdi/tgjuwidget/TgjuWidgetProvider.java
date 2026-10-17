@@ -353,11 +353,14 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,valueColor).putInt("lastTimeColor"+i,timeTextColor).apply();
             }
             RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_item);
-            row.setViewLayoutHeight(R.id.itemRow,28,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            row.setViewLayoutHeight(R.id.itemRow,30,android.util.TypedValue.COMPLEX_UNIT_DIP);
             row.setTextViewTextSize(R.id.price,2,ps);row.setTextViewTextSize(R.id.priceInline,2,ps);row.setTextViewTextSize(R.id.priceVertical,2,ps);row.setTextViewTextSize(R.id.priceRight,2,ps);
             row.setTextViewTextSize(R.id.name,2,ns);row.setTextViewTextSize(R.id.nameInline,2,ns);row.setTextViewTextSize(R.id.nameVertical,2,ns);row.setTextViewTextSize(R.id.nameRight,2,ns);
             row.setTextViewTextSize(R.id.pct,2,pctSize);row.setTextViewTextSize(R.id.time,2,ts);
             row.setViewLayoutWidth(R.id.meta,metaWidth,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            int rowGap=p.getInt("rowSpace",0), metaGap=p.getInt("metaGap",0);
+            if(rowGap>0)row.setViewLayoutMargin(R.id.itemRow,RemoteViews.MARGIN_BOTTOM,rowGap,android.util.TypedValue.COMPLEX_UNIT_DIP);
+            if(metaGap!=0)row.setViewLayoutMargin(R.id.pct,RemoteViews.MARGIN_BOTTOM,metaGap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             String name=showNames?nameFor(k,en):"";
             row.setTextViewText(R.id.name,name);row.setTextViewText(R.id.nameInline,name);row.setTextViewText(R.id.nameVertical,name);row.setTextViewText(R.id.nameRight,name);
             row.setTextColor(R.id.name,muted);row.setTextColor(R.id.nameInline,muted);row.setTextColor(R.id.nameVertical,muted);row.setTextColor(R.id.nameRight,muted);row.setTextColor(R.id.time,timeTextColor);
