@@ -30,7 +30,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final int SLOT_COUNT = 9;
     private static final String[] DEFAULT_KEYS = {
             "crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba",
-            "ime_fund_ayar","ons","oil_brent","gc30","sekee","crypto-bitcoin-irr"
+            "ime_fund_ayar","ons","oil_brent","gc30","sekee","crypto-bitcoin"
     };
     private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,R.id.price6,R.id.price7,R.id.price8,R.id.price9};
     private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5,R.id.priceInline6,R.id.priceInline7,R.id.priceInline8,R.id.priceInline9};
@@ -256,7 +256,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if("oil_brent".equals(k))return "Brent";
             if("gc30".equals(k))return "gc30";
             if("sekee".equals(k))return "Imami";
-            if("crypto-bitcoin-irr".equals(k))return "Bitcoin";
+            if("crypto-bitcoin".equals(k))return "Bitcoin";
         }
         if("crypto-tether-irr".equals(k))return "تتر";
         if("price_dollar_rl".equals(k))return "دلار";
@@ -267,16 +267,16 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if("oil_brent".equals(k))return "برنت";
         if("gc30".equals(k))return "بورس";
         if("sekee".equals(k))return "امامی";
-        if("crypto-bitcoin-irr".equals(k))return "بیت‌کوین";
+        if("crypto-bitcoin".equals(k))return "بیت‌کوین";
         return k;
     }
 
     private static String price(JSONObject o,String k){
         try{
             double n;
-            if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k))
+            if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k)||"crypto-bitcoin".equals(k))
                 n=Double.parseDouble(o.optString("p","0").replace(",",""));
-            else if(("crypto-tether-irr".equals(k)||"crypto-bitcoin-irr".equals(k))&&o.has("p_irr"))
+            else if("crypto-tether-irr".equals(k)&&o.has("p_irr"))
                 n=Double.parseDouble(o.optString("p_irr","0").replace(",",""))/10.0;
             else n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;
             return new DecimalFormat("#,##0").format(n);
