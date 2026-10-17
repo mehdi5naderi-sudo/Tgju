@@ -1,5 +1,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@android:color/transparent" android:clickable="true">
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="4dp">
+    <ScrollView android:id="@+id/rowsScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:scrollbars="vertical">
+    <LinearLayout android:id="@+id/rowsContainer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
     <LinearLayout android:id="@+id/row1" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:layoutDirection="ltr">
         <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
             <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|start">
@@ -143,7 +145,78 @@
             <TextView android:id="@+id/time6" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
         </LinearLayout>
         <TextView android:id="@+id/nameRight6" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
+    </LinearLayout><LinearLayout android:id="@+id/row7" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:layoutDirection="ltr">
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/name7" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start" android:textSize="8sp" android:maxLines="1"/>
+                <TextView android:id="@+id/price7" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/nameInline7" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
+                <TextView android:id="@+id/priceInline7" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginStart="2dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/nameVertical7" android:layout_width="18dp" android:layout_height="wrap_content" android:gravity="center" android:textSize="7sp" android:maxLines="1" android:rotation="270"/>
+                <TextView android:id="@+id/priceVertical7" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginStart="3dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|end">
+                <TextView android:id="@+id/priceRight7" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginEnd="2dp"/>
+            </LinearLayout>
+        </FrameLayout>
+        <LinearLayout android:id="@+id/meta7" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
+            <TextView android:id="@+id/pct7" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
+            <TextView android:id="@+id/time7" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+        </LinearLayout>
+        <TextView android:id="@+id/nameRight7" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
+    </LinearLayout><LinearLayout android:id="@+id/row8" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:layoutDirection="ltr">
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/name8" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start" android:textSize="8sp" android:maxLines="1"/>
+                <TextView android:id="@+id/price8" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/nameInline8" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
+                <TextView android:id="@+id/priceInline8" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginStart="2dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/nameVertical8" android:layout_width="18dp" android:layout_height="wrap_content" android:gravity="center" android:textSize="7sp" android:maxLines="1" android:rotation="270"/>
+                <TextView android:id="@+id/priceVertical8" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginStart="3dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|end">
+                <TextView android:id="@+id/priceRight8" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginEnd="2dp"/>
+            </LinearLayout>
+        </FrameLayout>
+        <LinearLayout android:id="@+id/meta8" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
+            <TextView android:id="@+id/pct8" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
+            <TextView android:id="@+id/time8" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+        </LinearLayout>
+        <TextView android:id="@+id/nameRight8" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
+    </LinearLayout><LinearLayout android:id="@+id/row9" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:layoutDirection="ltr">
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/name9" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start" android:textSize="8sp" android:maxLines="1"/>
+                <TextView android:id="@+id/price9" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/nameInline9" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
+                <TextView android:id="@+id/priceInline9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginStart="2dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|start">
+                <TextView android:id="@+id/nameVertical9" android:layout_width="18dp" android:layout_height="wrap_content" android:gravity="center" android:textSize="7sp" android:maxLines="1" android:rotation="270"/>
+                <TextView android:id="@+id/priceVertical9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginStart="3dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical|end">
+                <TextView android:id="@+id/priceRight9" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="start|center_vertical" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:layout_marginEnd="2dp"/>
+            </LinearLayout>
+        </FrameLayout>
+        <LinearLayout android:id="@+id/meta9" android:layout_width="54dp" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical|end">
+            <TextView android:id="@+id/pct9" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="10sp" android:textStyle="bold" android:maxLines="1"/>
+            <TextView android:id="@+id/time9" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="8sp" android:maxLines="1"/>
+        </LinearLayout>
+        <TextView android:id="@+id/nameRight9" android:layout_width="38dp" android:layout_height="wrap_content" android:gravity="end|center_vertical" android:textSize="8sp" android:maxLines="1" android:ellipsize="end"/>
     </LinearLayout>
+    </LinearLayout>
+    </ScrollView>
         <LinearLayout android:layout_width="match_parent" android:layout_height="14dp" android:orientation="horizontal" android:gravity="center" android:layoutDirection="ltr"><TextView android:id="@+id/settingsButton" android:layout_width="22dp" android:layout_height="14dp" android:translationY="-4dp" android:gravity="center" android:text="⚙" android:textColor="@color/text_muted" android:textSize="12sp" android:clickable="true" android:focusable="true"/><TextView android:id="@+id/requestTime" android:layout_width="wrap_content" android:layout_height="match_parent" android:gravity="center" android:textColor="@color/text_muted" android:textSize="7sp" android:singleLine="true"/></LinearLayout>
     </LinearLayout>
 </FrameLayout>
