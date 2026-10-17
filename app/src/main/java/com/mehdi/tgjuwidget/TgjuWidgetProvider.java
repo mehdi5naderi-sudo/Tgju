@@ -27,23 +27,23 @@ import java.util.Map;
 
 public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final String ACTION_REFRESH = "com.mehdi.tgjuwidget.REFRESH";
-    private static final int SLOT_COUNT = 6;
+    private static final int SLOT_COUNT = 9;
     private static final String[] DEFAULT_KEYS = {
             "crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba",
-            "ime_fund_ayar","ons","oil_brent","gc30","sekee"
+            "ime_fund_ayar","ons","oil_brent","gc30","sekee","crypto-bitcoin-irr"
     };
-    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,R.id.price6};
-    private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5,R.id.priceInline6};
-    private static final int[] PRICE_VERTICAL_IDS = {R.id.priceVertical1,R.id.priceVertical2,R.id.priceVertical3,R.id.priceVertical4,R.id.priceVertical5,R.id.priceVertical6};
-    private static final int[] PRICE_RIGHT_IDS = {R.id.priceRight1,R.id.priceRight2,R.id.priceRight3,R.id.priceRight4,R.id.priceRight5,R.id.priceRight6};
-    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5,R.id.name6};
-    private static final int[] NAME_INLINE_IDS = {R.id.nameInline1,R.id.nameInline2,R.id.nameInline3,R.id.nameInline4,R.id.nameInline5,R.id.nameInline6};
-    private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5,R.id.nameVertical6};
-    private static final int[] NAME_RIGHT_IDS = {R.id.nameRight1,R.id.nameRight2,R.id.nameRight3,R.id.nameRight4,R.id.nameRight5,R.id.nameRight6};
-    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5,R.id.pct6};
-    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5,R.id.time6};
-    private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5,R.id.meta6};
-    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5,R.id.row6};
+    private static final int[] PRICE_IDS = {R.id.price1,R.id.price2,R.id.price3,R.id.price4,R.id.price5,R.id.price6,R.id.price7,R.id.price8,R.id.price9};
+    private static final int[] PRICE_INLINE_IDS = {R.id.priceInline1,R.id.priceInline2,R.id.priceInline3,R.id.priceInline4,R.id.priceInline5,R.id.priceInline6,R.id.priceInline7,R.id.priceInline8,R.id.priceInline9};
+    private static final int[] PRICE_VERTICAL_IDS = {R.id.priceVertical1,R.id.priceVertical2,R.id.priceVertical3,R.id.priceVertical4,R.id.priceVertical5,R.id.priceVertical6,R.id.priceVertical7,R.id.priceVertical8,R.id.priceVertical9};
+    private static final int[] PRICE_RIGHT_IDS = {R.id.priceRight1,R.id.priceRight2,R.id.priceRight3,R.id.priceRight4,R.id.priceRight5,R.id.priceRight6,R.id.priceRight7,R.id.priceRight8,R.id.priceRight9};
+    private static final int[] NAME_IDS = {R.id.name1,R.id.name2,R.id.name3,R.id.name4,R.id.name5,R.id.name6,R.id.name7,R.id.name8,R.id.name9};
+    private static final int[] NAME_INLINE_IDS = {R.id.nameInline1,R.id.nameInline2,R.id.nameInline3,R.id.nameInline4,R.id.nameInline5,R.id.nameInline6,R.id.nameInline7,R.id.nameInline8,R.id.nameInline9};
+    private static final int[] NAME_VERTICAL_IDS = {R.id.nameVertical1,R.id.nameVertical2,R.id.nameVertical3,R.id.nameVertical4,R.id.nameVertical5,R.id.nameVertical6,R.id.nameVertical7,R.id.nameVertical8,R.id.nameVertical9};
+    private static final int[] NAME_RIGHT_IDS = {R.id.nameRight1,R.id.nameRight2,R.id.nameRight3,R.id.nameRight4,R.id.nameRight5,R.id.nameRight6,R.id.nameRight7,R.id.nameRight8,R.id.nameRight9};
+    private static final int[] PCT_IDS = {R.id.pct1,R.id.pct2,R.id.pct3,R.id.pct4,R.id.pct5,R.id.pct6,R.id.pct7,R.id.pct8,R.id.pct9};
+    private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5,R.id.time6,R.id.time7,R.id.time8,R.id.time9};
+    private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5,R.id.meta6,R.id.meta7,R.id.meta8,R.id.meta9};
+    private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5,R.id.row6,R.id.row7,R.id.row8,R.id.row9};
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){
@@ -66,9 +66,16 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         boolean showPct=p.getBoolean("showPct",true), showTime=p.getBoolean("showTime",true), showRefresh=p.getBoolean("showRefresh",true), showNames=p.getBoolean("showNames",true);
         int metaWidth=p.getInt("metaWidth",40);
         int namePosition=p.getInt("namePosition",1);
-        boolean hasSixth=!p.getString("key5","").isEmpty();
+        int selectedCount=0; for(int i=0;i<SLOT_COUNT;i++) if(!p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"").isEmpty()) selectedCount++;
+        boolean scrollMode=selectedCount>6;
         v.setInt(R.id.root,"setBackgroundColor",bg); v.setViewPadding(R.id.root,pad,pad,pad,pad);
+        if(android.os.Build.VERSION.SDK_INT>=31){
+            v.setViewLayoutHeight(R.id.rowsContainer,scrollMode?android.view.ViewGroup.LayoutParams.WRAP_CONTENT:android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+            for(int i=0;i<SLOT_COUNT;i++) v.setViewLayoutHeight(ROW_IDS[i],scrollMode?30:0,android.util.TypedValue.COMPLEX_UNIT_DIP);
+        }
         for(int i=0;i<SLOT_COUNT;i++){
+            String selectedKey=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"");
+            v.setViewVisibility(ROW_IDS[i],selectedKey.isEmpty()?View.GONE:View.VISIBLE);
             v.setTextViewTextSize(PRICE_IDS[i],2,ps);
             v.setTextViewTextSize(PRICE_INLINE_IDS[i],2,ps);
             v.setTextViewTextSize(PRICE_VERTICAL_IDS[i],2,ps);
@@ -94,10 +101,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setViewVisibility(PCT_IDS[i],showPct?View.VISIBLE:View.GONE);
             v.setViewVisibility(TIME_IDS[i],showTime?View.VISIBLE:View.GONE);
         }
-        // In 5-item mode, remove the sixth row completely so the five real rows
-        // automatically share the available height. In 6-item mode all six rows
-        // remain visible and share the height evenly.
-        v.setViewVisibility(R.id.row6,hasSixth?View.VISIBLE:View.GONE);
+        // Up to six rows fill the available height. More than six rows scroll internally.
         // The layout itself defines the three columns for right-title mode:
         // value | percentage/time | fixed-width title.
         for(int i=0;i<SLOT_COUNT;i++){
@@ -252,6 +256,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if("oil_brent".equals(k))return "Brent";
             if("gc30".equals(k))return "gc30";
             if("sekee".equals(k))return "Imami";
+            if("crypto-bitcoin-irr".equals(k))return "Bitcoin";
         }
         if("crypto-tether-irr".equals(k))return "تتر";
         if("price_dollar_rl".equals(k))return "دلار";
@@ -262,6 +267,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if("oil_brent".equals(k))return "برنت";
         if("gc30".equals(k))return "بورس";
         if("sekee".equals(k))return "امامی";
+        if("crypto-bitcoin-irr".equals(k))return "بیت‌کوین";
         return k;
     }
 
@@ -270,7 +276,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             double n;
             if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k))
                 n=Double.parseDouble(o.optString("p","0").replace(",",""));
-            else if("crypto-tether-irr".equals(k)&&o.has("p_irr"))
+            else if(("crypto-tether-irr".equals(k)||"crypto-bitcoin-irr".equals(k))&&o.has("p_irr"))
                 n=Double.parseDouble(o.optString("p_irr","0").replace(",",""))/10.0;
             else n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;
             return new DecimalFormat("#,##0").format(n);
