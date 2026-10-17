@@ -328,7 +328,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static int parseNum(String s){try{String x=s.replace('۰','0').replace('۱','1').replace('۲','2').replace('۳','3').replace('۴','4').replace('۵','5').replace('۶','6').replace('۷','7').replace('۸','8').replace('۹','9').replaceAll("[^0-9]","");return Integer.parseInt(x);}catch(Exception e){return 0;}}
     private static int month(String s){String[]m={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};for(int i=0;i<m.length;i++)if(s.contains(m[i]))return i+1;return 0;}
     // Native RemoteViews collection: ListView is supported in app widgets and scrolls internally.
-    private void setListItems(Context c,RemoteViews widget,int id,Map<String,JSONObject> data){
+    private static void setListItems(Context c,RemoteViews widget,int id,Map<String,JSONObject> data){
         if(android.os.Build.VERSION.SDK_INT<31)return;
         android.content.SharedPreferences p=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
         int count=0;
