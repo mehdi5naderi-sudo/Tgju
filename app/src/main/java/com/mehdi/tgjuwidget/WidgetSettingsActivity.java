@@ -66,7 +66,7 @@ public class WidgetSettingsActivity extends Activity {
     private Spinner spinner(LinearLayout root,String[] values){Spinner s=new Spinner(this);s.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));root.addView(s,lp());return s;}
     private Switch sw(LinearLayout root,String text,boolean val){Switch s=new Switch(this);s.setText(text);s.setChecked(val);root.addView(s,lp());return s;}
     private EditText field(LinearLayout root,String hint,String val){root.addView(label(hint),lp());EditText e=new EditText(this);e.setSingleLine(true);e.setText(val);e.setSelectAllOnFocus(true);root.addView(e,lp());return e;}
-    private TextView label(String s){TextView t=new TextView(this);t.setText(s);t.setTextSize(15);t.setTextColor(Color.DKGRAY);return t;}
+    private TextView label(String s){TextView t=new TextView(this);t.setText(s);t.setTextSize(15);t.setTextColor(Color.rgb(129,199,132));return t;}
     private TextView heading(String s){TextView t=label(s);t.setTextColor(Color.rgb(64,196,255));return t;}
     private LinearLayout.LayoutParams lp(){return new LinearLayout.LayoutParams(-1,-2);}
     private LinearLayout.LayoutParams lpTop(){LinearLayout.LayoutParams p=lp();p.topMargin=dp(12);return p;}
