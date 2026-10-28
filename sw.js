@@ -1,4 +1,4 @@
-const CACHE='tgju-v1';
+const CACHE='tgju-v2-diagnostics';
 const APP=['./','./index.html','./manifest.json','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP))));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
