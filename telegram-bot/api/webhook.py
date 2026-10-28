@@ -4,6 +4,7 @@ import os
 import re
 import urllib.parse
 import urllib.request
+import time
 from http.server import BaseHTTPRequestHandler
 
 TGJU_KEYS = [
@@ -75,7 +76,7 @@ def format_time(value):
 def fetch_prices(chat_id):
     settings = settings_for(chat_id)
     keys = ",".join(slug for slug, _, _ in TGJU_KEYS)
-    url = "https://api.tgju.org/v1/widget/tmp?keys=" + urllib.parse.quote(keys, safe=",")
+    url = "https://api.tgju.org/v1/widget/tmp?keys=" + urllib.parse.quote(keys, safe=",") + "&_ts=" + str(int(time.time() * 1000))
     data = api_json(url)
     response = data.get("response", {}) if isinstance(data, dict) else {}
     items = response.get("indicators", []) if isinstance(response, dict) else []
