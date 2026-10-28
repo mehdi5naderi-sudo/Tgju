@@ -159,9 +159,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         try{
             StringBuilder list=new StringBuilder();
             for(int i=0;i<keys.length;i++){if(keys[i]==null||keys[i].isEmpty())continue;if(list.length()>0)list.append(',');list.append(keys[i]);}
-            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list).openConnection();
+            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list+"&_ts="+System.currentTimeMillis()).openConnection();
             con.setRequestMethod("GET"); con.setConnectTimeout(10000); con.setReadTimeout(10000); con.setUseCaches(false);
-            con.setRequestProperty("Cache-Control","no-cache");
             if(con.getResponseCode()!=200)return false;
             String body=read(con);
             JSONObject root=new JSONObject(body);
@@ -176,9 +175,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static void fetchOne(String key,Map<String,JSONObject> data){
         HttpURLConnection con=null;
         try{
-            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+key).openConnection();
+            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+key+"&_ts="+System.currentTimeMillis()).openConnection();
             con.setRequestMethod("GET"); con.setConnectTimeout(7000); con.setReadTimeout(7000); con.setUseCaches(false);
-            con.setRequestProperty("Cache-Control","no-cache");
             if(con.getResponseCode()!=200)return;
             JSONObject root=new JSONObject(read(con));
             JSONObject response=root.optJSONObject("response");
