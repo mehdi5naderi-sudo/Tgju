@@ -95,7 +95,7 @@ function priceText(item,definition){
 function timeColorClass(raw,changeClass){
  const value=String(raw??'').trim().replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
  if(!value||value==='—')return 'time-stale';
- const match=value.match(/(?:^|\\s)(\\d{1,2}):(\\d{2})(?::(\\d{2}))?(?:\\s|$)/);
+ const match=value.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s|$)/);
  if(!match)return 'time-stale';
  const h=Number(match[1]),m=Number(match[2]),s=Number(match[3]||0);
  if(h>23||m>59||s>59)return 'time-stale';
