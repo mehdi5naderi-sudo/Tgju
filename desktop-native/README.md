@@ -1,24 +1,21 @@
-# TGJU Native (smallest)
+# TGJU Native
 
-Pure **Win32 C++** tray app — no .NET runtime.
+برنامه‌ی سبک ویندوز با ++C و Win32؛ بدون نیاز به نصب .NET.
 
-Expected size: **~100–200 KB**.
+## امکانات
+- آیکون در System Tray
+- باز کردن پنجره و دریافت داده با کلیک چپ
+- نمایش فشرده‌ی شاخص‌ها
+- دریافت اطلاعات از `api.tgju.org` با WinHTTP
+- ثبت گزارش در `%TEMP%\\TGJU-native.log`
 
-## Features
-- System tray icon
-- Popup on **left click only** (refreshes data at the same time)
-- No automatic background refresh
-- Compact columns by default
-- Fetches `api.tgju.org` via WinHTTP
-- Log: `%TEMP%\\TGJU-native.log`
+## ساخت محلی
 
-## Build (local, Developer Command Prompt for VS)
+در Developer Command Prompt ویژوال استودیو:
 
 ```bat
 cd desktop-native
-cl /O2 /EHsc /utf-8 /DUNICODE /D_UNICODE main.cpp /Fe:TGJU-native.exe /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib shell32.lib winhttp.lib
+cl /nologo /O1 /GL /Gy /EHsc /utf-8 /DUNICODE /D_UNICODE main.cpp /Fe:TGJU-native.exe /link /LTCG /OPT:REF /OPT:ICF /INCREMENTAL:NO /DEBUG:NONE /SUBSYSTEM:WINDOWS user32.lib gdi32.lib shell32.lib winhttp.lib
 ```
 
-`main.cpp` includes `tgju_p0.inc`, `tgju_p1.inc`, `tgju_p2.inc` (same folder).
-
-Or download `TGJU-native.exe` from GitHub Actions / Releases.
+یا فایل آماده را از [GitHub Releases](https://github.com/mehdi5naderi-sudo/Tgju/releases/latest) دریافت کنید. ساخت خودکار نیز از طریق گردش‌کار `build-tgju-native.yml` در GitHub Actions انجام می‌شود.
