@@ -224,7 +224,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(PRICE_INLINE_IDS[i],digits(price,en)); v.setTextColor(PRICE_INLINE_IDS[i],color);
             v.setTextViewText(PRICE_VERTICAL_IDS[i],digits(price,en)); v.setTextColor(PRICE_VERTICAL_IDS[i],color);
             v.setTextViewText(PRICE_RIGHT_IDS[i],digits(price,en)); v.setTextColor(PRICE_RIGHT_IDS[i],color);
-            v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],color);
+            v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],timeTextColor);
             v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],timeTextColor);
         }
         v.setTextViewText(R.id.requestTime,digits(request,en));
@@ -353,7 +353,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             row.setTextViewText(R.id.priceInline,digits(price,en));row.setTextColor(R.id.priceInline,valueColor);
             row.setTextViewText(R.id.priceVertical,digits(price,en));row.setTextColor(R.id.priceVertical,valueColor);
             row.setTextViewText(R.id.priceRight,digits(price,en));row.setTextColor(R.id.priceRight,valueColor);
-            row.setTextViewText(R.id.pct,digits(pct,en));row.setTextColor(R.id.pct,valueColor);row.setTextViewText(R.id.time,digits(time,en));
+            row.setTextViewText(R.id.pct,digits(pct,en));row.setTextColor(R.id.pct,timeTextColor);row.setTextViewText(R.id.time,digits(time,en));
             row.setViewVisibility(R.id.name,View.GONE);
             row.setViewVisibility(R.id.nameInline,showNames&&namePosition==1?View.VISIBLE:View.GONE);
             row.setViewVisibility(R.id.nameVertical,showNames&&namePosition==2?View.VISIBLE:View.GONE);
