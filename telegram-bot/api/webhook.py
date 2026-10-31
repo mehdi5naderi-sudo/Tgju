@@ -66,7 +66,7 @@ def format_price(item, slug):
 def change_is_fresh(raw_time):
     # Match the web app: only timestamps less than five minutes old are fresh.
     value = str(raw_time or "").strip().translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
-    match = re.search(r"(?:^|\\s)(\\d{1,2}):(\\d{2})(?::(\\d{2}))?(?:\\s|$)", value)
+    match = re.search(r"(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s|$)", value)
     if not match:
         return False
     hour, minute, second = int(match.group(1)), int(match.group(2)), int(match.group(3) or 0)
