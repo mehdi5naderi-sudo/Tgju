@@ -57,7 +57,8 @@ def format_price(item, slug):
         value = value / 10 if value is not None else None
     if value is None:
         return "—"
-    decimals = 2 if slug in ("ons", "oil_brent", "crypto-bitcoin") else 0
+    # Bitcoin, like local market indicators, is shown without decimal places.
+    decimals = 2 if slug in ("ons", "oil_brent") else 0
     return fa_digits(f"{value:,.{decimals}f}")
 
 def format_change(item):
