@@ -58,8 +58,7 @@ def format_price(item, slug):
     if value is None:
         return "—"
     decimals = 2 if slug in ("ons", "oil_brent", "crypto-bitcoin") else 0
-    suffix = " USD" if slug == "crypto-bitcoin" else ""
-    return fa_digits(f"{value:,.{decimals}f}") + suffix
+    return fa_digits(f"{value:,.{decimals}f}")
 
 def format_change(item):
     pct = numeric(item.get("dp"))
