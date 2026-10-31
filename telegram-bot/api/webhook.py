@@ -89,7 +89,7 @@ def format_change(item):
         marker = "🟢" if direction == "high" else ("🔴" if direction == "low" else "🟡")
     direction = str(item.get("dt", "")).strip().lower()
     sign = "+" if direction == "high" else ("−" if direction == "low" else "")
-    return marker + " " + fa_digits(sign + f"{abs(pct):.2f}") + "%"
+    return marker + " " + fa_digits(f"{abs(pct):.2f}")
 
 def format_time(value):
     text = str(value or "—").strip()
@@ -127,7 +127,7 @@ def fetch_prices(chat_id):
     # Restore the previous spacing style, with time and change first.
     name_width = max(len("امامی"), max(len(row["name"]) for row in rows))
     price_width = max(len("قیمت"), max(len(row["price"]) for row in rows))
-    change_width = max([len("درصد")] + [len(row["change"]) for row in rows]) if settings["show_change"] else 0
+    change_width = max([len("تغییر")] + [len(row["change"]) for row in rows]) if settings["show_change"] else 0
     time_width = max([len("زمان")] + [len(row["time"]) for row in rows]) if settings["show_time"] else 0
     lines = ["<b>📊 قیمت بازار TGJU</b>"]
     for row in rows:
@@ -150,7 +150,7 @@ def price_keyboard():
 
 def settings_keyboard(chat_id):
     settings = settings_for(chat_id)
-    change_label = ("✅ " if settings["show_change"] else "☐ ") + "نمایش درصد تغییر"
+    change_label = ("✅ " if settings["show_change"] else "☐ ") + "نمایش تغییر"
     time_label = ("✅ " if settings["show_time"] else "☐ ") + "نمایش زمان بروزرسانی"
     return {"inline_keyboard": [
         [{"text": change_label, "callback_data": "toggle_change"}],
@@ -168,7 +168,7 @@ def show_settings(chat_id):
     settings = settings_for(chat_id)
     text = (
         "<b>⚙️ تنظیمات نمایش</b>\n"
-        f"درصد تغییر: {'روشن' if settings['show_change'] else 'خاموش'}\n"
+        f"تغییر: {'روشن' if settings['show_change'] else 'خاموش'}\n"
         f"زمان بروزرسانی: {'روشن' if settings['show_time'] else 'خاموش'}"
     )
     return reply(chat_id, text, settings_keyboard(chat_id))
