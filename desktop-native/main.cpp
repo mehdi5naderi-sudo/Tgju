@@ -23,7 +23,7 @@ static const wchar_t* kClassPopup = L"TGJUNativePopup";
 static const UINT WM_TRAY = WM_APP + 1;
 static const UINT WM_DATA = WM_APP + 2;
 static const UINT_PTR kTimerId = 1;
-static const wchar_t* kAppVersion = L"نسخه ۱.۱";
+static const wchar_t* kAppVersion = L"نسخه ۱.۲";
 
 enum class Mode { TomanDiv10, AsIs2, Index0 };
 
@@ -43,6 +43,7 @@ static const ItemDef kItems[] = {
     { "ons",               L"انس طلا",        Mode::AsIs2 },
     { "oil_brent",         L"نفت برنت",       Mode::AsIs2 },
     { "gc30",              L"شاخص بورس",      Mode::Index0 },
+    { "crypto-bitcoin",     L"بیت‌کوین",        Mode::AsIs2 },
 };
 static const int kCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 
@@ -192,7 +193,7 @@ static double ExtractNumNear(const std::string& body, size_t from, const char* k
 
 static bool HttpGet(const std::wstring& host, const std::wstring& path, std::string& out, std::string& err) {
     out.clear();
-    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.5", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.2", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ses) { err = "WinHttpOpen failed"; return false; }
     DWORD protocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
     WinHttpSetOption(ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protocols, sizeof(protocols));
@@ -202,7 +203,8 @@ static bool HttpGet(const std::wstring& host, const std::wstring& path, std::str
     if (!req) { err = "OpenRequest failed"; WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false; }
     DWORD flags = SECURITY_FLAG_IGNORE_UNKNOWN_CA|SECURITY_FLAG_IGNORE_CERT_DATE_INVALID|SECURITY_FLAG_IGNORE_CERT_CN_INVALID|SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
     WinHttpSetOption(req, WINHTTP_OPTION_SECURITY_FLAGS, &flags, sizeof(flags));
-    if (!WinHttpSendRequest(req, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) || !WinHttpReceiveResponse(req, nullptr)) {
+    const wchar_t* headers = L"Accept: application/json\r\nCache-Control: no-cache\r\nPragma: no-cache\r\n";
+    if (!WinHttpSendRequest(req, headers, (DWORD)-1L, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) || !WinHttpReceiveResponse(req, nullptr)) {
         err = "Send/Receive failed err=" + std::to_string(GetLastError());
         WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false;
     }
@@ -219,23 +221,51 @@ static bool HttpGet(const std::wstring& host, const std::wstring& path, std::str
 
 static void ParseAndStore(const std::string& body) {
     std::map<std::string, Quote> next;
+    const size_t currentPos = body.find("\"current\"");
+    if (currentPos == std::string::npos) {
+        Log("missing current object");
+        return;
+    }
     for (int i=0;i<kCount;i++) {
-        std::string needle=std::string("\"name\":\"")+kItems[i].key+"\"";
-        auto pos=body.find(needle);
-        if(pos==std::string::npos){Log(std::string("missing ")+kItems[i].key);continue;}
-        size_t objectEnd=body.find('}',pos); if(objectEnd==std::string::npos)objectEnd=body.size();
-        std::string obj=body.substr(pos,objectEnd-pos+1); size_t localName=obj.find(needle);
-        Quote q; q.p=ExtractStrNear(obj,localName,"p",obj.size()); q.dp=ExtractNumNear(obj,localName,"dp",obj.size());
-        q.t=ExtractStrNear(obj,localName,"t",obj.size()); q.dt=ExtractStrNear(obj,localName,"dt",obj.size());
-        next[kItems[i].key]=q;
+        const std::string needle = std::string("\"") + kItems[i].key + "\"";
+        size_t pos = body.find(needle, currentPos);
+        if (pos == std::string::npos) { Log(std::string("missing ") + kItems[i].key); continue; }
+        size_t objectStart = body.find('{', pos + needle.size());
+        if (objectStart == std::string::npos) continue;
+        size_t objectEnd = body.find('}', objectStart);
+        if (objectEnd == std::string::npos) continue;
+        std::string obj = body.substr(objectStart, objectEnd - objectStart + 1);
+        Quote q;
+        q.p = ExtractStrNear(obj, 0, "p", obj.size());
+        if (q.p.empty()) {
+            size_t pnum = obj.find("\"p\"");
+            if (pnum != std::string::npos) {
+                size_t colon = obj.find(':', pnum);
+                if (colon != std::string::npos) {
+                    size_t v = obj.find_first_not_of(" \t", colon + 1);
+                    if (v != std::string::npos) {
+                        size_t e = obj.find_first_of(",}", v);
+                        q.p = obj.substr(v, e == std::string::npos ? std::string::npos : e-v);
+                        if (q.p.size() >= 2 && q.p.front() == '"' && q.p.back() == '"') q.p = q.p.substr(1, q.p.size()-2);
+                    }
+                }
+            }
+        }
+        q.dp = ExtractNumNear(obj, 0, "dp", obj.size());
+        q.t = ExtractStrNear(obj, 0, "t", obj.size());
+        q.dt = ExtractStrNear(obj, 0, "dt", obj.size());
+        if (!q.p.empty()) next[kItems[i].key] = q;
         char line[320]; sprintf_s(line,"key=%s p=%s dp=%.2f dt=%s t='%s'",kItems[i].key,q.p.c_str(),q.dp,q.dt.c_str(),q.t.c_str()); Log(line);
     }
+    if (next.empty()) { Log("no indicators parsed"); return; }
     EnterCriticalSection(&gCs); gData.swap(next); LeaveCriticalSection(&gCs);
 }
 
 static std::wstring BuildKeysPath() {
-    std::string keys; for(int i=0;i<kCount;i++){if(i)keys+=',';keys+=kItems[i].key;}
-    return L"/v1/widget/tmp?keys="+Wide(keys);
+    const unsigned long long stamp = (unsigned long long)GetTickCount64();
+    wchar_t path[96];
+    swprintf_s(path, L"/ajax.json?_=%llu", stamp);
+    return path;
 }
 
 static DWORD WINAPI FetchThread(LPVOID) {
