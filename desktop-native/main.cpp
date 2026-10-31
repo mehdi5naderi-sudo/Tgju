@@ -22,7 +22,7 @@ static const wchar_t* kClassPopup = L"TGJUNativePopup";
 static const UINT WM_TRAY = WM_APP + 1;
 static const UINT WM_DATA = WM_APP + 2;
 static const UINT_PTR kTimerId = 1;
-static const wchar_t* kAppVersion = L"نسخه ۱.۴";
+static const wchar_t* kAppVersion = L"نسخه ۱.۵";
 
 enum class Mode { TomanDiv10, AsIs2, Index0 };
 
@@ -138,6 +138,26 @@ static std::wstring ToPersianDigits(const std::wstring& in) {
         if (c >= L'0' && c <= L'9') out += fa[c - L'0']; else out += c;
     }
     return out;
+}
+
+static bool TryParseNumber(const std::string& raw, double& value) {
+    std::string cleaned;
+    cleaned.reserve(raw.size());
+    for (unsigned char c : raw) {
+        // TGJU may return prices with comma thousands separators.
+        if (c == ',' || c == ' ' || c == '\\t' || c == '\\r' || c == '\\n') continue;
+        cleaned.push_back((char)c);
+    }
+    if (cleaned.empty()) return false;
+    try {
+        size_t used = 0;
+        double parsed = std::stod(cleaned, &used);
+        if (used != cleaned.size()) return false;
+        value = parsed;
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 static std::wstring FormatNumber(double v, int decimals) {
@@ -365,7 +385,11 @@ static void PaintPopup(HWND hwnd) {
         DrawTextRect(hdc,colName(y,y+32),kItems[i].label,DT_RIGHT,BrightColor(RGB(242,244,247)));
         auto it=snap.find(kItems[i].key);
         if(it==snap.end()||it->second.p.empty()){DrawTextRect(hdc,colPrice(y,y+30),L"—",DT_CENTER,BrightColor(RGB(145,152,162)));continue;}
-        const Quote&q=it->second;double p=0;try{p=std::stod(q.p);}catch(...){}
+        const Quote&q=it->second;double p=0;
+        if (!TryParseNumber(q.p, p)) {
+            DrawTextRect(hdc,colPrice(y,y+30),L"خطا",DT_CENTER,BrightColor(RGB(239,102,102)));
+            continue;
+        }
         std::wstring price;switch(kItems[i].mode){case Mode::TomanDiv10:price=FormatNumber(p/10.0,0);break;case Mode::AsIs2:price=FormatNumber(p,2);break;case Mode::Index0:price=FormatNumber(p,0);break;}
         const bool isNegative=q.dt=="low";const bool isPositive=q.dt=="high";COLORREF c=BrightColor(isNegative?RGB(239,102,102):(isPositive?RGB(85,200,120):RGB(229,192,74)));
         DrawTextRect(hdc,colPrice(y,y+28),price.c_str(),DT_CENTER,c);
