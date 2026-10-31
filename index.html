@@ -92,12 +92,26 @@ function priceText(item,definition){
  if(definition.rial)value/=10;
  return numberText(value,definition.decimals||0);
 }
-function parseTimestamp(raw){
- if(!raw)return null;
- const value=String(raw).trim().replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
- const match=value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
- if(!match)return null;
- return new Date(value.replace(' ','T')+'+03:30');
+function timeColorClass(raw,changeClass){
+ const value=String(raw??'').trim().replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+ if(!value||value==='—')return 'time-stale';
+ const dateTime=value.match(/^(\\d{4})-(\\d{2})-(\\d{2})[ T](\\d{2}):(\\d{2})(?::(\\d{2}))?$/);
+ let timestamp=null;
+ if(dateTime){
+  timestamp=Date.parse(value.replace(' ','T')+'+03:30');
+ }else{
+  const clock=value.match(/^(\\d{1,2}):(\\d{2})(?::(\\d{2}))?$/);
+  if(!clock)return 'time-stale';
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const part=name=>parts.find(x=>x.type===name)?.value;
+  const today=part('year')+'-'+part('month')+'-'+part('day');
+  timestamp=Date.parse(today+'T'+clock[1].padStart(2,'0')+':'+clock[2]+':'+(clock[3]||'00')+'+03:30');
+  const now=Date.now();
+  if(timestamp-now>12*60*60*1000)timestamp-=24*60*60*1000;
+  else if(now-timestamp>12*60*60*1000)timestamp+=24*60*60*1000;
+ }
+ if(!Number.isFinite(timestamp))return 'time-stale';
+ return Math.abs(Date.now()-timestamp)<=5*60*1000?changeClass:'time-stale';
 }
 function escapeHtml(value){
  return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -112,7 +126,7 @@ function render(current){
   const percent=Number(item.dp);
   const percentText=Number.isFinite(percent)?Math.abs(percent).toFixed(2)+'%':'—';
   const time=escapeHtml(item.t||'—');
-  const timeClass='time '+change.className;
+  const timeClass='time '+timeColorClass(item.t,change.className);
   return '<div class="row"><div class="name">'+definition.name+'</div><div class="price '+change.className+'">'+priceText(item,definition)+' <span style="font-size:12px;color:#aaa">'+definition.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percentText+'</span><span class="'+timeClass+'">'+time+'</span></div></div>';
  }).join('');
 }
