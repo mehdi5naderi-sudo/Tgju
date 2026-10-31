@@ -22,7 +22,7 @@ static const wchar_t* kClassPopup = L"TGJUNativePopup";
 static const UINT WM_TRAY = WM_APP + 1;
 static const UINT WM_DATA = WM_APP + 2;
 static const UINT_PTR kTimerId = 1;
-static const wchar_t* kAppVersion = L"نسخه ۱.۲";
+static const wchar_t* kAppVersion = L"نسخه ۱.۳";
 
 enum class Mode { TomanDiv10, AsIs2, Index0 };
 
@@ -269,7 +269,7 @@ static std::wstring BuildKeysPath() {
 
 static DWORD WINAPI FetchThread(LPVOID) {
     Log("Fetch start"); std::string body,err;
-    if(!HttpGet(L"api.tgju.org",BuildKeysPath(),body,err)){
+    if(!HttpGet(L"call1.tgju.org",BuildKeysPath(),body,err)){
         EnterCriticalSection(&gCs);gStatus=L"خطا در دریافت";gError=Wide(err);gFetching=false;LeaveCriticalSection(&gCs);Log("Fetch fail: "+err);
     }else{
         Log("HTTP ok len="+std::to_string(body.size()));ParseAndStore(body);SYSTEMTIME st;GetLocalTime(&st);wchar_t ts[48];
