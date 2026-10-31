@@ -140,11 +140,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             boolean success=false;
             String requestTime=now();
             try{
-                success=fetchBatch(keys,data);
-                if(!success) {
-                    for(String k:keys) if(k!=null&&!k.isEmpty()) fetchOne(k,data);
-                    success=hasAny(keys,data);
-                }
+                success=fetchCurrent(keys,data);
             }catch(Exception ignored){}
             final boolean ok=success;
             new Handler(Looper.getMainLooper()).post(()->{
@@ -154,35 +150,30 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         }).start();
     }
 
-    private static boolean fetchBatch(String[] keys,Map<String,JSONObject> data){
+    private static boolean fetchCurrent(String[] keys,Map<String,JSONObject> data){
         HttpURLConnection con=null;
         try{
-            StringBuilder list=new StringBuilder();
-            for(int i=0;i<keys.length;i++){if(keys[i]==null||keys[i].isEmpty())continue;if(list.length()>0)list.append(',');list.append(keys[i]);}
-            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+list+"&_ts="+System.currentTimeMillis()).openConnection();
-            con.setRequestMethod("GET"); con.setConnectTimeout(10000); con.setReadTimeout(10000); con.setUseCaches(false);
+            // TGJU's own feed. A unique query value avoids the CDN's shared cached copy.
+            URL url=new URL("https://call1.tgju.org/ajax.json?_="+System.currentTimeMillis());
+            con=(HttpURLConnection)url.openConnection();
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(10000);
+            con.setReadTimeout(10000);
+            con.setUseCaches(false);
+            con.setRequestProperty("Accept","application/json");
+            con.setRequestProperty("Cache-Control","no-cache, no-store, max-age=0");
+            con.setRequestProperty("Pragma","no-cache");
             if(con.getResponseCode()!=200)return false;
-            String body=read(con);
-            JSONObject root=new JSONObject(body);
-            JSONObject response=root.optJSONObject("response");
-            JSONArray a=response==null?null:response.optJSONArray("indicators");
-            if(a==null)return false;
-            for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o!=null)putAliases(data,o);}
+            JSONObject root=new JSONObject(read(con));
+            JSONObject current=root.optJSONObject("current");
+            if(current==null)return false;
+            for(String key:keys){
+                if(key==null||key.isEmpty())continue;
+                JSONObject item=current.optJSONObject(key);
+                if(item!=null)data.put(key,item);
+            }
             return hasAny(keys,data);
         }catch(Exception e){return false;}finally{if(con!=null)con.disconnect();}
-    }
-
-    private static void fetchOne(String key,Map<String,JSONObject> data){
-        HttpURLConnection con=null;
-        try{
-            con=(HttpURLConnection)new URL("https://api.tgju.org/v1/widget/tmp?keys="+key+"&_ts="+System.currentTimeMillis()).openConnection();
-            con.setRequestMethod("GET"); con.setConnectTimeout(7000); con.setReadTimeout(7000); con.setUseCaches(false);
-            if(con.getResponseCode()!=200)return;
-            JSONObject root=new JSONObject(read(con));
-            JSONObject response=root.optJSONObject("response");
-            JSONArray a=response==null?null:response.optJSONArray("indicators");
-            if(a!=null&&a.length()>0){JSONObject o=a.optJSONObject(0);if(o!=null)putAliases(data,o);}
-        }catch(Exception ignored){}finally{if(con!=null)con.disconnect();}
     }
 
     private static String read(HttpURLConnection con)throws Exception{
@@ -195,12 +186,6 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static boolean hasAny(String[] keys,Map<String,JSONObject> data){
         for(String k:keys)if(data.containsKey(k))return true;
         return false;
-    }
-
-    private static void putAliases(Map<String,JSONObject>d,JSONObject o){
-        for(String f:new String[]{"key","slug","name","symbol","id","item_id"}){
-            String x=o.optString(f,""); if(!x.isEmpty())d.put(x,o);
-        }
     }
 
     private void update(Context c,AppWidgetManager m,int id,Map<String,JSONObject>d,String request,boolean ok){
@@ -279,9 +264,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             double n;
             if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k)||"crypto-bitcoin".equals(k))
                 n=Double.parseDouble(o.optString("p","0").replace(",",""));
-            else if("crypto-tether-irr".equals(k)&&o.has("p_irr"))
-                n=Double.parseDouble(o.optString("p_irr","0").replace(",",""))/10.0;
-            else n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;
+            else
+                n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;
             return new DecimalFormat("#,##0").format(n);
         }catch(Exception e){return "—";}
     }
