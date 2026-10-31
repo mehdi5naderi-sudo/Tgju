@@ -125,7 +125,6 @@ def fetch_prices(chat_id):
         raise RuntimeError("TGJU API returned no indicators")
 
     # Restore the previous spacing style, with time and change first.
-    name_width = max(len("امامی"), max(len(row["name"]) for row in rows))
     price_width = max(len("قیمت"), max(len(row["price"]) for row in rows))
     change_width = max([len("تغییر")] + [len(row["change"]) for row in rows]) if settings["show_change"] else 0
     time_width = max([len("زمان")] + [len(row["time"]) for row in rows]) if settings["show_time"] else 0
@@ -137,8 +136,8 @@ def fetch_prices(chat_id):
         if settings["show_change"]:
             parts.append(row["change"].rjust(change_width))
         parts.extend([
-            row["name"].ljust(name_width),
-            row["price"].rjust(price_width),
+            row["name"],
+            row["price"],
         ])
         lines.append(" ".join(html.escape(part) for part in parts))
     return "\n".join(lines)
