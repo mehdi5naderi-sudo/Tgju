@@ -22,7 +22,7 @@ static const wchar_t* kClassPopup = L"TGJUNativePopup";
 static const UINT WM_TRAY = WM_APP + 1;
 static const UINT WM_DATA = WM_APP + 2;
 static const UINT_PTR kTimerId = 1;
-static const wchar_t* kAppVersion = L"نسخه ۱.۳";
+static const wchar_t* kAppVersion = L"نسخه ۱.۴";
 
 enum class Mode { TomanDiv10, AsIs2, Index0 };
 
@@ -192,8 +192,10 @@ static double ExtractNumNear(const std::string& body, size_t from, const char* k
 
 static bool HttpGet(const std::wstring& host, const std::wstring& path, std::string& out, std::string& err) {
     out.clear();
-    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.2", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    HINTERNET ses = WinHttpOpen(L"TGJU-Native/1.4", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!ses) { err = "WinHttpOpen failed"; return false; }
+    // Prevent the UI from remaining in the loading state indefinitely.
+    WinHttpSetTimeouts(ses, 5000, 5000, 8000, 8000);
     DWORD protocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
     WinHttpSetOption(ses, WINHTTP_OPTION_SECURE_PROTOCOLS, &protocols, sizeof(protocols));
     HINTERNET con = WinHttpConnect(ses, host.c_str(), INTERNET_DEFAULT_HTTPS_PORT, 0);
@@ -207,10 +209,27 @@ static bool HttpGet(const std::wstring& host, const std::wstring& path, std::str
         err = "Send/Receive failed err=" + std::to_string(GetLastError());
         WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false;
     }
+    DWORD statusCode = 0; DWORD statusSize = sizeof(statusCode);
+    if (!WinHttpQueryHeaders(req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+        WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusSize, WINHTTP_NO_HEADER_INDEX)) {
+        err = "HTTP status unavailable";
+        WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false;
+    }
+    if (statusCode != 200) {
+        err = "HTTP status=" + std::to_string(statusCode);
+        WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false;
+    }
     for (;;) {
-        DWORD avail=0; if (!WinHttpQueryDataAvailable(req,&avail)||avail==0) break;
+        DWORD avail=0; if (!WinHttpQueryDataAvailable(req,&avail)) {
+            err = "read availability failed err=" + std::to_string(GetLastError());
+            WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false;
+        }
+        if(avail==0) break;
         std::string chunk(avail,0); DWORD read=0;
-        if (!WinHttpReadData(req,&chunk[0],avail,&read)||read==0) break;
+        if (!WinHttpReadData(req,&chunk[0],avail,&read)||read==0) {
+            err = "read body failed err=" + std::to_string(GetLastError());
+            WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses); return false;
+        }
         chunk.resize(read); out += chunk;
     }
     WinHttpCloseHandle(req); WinHttpCloseHandle(con); WinHttpCloseHandle(ses);
@@ -218,12 +237,12 @@ static bool HttpGet(const std::wstring& host, const std::wstring& path, std::str
     return true;
 }
 
-static void ParseAndStore(const std::string& body) {
+static bool ParseAndStore(const std::string& body) {
     std::map<std::string, Quote> next;
     const size_t currentPos = body.find("\"current\"");
     if (currentPos == std::string::npos) {
         Log("missing current object");
-        return;
+        return false;
     }
     for (int i=0;i<kCount;i++) {
         const std::string needle = std::string("\"") + kItems[i].key + "\"";
@@ -256,8 +275,9 @@ static void ParseAndStore(const std::string& body) {
         if (!q.p.empty()) next[kItems[i].key] = q;
         char line[320]; sprintf_s(line,"key=%s p=%s dp=%.2f dt=%s t='%s'",kItems[i].key,q.p.c_str(),q.dp,q.dt.c_str(),q.t.c_str()); Log(line);
     }
-    if (next.empty()) { Log("no indicators parsed"); return; }
+    if (next.empty()) { Log("no indicators parsed"); return false; }
     EnterCriticalSection(&gCs); gData.swap(next); LeaveCriticalSection(&gCs);
+    return true;
 }
 
 static std::wstring BuildKeysPath() {
@@ -272,8 +292,15 @@ static DWORD WINAPI FetchThread(LPVOID) {
     if(!HttpGet(L"call1.tgju.org",BuildKeysPath(),body,err)){
         EnterCriticalSection(&gCs);gStatus=L"خطا در دریافت";gError=Wide(err);gFetching=false;LeaveCriticalSection(&gCs);Log("Fetch fail: "+err);
     }else{
-        Log("HTTP ok len="+std::to_string(body.size()));ParseAndStore(body);SYSTEMTIME st;GetLocalTime(&st);wchar_t ts[48];
-        swprintf_s(ts,L"خواندن %02d:%02d",st.wHour,st.wMinute);EnterCriticalSection(&gCs);gStatus=ToPersianDigits(ts);gError.clear();gFetching=false;LeaveCriticalSection(&gCs);
+        Log("HTTP ok len="+std::to_string(body.size()));
+        bool parsed = ParseAndStore(body);
+        if (!parsed) {
+            EnterCriticalSection(&gCs); gStatus=L"داده نامعتبر"; gError=L"پاسخ سرور قابل خواندن نیست"; gFetching=false; LeaveCriticalSection(&gCs);
+            Log("Fetch failed: parse returned no data");
+        } else {
+            SYSTEMTIME st;GetLocalTime(&st);wchar_t ts[48];
+            swprintf_s(ts,L"خواندن %02d:%02d",st.wHour,st.wMinute);EnterCriticalSection(&gCs);gStatus=ToPersianDigits(ts);gError.clear();gFetching=false;LeaveCriticalSection(&gCs);
+        }
     }
     PostMessageW(gMain,WM_DATA,0,0);return 0;
 }
