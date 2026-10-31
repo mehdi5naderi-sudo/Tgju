@@ -103,7 +103,7 @@ function timeColorClass(raw,changeClass){
  const changed=new Date(now);
  changed.setHours(h,m,s,0);
  const age=now.getTime()-changed.getTime();
- return age>=0&&age<=5*60*1000?changeClass:'time-stale';
+ return age>=0&&age<5*60*1000?changeClass:'time-stale';
 }
 function escapeHtml(value){
  return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
