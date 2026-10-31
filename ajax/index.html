@@ -111,9 +111,8 @@ function render(current){
   const change=getChange(item);
   const percent=Number(item.dp);
   const percentText=Number.isFinite(percent)?Math.abs(percent).toFixed(2)+'%':'—';
-  const stale=timeIsStale(item,definition);
   const time=escapeHtml(item.t||'—');
-  const timeClass=stale?'time time-stale':'time '+change.className;
+  const timeClass='time '+change.className;
   return '<div class="row"><div class="name">'+definition.name+'</div><div class="price '+change.className+'">'+priceText(item,definition)+' <span style="font-size:12px;color:#aaa">'+definition.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percentText+'</span><span class="'+timeClass+'">'+time+'</span></div></div>';
  }).join('');
 }
