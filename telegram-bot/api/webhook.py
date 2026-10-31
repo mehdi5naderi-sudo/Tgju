@@ -17,6 +17,7 @@ TGJU_KEYS = [
     ("ons", "انس", ""),
     ("oil_brent", "برنت", ""),
     ("gc30", "بورس", ""),
+    ("crypto-bitcoin", "بیت‌کوین", "USD"),
 ]
 
 # Preferences are per chat for the lifetime of this running instance.
@@ -46,7 +47,7 @@ def numeric(value):
         return None
 
 def format_price(item, slug):
-    if slug in ("gc30", "ons", "oil_brent"):
+    if slug in ("gc30", "ons", "oil_brent", "crypto-bitcoin"):
         value = numeric(item.get("p"))
     elif slug == "crypto-tether-irr" and item.get("p_irr"):
         value = numeric(item.get("p_irr"))
@@ -56,8 +57,9 @@ def format_price(item, slug):
         value = value / 10 if value is not None else None
     if value is None:
         return "—"
-    decimals = 2 if slug in ("ons", "oil_brent") else 0
-    return fa_digits(f"{value:,.{decimals}f}")
+    decimals = 2 if slug in ("ons", "oil_brent", "crypto-bitcoin") else 0
+    suffix = " USD" if slug == "crypto-bitcoin" else ""
+    return fa_digits(f"{value:,.{decimals}f}") + suffix
 
 def format_change(item):
     pct = numeric(item.get("dp"))
@@ -75,18 +77,20 @@ def format_time(value):
 
 def fetch_prices(chat_id):
     settings = settings_for(chat_id)
-    keys = ",".join(slug for slug, _, _ in TGJU_KEYS)
-    url = "https://api.tgju.org/v1/widget/tmp?keys=" + urllib.parse.quote(keys, safe=",") + "&_ts=" + str(int(time.time() * 1000))
-    data = api_json(url)
-    response = data.get("response", {}) if isinstance(data, dict) else {}
-    items = response.get("indicators", []) if isinstance(response, dict) else []
-    by_slug = {str(item.get("name", "")): item for item in items if isinstance(item, dict)}
+    # Use the same first-party feed as the Android widget and PWA.
+    # The timestamp query helps avoid a stale shared CDN response.
+    url = "https://call1.tgju.org/ajax.json?_= " + str(int(time.time() * 1000))
+    url = url.replace("?_= ", "?_=")
+    data = api_json(url, headers={"Accept": "application/json", "Cache-Control": "no-cache", "Pragma": "no-cache"})
+    current = data.get("current", {}) if isinstance(data, dict) else {}
+    if not isinstance(current, dict):
+        current = {}
 
     rows = []
     found = 0
     for slug, label, _unit in TGJU_KEYS:
-        item = by_slug.get(slug)
-        if not item:
+        item = current.get(slug)
+        if not isinstance(item, dict) or item.get("p") is None:
             rows.append({"name": label, "price": "—", "change": "", "time": ""})
             continue
         found += 1
