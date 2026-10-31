@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111111"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg" type="image/svg+xml"><title>قیمت بازار TGJU</title><style>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<meta name="description" content="نمایش قیمت شاخص‌های منتخب بازار از منبع داده TGJU">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<title>قیمت بازار TGJU</title>
+<style>
 *{box-sizing:border-box}
 body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}
 main{width:min(720px,100%);margin:10px auto;background:#181818;border-radius:16px;padding:14px}
@@ -9,55 +17,133 @@ h1{text-align:center;font-size:24px;margin:0 0 4px}
 button{font-family:inherit}
 .controlBtn{background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;padding:7px 15px;font-size:16px;cursor:pointer}
 .controlBtn:disabled{opacity:.5;cursor:default}
-#lastRefresh{text-align:center;color:#aaa;font-size:14px;margin:3px 0 4px}
-#apiStatus{margin:8px 0 10px;padding:10px;border:1px solid #555;border-radius:9px;background:#202020;font-size:14px;line-height:1.8;overflow-wrap:anywhere}#apiStatus.ok{border-color:#287a45;background:#10291a;color:#a9f0bd}#apiStatus.warn{border-color:#9b7824;background:#2c2410;color:#ffe19a}#apiStatus.fail{border-color:#a33;background:#301414;color:#ffb1b1}#apiStatus .detail{display:block;color:#ddd;font-size:12px;direction:ltr;text-align:left;overflow-wrap:anywhere}
-#dataFreshness{margin:5px 0 8px;padding:7px 9px;border-radius:7px;background:#242424;color:#bbb;font-size:13px;text-align:center}#dataFreshness.fresh{background:#10291a;color:#a9f0bd}#dataFreshness.stale{background:#301414;color:#ffb1b1}#multiTestResults{margin:8px 0;font-size:13px;line-height:1.8}#multiTestResults:empty{display:none}.probe{padding:6px 8px;margin:4px 0;border-radius:6px;background:#222;border:1px solid #444}.probe.good{border-color:#287a45}.probe.bad{border-color:#a33}.probe.warn{border-color:#9b7824}
 .row{display:grid;grid-template-columns:minmax(92px,1fr) minmax(0,1.7fr) minmax(112px,1fr);align-items:center;gap:5px;padding:5px 2px;border-bottom:1px solid #2b2b2b;min-height:46px}
 .name{min-width:0;color:#ddd;font-size:17px;text-align:right;white-space:nowrap}
 .price{min-width:0;text-align:center;font-size:20px;font-weight:bold;direction:ltr;white-space:nowrap;font-variant-numeric:tabular-nums}
 .price.up{color:#55c878}.price.down{color:#ef6666}.price.flat{color:#e5c04a}
 .meta{min-width:0;text-align:left;direction:ltr;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .up{color:#55c878}.down{color:#ef6666}.flat{color:#e5c04a}
-.time{display:block;margin-top:1px;color:#aaa;font-size:12px}.time.up{color:#55c878}.time.down{color:#ef6666}.time.flat{color:#e5c04a}.time.time-stale{color:#fff}
-.loading,.error{text-align:center;color:#aaa;padding:12px;font-size:16px}.error{color:#e77}
-@media(max-width:520px){main{width:100%;margin:0;padding:6px 5px;border-radius:0;min-height:100vh}h1{font-size:24px;margin-bottom:2px}.row{grid-template-columns:minmax(76px,.85fr) minmax(0,1.55fr) minmax(86px,.95fr);gap:2px;padding:4px 0;min-height:45px}.name{font-size:17px}.price{font-size:19px;letter-spacing:-.45px}.price span{font-size:13px!important}.meta{font-size:14px}.time{font-size:12px}.controlBtn{min-height:40px}}
-@media(max-width:360px){main{padding-left:3px;padding-right:3px}.row{grid-template-columns:72px minmax(0,1fr) 82px;gap:1px}.name{font-size:16px}.price{font-size:18px;letter-spacing:-.6px}.meta{font-size:13px}.time{font-size:12px}}
-</style></head>
-<body><main><h1>قیمت بازار</h1><div class="controls"><button class="controlBtn" id="refreshBtn" type="button">↻ بروزرسانی</button><button class="controlBtn" id="multiTestBtn" type="button">آزمایش چندمسیره</button></div><div id="lastRefresh">آخرین تلاش: —</div><div id="dataFreshness">هنوز داده‌ای دریافت نشده است.</div><div id="apiStatus" role="status" aria-live="polite">وضعیت API: هنوز آزمایش نشده است.</div><div id="multiTestResults" aria-live="polite"></div><div id="tgju-data"><div class="loading">در حال دریافت اطلاعات...</div></div></main><script>
+.time{display:block;margin-top:1px;color:#aaa;font-size:12px}
+.time.time-stale{color:#fff}
+.loading,.error{text-align:center;color:#aaa;padding:12px;font-size:16px}
+.error{color:#e77}
+@media(max-width:520px){
+ main{width:100%;margin:0;padding:6px 5px;border-radius:0;min-height:100vh}
+ h1{font-size:24px;margin-bottom:2px}
+ .row{grid-template-columns:minmax(76px,.85fr) minmax(0,1.55fr) minmax(86px,.95fr);gap:2px;padding:4px 0;min-height:45px}
+ .name{font-size:17px}.price{font-size:19px;letter-spacing:-.45px}
+ .price span{font-size:13px!important}.meta{font-size:14px}.time{font-size:12px}
+ .controlBtn{min-height:40px}
+}
+@media(max-width:360px){
+ main{padding-left:3px;padding-right:3px}
+ .row{grid-template-columns:72px minmax(0,1fr) 82px;gap:1px}
+ .name{font-size:16px}.price{font-size:18px;letter-spacing:-.6px}
+ .meta{font-size:13px}.time{font-size:12px}
+}
+</style>
+</head>
+<body>
+<main>
+ <h1>قیمت بازار</h1>
+ <div class="controls"><button class="controlBtn" id="refreshBtn" type="button">↻ بروزرسانی</button></div>
+ <div id="tgju-data"><div class="loading">در حال دریافت اطلاعات...</div></div>
+</main>
+<script>
 (function(){
+'use strict';
+const SOURCE='https://tgju-api-proxy.vercel.app/api/tgju';
 const catalog=[
- {slug:'crypto-tether-irr',name:'تتر',unit:'تومان'},
- {slug:'price_dollar_rl',name:'دلار',unit:'تومان'},
- {slug:'geram18',name:'گرم ۱۸',unit:'تومان'},
- {slug:'sekee',name:'سکه امامی',unit:'تومان'},
- {slug:'ime_fund_kahroba',name:'کهربا',unit:'تومان'},
- {slug:'ime_fund_ayar',name:'عیار',unit:'تومان'},
- {slug:'ons',name:'انس',unit:'USD'},
- {slug:'oil_brent',name:'نفت برنت',unit:'USD'},
- {slug:'gc30',name:'بورس',unit:''}
+ {key:'crypto-tether-irr',name:'تتر',unit:'تومان',rial:true,maxAge:30},
+ {key:'price_dollar_rl',name:'دلار',unit:'تومان',rial:true,maxAge:30},
+ {key:'geram18',name:'گرم ۱۸',unit:'تومان',rial:true,maxAge:30},
+ {key:'sekee',name:'سکه امامی',unit:'تومان',rial:true,maxAge:30},
+ {key:'ime_fund_kahroba',name:'کهربا',unit:'تومان',rial:true,maxAge:1440},
+ {key:'ime_fund_ayar',name:'عیار',unit:'تومان',rial:true,maxAge:1440},
+ {key:'ons',name:'انس',unit:'USD',rial:false,maxAge:720,decimals:2},
+ {key:'oil_brent',name:'نفت برنت',unit:'USD',rial:false,maxAge:720,decimals:2},
+ {key:'gc30',name:'بورس',unit:'',rial:false,maxAge:720},
+ {key:'crypto-bitcoin',name:'بیت‌کوین',unit:'USD',rial:false,maxAge:30,decimals:2}
 ];
-const defaultSlugs=catalog.map(x=>x.slug),storageKey='tgju-selected-v1';
-const API_SOURCE='https://tgju-api-proxy.vercel.app/api/tgju';
-function extractItems(data){if(data&&data.current&&typeof data.current==='object')return Object.entries(data.current).map(([name,item])=>({...item,name}));if(data&&data.response&&Array.isArray(data.response.indicators))return data.response.indicators;return []}
-const box=document.getElementById('tgju-data'),refreshBtn=document.getElementById('refreshBtn'),lastRefresh=document.getElementById('lastRefresh'),freshness=document.getElementById('dataFreshness'),multiTestBtn=document.getElementById('multiTestBtn'),multiTestResults=document.getElementById('multiTestResults');
-let lastGoodAt=null,lastGoodItems=null;
-let selected=loadSelection();
+const box=document.getElementById('tgju-data');
+const refreshBtn=document.getElementById('refreshBtn');
+let lastGoodItems=null;
 function faDigits(value){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}
-function numberText(number,decimals=0){if(!Number.isFinite(number))return '—';return faDigits(number.toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals}))}
-function priceText(item){let number;if(item.name==='gc30')number=Number(item.p);else if(item.name==='oil_brent'||item.name==='ons')number=Number(item.p);else if((item.name==='crypto-tether-irr'||item.name==='crypto-tether')&&item.p_irr)number=Number(String(item.p_irr).replace(/,/g,''))/10;else number=Number(item.p)/10;const decimals=(item.name==='ons'||item.name==='oil_brent')?2:0;return numberText(number,decimals)}
-function getChange(item){const direction=item.dt;if(direction==='high')return{className:'up',symbol:'▲'};if(direction==='low')return{className:'down',symbol:'▼'};const percent=Number(item.dp);if(Number.isFinite(percent)){if(percent>0)return{className:'up',symbol:'▲'};if(percent<0)return{className:'down',symbol:'▼'};return{className:'flat',symbol:'●'}}if(direction==='high')return{className:'up',symbol:'▲'};if(direction==='low')return{className:'down',symbol:'▼'};return{className:'flat',symbol:'●'}}
-function diffText(item){const percent=Number(item.dp);if(!Number.isFinite(percent))return '';return Math.abs(percent).toFixed(2)+'%'}
-function timeClass(item,change){const raw=String(item.t??'').trim();if(!raw)return change.className;const normalized=raw.replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));const tm=normalized.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s|$)/);if(!tm)return change.className;const h=Number(tm[1]),m=Number(tm[2]),s=Number(tm[3]||0);if(h>23||m>59||s>59)return change.className;const dateMatch=normalized.match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);const now=new Date(),changed=new Date();if(dateMatch)changed.setFullYear(Number(dateMatch[1]),Number(dateMatch[2])-1,Number(dateMatch[3]));else changed.setFullYear(now.getFullYear(),now.getMonth(),now.getDate());changed.setHours(h,m,s,0);const ageMs=now.getTime()-changed.getTime();return ageMs>=0&&ageMs<=5*60*1000?change.className:'time-stale'}
-function loadSelection(){try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(Array.isArray(saved)){const valid=saved.filter(s=>catalog.some(x=>x.slug===s));const missing=defaultSlugs.filter(s=>!valid.includes(s));return valid.concat(missing)}}catch(e){}return defaultSlugs.slice()}
-function render(items){const map=new Map(items.map(item=>[item.name,item]));const active=selected.map(slug=>catalog.find(x=>x.slug===slug)).filter(Boolean);box.innerHTML=active.map(w=>{const item=map.get(w.slug);if(!item)return '<div class="row"><div class="name">'+w.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';const change=getChange(item),percent=diffText(item),timeCls=timeClass(item,change);return '<div class="row"><div class="name">'+w.name+'</div><div class="price '+change.className+'">'+priceText(item)+' <span style="font-size:12px;color:#aaa">'+w.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percent+'</span><span class="time '+timeCls+'">'+faDigits(item.t||'—')+'</span></div></div>'}).join('')}
-function normalizeDigits(value){return String(value??'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d))}
-function parseDataTime(raw){const value=normalizeDigits(String(raw??'').trim());if(!value)return null;const match=value.match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2}).*?(\d{1,2}):(\d{2})(?::(\d{2}))?/);const now=new Date();if(match){const d=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]),Number(match[4]),Number(match[5]),Number(match[6]||0));return Number.isNaN(d.getTime())?null:d}const tm=value.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s|$)/);if(!tm)return null;const d=new Date();d.setHours(Number(tm[1]),Number(tm[2]),Number(tm[3]||0),0);if(d.getTime()-now.getTime()>5*60*1000)d.setDate(d.getDate()-1);return d}
-function showApiStatus(kind,title,details){const status=document.getElementById('apiStatus');status.className=kind;status.innerHTML='<strong>'+title+'</strong>'+details.map(x=>'<span class="detail">'+x+'</span>').join('')}
-function markStale(reason){if(lastGoodAt){freshness.className='stale';freshness.textContent='⚠ داده‌های زیر آخرین بار در '+lastGoodAt.toLocaleTimeString('fa-IR')+' دریافت شدند؛ به‌روزرسانی فعلی ناموفق است. '+reason}else{freshness.className='stale';freshness.textContent='⚠ هنوز دریافت موفقی در این نشست ثبت نشده است.'}}
-function markFresh(){lastGoodAt=new Date();freshness.className='fresh';freshness.textContent='✓ آخرین دریافت موفق: '+lastGoodAt.toLocaleTimeString('fa-IR')+' — این زمان، زمان دریافت است نه تضمین تازه‌بودن قیمت.'}
-async function probeJson(label,url,mode){const start=Date.now();try{const response=await fetch(url,mode==='no-store'?{cache:'no-store'}:mode==='reload'?{cache:'reload'}:{});const ms=Date.now()-start;const textBody=await response.text();let count=0,newest='زمان نامشخص',shape='';try{const json=JSON.parse(textBody);const items=extractItems(json);count=items.length;shape=count?'قالب JSON مورد انتظار':'JSON هست، اما قالب شاخص‌ها متفاوت است';const ts=items.map(x=>String(x.t||'')).filter(Boolean).sort().pop();if(ts)newest=ts}catch(e){shape='پاسخ JSON قابل‌خواندن نیست؛ ابتدای پاسخ: '+textBody.slice(0,70).replace(/[<>]/g,' ')}const ok=response.ok&&count>0;return {label,ok,ms,status:'HTTP '+response.status,shape,count,newest,detail:label+' — HTTP '+response.status+'؛ '+ms+'ms؛ '+shape+(count?'؛ شاخص: '+count:'')}}catch(e){return {label,ok:false,ms:Date.now()-start,status:'بدون پاسخ HTTP',shape:String(e&&e.message||e),count:0,newest:'—',detail:label+' — '+String(e&&e.message||e)+'؛ مرورگر جزئیات شبکه/CORS را پنهان می‌کند'}}}
-async function probeOfficialWidgetScript(){return new Promise(resolve=>{const start=Date.now(),script=document.createElement('script'),timer=setTimeout(()=>{script.remove();resolve({label:'اسکریپت رسمی ویجت v2',ok:false,ms:Date.now()-start,detail:'اسکریپت رسمی ویجت v2 — timeout؛ بیش از ۸ ثانیه'})},8000);script.src='https://api.tgju.org/v1/widget/v2?diag='+Date.now();script.onload=()=>{clearTimeout(timer);script.remove();resolve({label:'اسکریپت رسمی ویجت v2',ok:true,ms:Date.now()-start,detail:'اسکریپت رسمی ویجت v2 — بارگذاری شد؛ '+(Date.now()-start)+'ms (این فقط دسترسی به اسکریپت را می‌سنجد، نه تازه‌بودن قیمت‌ها)'})};script.onerror=()=>{clearTimeout(timer);script.remove();resolve({label:'اسکریپت رسمی ویجت v2',ok:false,ms:Date.now()-start,detail:'اسکریپت رسمی ویجت v2 — بارگذاری ناموفق؛ '+(Date.now()-start)+'ms'})};document.head.appendChild(script)})}
-async function runMultiTest(){multiTestBtn.disabled=true;multiTestResults.innerHTML='<div class="probe">در حال اجرای آزمون‌ها؛ لطفاً صفحه را نبندید…</div>';const base=API_SOURCE;const stamp=Date.now();const tests=[probeJson('API با no-store و شناسه یکتا',base+'?_ts='+stamp,'no-store'),probeJson('API با cache reload و شناسه یکتا',base+'?_ts='+(stamp+1),'reload'),probeJson('API بدون cache-buster (آزمون کش)',base,'default'),probeOfficialWidgetScript()];const results=await Promise.all(tests);multiTestResults.innerHTML=results.map(r=>'<div class="probe '+(r.ok?'good':'bad')+'"><strong>'+(r.ok?'✓ ':'✕ ')+r.label+'</strong><div>'+r.detail+'</div>'+(r.newest&&r.newest!=='—'?'<div>زمان نمونه: '+r.newest+'</div>':'')+'</div>').join('')+'<div class="probe warn">تفسیر: اگر هر سه درخواست JSON شکست بخورند ولی اسکریپت ویجت بارگذاری شود، احتمال مشکل در endpoint JSON/CORS بیشتر می‌شود. اگر هر سه JSON موفق باشند اما زمان داده ثابت بماند، خود دادهٔ upstream یا کش آن مظنون است. اسکریپت موفق به‌تنهایی ثابت نمی‌کند قیمت‌ها تازه‌اند.</div>';multiTestBtn.disabled=false;}
-async function load(){refreshBtn.disabled=true;refreshBtn.textContent='در حال آزمایش API...';const started=Date.now(),stamp=String(started);lastRefresh.textContent='آخرین تلاش: '+new Date(started).toLocaleTimeString('fa-IR');showApiStatus('warn','در حال ارسال درخواست به API TGJU…',['شناسه درخواست: '+stamp]);try{const api=API_SOURCE+'?_ts='+stamp;const response=await fetch(api,{cache:'no-store'});const received=Date.now(),duration=received-started;const cacheInfo=['HTTP: '+response.status+' '+response.statusText,'مدت پاسخ: '+duration+' ms','شناسه درخواست: '+stamp];const age=response.headers.get('age');const cache=response.headers.get('x-cache')||response.headers.get('cf-cache-status');const dateHeader=response.headers.get('date');if(age)cacheInfo.push('HTTP Age: '+age+'s');if(cache)cacheInfo.push('Cache header: '+cache);if(dateHeader)cacheInfo.push('زمان پاسخ سرور: '+dateHeader);if(!response.ok){showApiStatus('fail','خطا: API پاسخ موفق نداد',cacheInfo);throw new Error('HTTP '+response.status)}const data=await response.json();const items=extractItems(data);if(!items.length){showApiStatus('fail','خطا: پاسخ رسید، اما قالب/فهرست قیمت قابل‌خواندن نیست',cacheInfo.concat(['پاسخ JSON دریافت شد؛ تعداد شاخص‌ها: 0']));throw new Error('No indicators')}render(items);lastGoodItems=items;markFresh();const mapped=items.filter(item=>selected.includes(item.name)).length;const times=items.map(item=>({raw:String(item.t??'').trim(),date:parseDataTime(item.t)})).filter(x=>x.raw);const parsed=times.filter(x=>x.date);const newest=parsed.length?new Date(Math.max(...parsed.map(x=>x.date.getTime()))):null;let stale=false,ageMinutes=null;if(newest){ageMinutes=Math.max(0,Math.floor((received-newest.getTime())/60000));stale=received-newest.getTime()>5*60*1000}const detail=cacheInfo.concat(['تعداد شاخص‌های دریافتی: '+items.length,'تعداد شاخص‌های منطبق با کدها: '+mapped,'زمان داده نمونه: '+(times[0]?.raw||'در پاسخ موجود نیست'),newest?'جدیدترین زمان قابل‌تشخیص داده: '+newest.toLocaleString('fa-IR'):'زمان داده قابل‌تشخیص نیست',ageMinutes!==null?'سن جدیدترین داده بر اساس ساعت همین دستگاه: حدود '+ageMinutes+' دقیقه':'سن داده قابل محاسبه نیست']);if(stale){showApiStatus('warn','API پاسخ داده، اما قیمت‌ها قدیمی‌اند!',detail.concat(['نتیجه: دریافت API موفق است؛ مشکل احتمالاً در منبع/کش داده‌های TGJU است.']))}else if(!newest){showApiStatus('warn','API پاسخ داده، اما زمان قیمت‌ها قابل بررسی نیست',detail.concat(['نتیجه: درخواست موفق بود؛ از روی پاسخ نمی‌توان تازه‌بودن قیمت را تأیید کرد.']))}else{showApiStatus('ok','API پاسخ موفق داد و داده‌ها تازه به نظر می‌رسند',detail.concat(['نتیجه: درخواست موفق و زمان داده کمتر از ۵ دقیقه است.']))}lastRefresh.textContent='آخرین تلاش: '+new Date(received).toLocaleTimeString('fa-IR')}catch(error){markStale('خطا: '+String(error&&error.message||error));if(!document.getElementById('apiStatus').classList.contains('fail'))showApiStatus('fail','درخواست API ناموفق بود',['خطا: '+String(error&&error.message||error),'زمان تلاش: '+new Date().toLocaleTimeString('fa-IR'),'قیمت‌های موجود در صفحه، در صورت نمایش، دادهٔ قبلی‌اند و تازه بودنشان تأیید نشده است.']);if(!box.innerHTML||box.innerHTML.includes('در حال دریافت'))box.innerHTML='<div class="error">دریافت اطلاعات TGJU ناموفق بود. جزئیات خطا در کادر وضعیت API بالاست.</div>'}finally{refreshBtn.disabled=false;refreshBtn.textContent='↻ آزمایش و بروزرسانی API'}}
-refreshBtn.onclick=load;multiTestBtn.onclick=runMultiTest;load();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});})();
-</script></body></html>
+function parseNumber(value){
+ const normalized=String(value??'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٬,،\s]/g,'').replace(/٫/g,'.');
+ const n=Number(normalized);
+ return Number.isFinite(n)?n:NaN;
+}
+function numberText(number,decimals){
+ if(!Number.isFinite(number))return '—';
+ return faDigits(number.toLocaleString('en-US',{minimumFractionDigits:decimals||0,maximumFractionDigits:decimals||0}));
+}
+function getChange(item){
+ const direction=String(item.dt||'');
+ if(direction==='high')return{className:'up',symbol:'▲'};
+ if(direction==='low')return{className:'down',symbol:'▼'};
+ const percent=Number(item.dp);
+ if(Number.isFinite(percent)&&percent>0)return{className:'up',symbol:'▲'};
+ if(Number.isFinite(percent)&&percent<0)return{className:'down',symbol:'▼'};
+ return{className:'flat',symbol:'●'};
+}
+function priceText(item,definition){
+ let value=parseNumber(item.p);
+ if(definition.rial)value/=10;
+ return numberText(value,definition.decimals||0);
+}
+function parseTimestamp(raw){
+ if(!raw)return null;
+ const value=String(raw).trim().replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+ const match=value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+ if(!match)return null;
+ return new Date(value.replace(' ','T')+'+03:30');
+}
+function escapeHtml(value){
+ return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function render(current){
+ box.innerHTML=catalog.map(definition=>{
+  const item=current[definition.key];
+  if(!item||item.p===undefined){
+   return '<div class="row"><div class="name">'+definition.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';
+  }
+  const change=getChange(item);
+  const percent=Number(item.dp);
+  const percentText=Number.isFinite(percent)?Math.abs(percent).toFixed(2)+'%':'—';
+  const time=escapeHtml(item.t||'—');
+  const timeClass='time '+change.className;
+  return '<div class="row"><div class="name">'+definition.name+'</div><div class="price '+change.className+'">'+priceText(item,definition)+' <span style="font-size:12px;color:#aaa">'+definition.unit+'</span></div><div class="meta"><span class="'+change.className+'">'+change.symbol+' '+percentText+'</span><span class="'+timeClass+'">'+time+'</span></div></div>';
+ }).join('');
+}
+async function load(){
+ refreshBtn.disabled=true;
+ refreshBtn.textContent='در حال دریافت...';
+ const started=Date.now();
+ const requestId=String(started);
+ try{
+  const response=await fetch(SOURCE+'?_='+requestId,{cache:'no-store',headers:{'Accept':'application/json'}});
+  const received=Date.now();
+  const duration=received-started;
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const data=await response.json();
+  const current=data&&data.current;
+  if(!current||typeof current!=='object')throw new Error('ساختار current در پاسخ پیدا نشد');
+  const available=catalog.filter(x=>current[x.key]&&current[x.key].p!==undefined);
+  if(!available.length)throw new Error('هیچ‌یک از شاخص‌های موردنیاز در پاسخ وجود ندارد');
+  render(current);
+  lastGoodItems=current;
+ }catch(error){
+  if(!lastGoodItems)box.innerHTML='<div class="error">دریافت اطلاعات ناموفق بود. جزئیات خطا در کادر وضعیت بالاست.</div>';
+ }finally{
+  refreshBtn.disabled=false;
+  refreshBtn.textContent='↻ بروزرسانی';
+ }
+}
+refreshBtn.addEventListener('click',load);
+load();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
