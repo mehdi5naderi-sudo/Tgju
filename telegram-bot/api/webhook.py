@@ -5,6 +5,8 @@ import re
 import urllib.parse
 import urllib.request
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from http.server import BaseHTTPRequestHandler
 
 TGJU_KEYS = [
@@ -61,14 +63,33 @@ def format_price(item, slug):
     decimals = 2 if slug in ("ons", "oil_brent") else 0
     return fa_digits(f"{value:,.{decimals}f}")
 
+def change_is_fresh(raw_time):
+    # Match the web app: only timestamps less than five minutes old are fresh.
+    value = str(raw_time or "").strip().translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
+    match = re.search(r"(?:^|\\s)(\\d{1,2}):(\\d{2})(?::(\\d{2}))?(?:\\s|$)", value)
+    if not match:
+        return False
+    hour, minute, second = int(match.group(1)), int(match.group(2)), int(match.group(3) or 0)
+    if hour > 23 or minute > 59 or second > 59:
+        return False
+    now = datetime.now(ZoneInfo("Asia/Tehran"))
+    updated = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+    age = (now - updated).total_seconds()
+    return 0 <= age < 5 * 60
+
 def format_change(item):
     pct = numeric(item.get("dp"))
     if pct is None:
-        return "—"
-    # TGJU's dp is an absolute change value; direction comes from dt.
+        return "⚪ —"
+    # Telegram does not support font colors; use a colored marker instead.
+    if not change_is_fresh(item.get("t")):
+        marker = "⚪"
+    else:
+        direction = str(item.get("dt", "")).strip().lower()
+        marker = "🟢" if direction == "high" else ("🔴" if direction == "low" else "🟡")
     direction = str(item.get("dt", "")).strip().lower()
     sign = "+" if direction == "high" else ("−" if direction == "low" else "")
-    return fa_digits(sign + f"{abs(pct):.2f}")
+    return marker + " " + fa_digits(sign + f"{abs(pct):.2f}") + "%"
 
 def format_time(value):
     text = str(value or "—").strip()
