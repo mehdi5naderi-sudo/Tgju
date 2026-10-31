@@ -17,15 +17,6 @@ h1{text-align:center;font-size:24px;margin:0 0 4px}
 button{font-family:inherit}
 .controlBtn{background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;padding:7px 15px;font-size:16px;cursor:pointer}
 .controlBtn:disabled{opacity:.5;cursor:default}
-#lastRefresh{text-align:center;color:#aaa;font-size:14px;margin:3px 0 4px}
-#dataFreshness{margin:5px 0 8px;padding:7px 9px;border-radius:7px;background:#242424;color:#bbb;font-size:13px;text-align:center}
-#dataFreshness.fresh{background:#10291a;color:#a9f0bd}
-#dataFreshness.stale{background:#302610;color:#ffe19a}
-#apiStatus{margin:8px 0 10px;padding:10px;border:1px solid #555;border-radius:9px;background:#202020;font-size:14px;line-height:1.8;overflow-wrap:anywhere}
-#apiStatus.ok{border-color:#287a45;background:#10291a;color:#a9f0bd}
-#apiStatus.warn{border-color:#9b7824;background:#2c2410;color:#ffe19a}
-#apiStatus.fail{border-color:#a33;background:#301414;color:#ffb1b1}
-#apiStatus .detail{display:block;color:#ddd;font-size:12px;direction:ltr;text-align:left;overflow-wrap:anywhere}
 .row{display:grid;grid-template-columns:minmax(92px,1fr) minmax(0,1.7fr) minmax(112px,1fr);align-items:center;gap:5px;padding:5px 2px;border-bottom:1px solid #2b2b2b;min-height:46px}
 .name{min-width:0;color:#ddd;font-size:17px;text-align:right;white-space:nowrap}
 .price{min-width:0;text-align:center;font-size:20px;font-weight:bold;direction:ltr;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -56,9 +47,6 @@ button{font-family:inherit}
 <main>
  <h1>قیمت بازار</h1>
  <div class="controls"><button class="controlBtn" id="refreshBtn" type="button">↻ بروزرسانی</button></div>
- <div id="lastRefresh">آخرین تلاش: —</div>
- <div id="dataFreshness">هنوز داده‌ای دریافت نشده است.</div>
- <div id="apiStatus" role="status" aria-live="polite">وضعیت منبع داده: هنوز آزمایش نشده است.</div>
  <div id="tgju-data"><div class="loading">در حال دریافت اطلاعات...</div></div>
 </main>
 <script>
@@ -75,13 +63,10 @@ const catalog=[
  {key:'ons',name:'انس',unit:'USD',rial:false,maxAge:720,decimals:2},
  {key:'oil_brent',name:'نفت برنت',unit:'USD',rial:false,maxAge:720,decimals:2},
  {key:'gc30',name:'GC30',unit:'',rial:false,maxAge:720},
- {key:'crypto-bitcoin-irr',name:'بیت‌کوین',unit:'تومان',rial:true,maxAge:30}
+ {key:'crypto-bitcoin',name:'بیت‌کوین',unit:'USD',rial:false,maxAge:30,decimals:2}
 ];
 const box=document.getElementById('tgju-data');
 const refreshBtn=document.getElementById('refreshBtn');
-const lastRefresh=document.getElementById('lastRefresh');
-const freshness=document.getElementById('dataFreshness');
-const status=document.getElementById('apiStatus');
 let lastGoodItems=null;
 function faDigits(value){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}
 function parseNumber(value){
@@ -114,16 +99,6 @@ function parseTimestamp(raw){
  if(!match)return null;
  return new Date(value.replace(' ','T')+'+03:30');
 }
-function timeIsStale(item,definition){
- const stamp=parseTimestamp(item.ts);
- if(!stamp||Number.isNaN(stamp.getTime()))return true;
- const age=(Date.now()-stamp.getTime())/60000;
- return age>definition.maxAge||age< -10;
-}
-function setStatus(kind,title,details){
- status.className=kind;
- status.innerHTML='<strong>'+title+'</strong>'+details.map(x=>'<span class="detail">'+escapeHtml(x)+'</span>').join('');
-}
 function escapeHtml(value){
  return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -147,19 +122,10 @@ async function load(){
  refreshBtn.textContent='در حال دریافت...';
  const started=Date.now();
  const requestId=String(started);
- lastRefresh.textContent='آخرین تلاش: '+new Date(started).toLocaleTimeString('fa-IR');
- freshness.className='';
- freshness.textContent='در حال دریافت داده‌ها...';
- setStatus('warn','در حال دریافت اطلاعات از TGJU…',['منبع: '+SOURCE,'شناسه درخواست: '+requestId]);
  try{
   const response=await fetch(SOURCE+'?_='+requestId,{cache:'no-store',headers:{'Accept':'application/json'}});
   const received=Date.now();
   const duration=received-started;
-  const details=['HTTP: '+response.status,'مدت پاسخ: '+duration+' ms','شناسه درخواست: '+requestId];
-  const age=response.headers.get('age');
-  const cacheStatus=response.headers.get('cf-cache-status')||response.headers.get('x-cache');
-  if(age)details.push('HTTP Age: '+age+'s');
-  if(cacheStatus)details.push('Cache: '+cacheStatus);
   if(!response.ok)throw new Error('HTTP '+response.status);
   const data=await response.json();
   const current=data&&data.current;
@@ -168,24 +134,7 @@ async function load(){
   if(!available.length)throw new Error('هیچ‌یک از شاخص‌های موردنیاز در پاسخ وجود ندارد');
   render(current);
   lastGoodItems=current;
-  const missing=catalog.filter(x=>!current[x.key]).map(x=>x.name);
-  const stale=available.filter(x=>timeIsStale(current[x.key],x));
-  freshness.className=stale.length?'stale':'fresh';
-  freshness.textContent=stale.length
-   ?'⚠ دریافت موفق؛ '+stale.length+' شاخص از '+available.length+' شاخص قدیمی یا دارای زمان نامعتبر است.'
-   :'✓ زمان ثبت تمام شاخص‌های موجود در محدوده قابل قبول است.';
-  details.push('شاخص‌های دریافت‌شده: '+available.length+' از '+catalog.length);
-  details.push('زمان دریافت: '+new Date(received).toLocaleTimeString('fa-IR'));
-  if(stale.length)details.push('شاخص‌های قدیمی/نامعتبر: '+stale.map(x=>x.name).join('، '));
-  if(missing.length)details.push('شاخص‌های ناموجود: '+missing.join('، '));
-  setStatus(stale.length||missing.length?'warn':'ok',
-   stale.length||missing.length?'داده دریافت شد؛ بعضی شاخص‌ها نیاز به بررسی دارند.':'دریافت اطلاعات موفق بود.',
-   details);
-  lastRefresh.textContent='آخرین تلاش: '+new Date(received).toLocaleTimeString('fa-IR');
  }catch(error){
-  freshness.className='stale';
-  freshness.textContent='⚠ دریافت فعلی ناموفق بود؛ قیمت‌های قبلی در صورت وجود حفظ شده‌اند.';
-  setStatus('fail','دریافت اطلاعات TGJU ناموفق بود.',['خطا: '+String(error&&error.message||error),'منبع: '+SOURCE,'اگر خطا مربوط به CORS باشد، مرورگر اجازه خواندن مستقیم این منبع را نداده است.']);
   if(!lastGoodItems)box.innerHTML='<div class="error">دریافت اطلاعات ناموفق بود. جزئیات خطا در کادر وضعیت بالاست.</div>';
  }finally{
   refreshBtn.disabled=false;
