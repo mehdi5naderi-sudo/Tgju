@@ -31,6 +31,8 @@ button{font-family:inherit}
 .meta .time-stale{color:#fff}
 .loading,.error{text-align:center;color:#aaa;padding:12px;font-size:16px}
 .error{color:#e77}
+.status{margin:7px 0 9px;padding:9px 11px;border:1px solid #a94444;border-radius:9px;background:#351b1b;color:#ff9b9b;text-align:center;font-size:14px;line-height:1.7;overflow-wrap:anywhere}
+.status[hidden]{display:none}
 @media(max-width:520px){
  main{width:100%;margin:0;padding:6px 5px;border-radius:0;min-height:100vh}
  h1{font-size:24px;margin-bottom:2px}
@@ -51,6 +53,7 @@ button{font-family:inherit}
 <main>
  <h1>قیمت بازار</h1>
  <div class="controls"><button class="controlBtn" id="refreshBtn" type="button">↻ بروزرسانی</button></div>
+ <div id="status" class="status" role="status" aria-live="polite" hidden></div>
  <div id="tgju-data"><div class="loading">در حال دریافت اطلاعات...</div></div>
 </main>
 <script>
@@ -71,8 +74,14 @@ const catalog=[
  {key:'crypto-bitcoin',name:'بیت‌کوین',unit:'USD',rial:false,maxAge:30,decimals:2}
 ];
 const box=document.getElementById('tgju-data');
+const statusBox=document.getElementById('status');
 const refreshBtn=document.getElementById('refreshBtn');
 let lastGoodItems=null;
+function showStatus(message,isError){
+ statusBox.textContent=message;
+ statusBox.className=isError?'status error':'status';
+ statusBox.hidden=!message;
+}
 function faDigits(value){return String(value).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}
 function parseNumber(value){
  const normalized=String(value??'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٬,،\s]/g,'').replace(/٫/g,'.');
@@ -145,8 +154,11 @@ async function load(){
   if(!available.length)throw new Error('هیچ‌یک از شاخص‌های موردنیاز در پاسخ وجود ندارد');
   render(current);
   lastGoodItems=current;
+  showStatus('',false);
  }catch(error){
-  if(!lastGoodItems)box.innerHTML='<div class="error">دریافت اطلاعات ناموفق بود. جزئیات خطا در کادر وضعیت بالاست.</div>';
+  const message=error&&error.message?error.message:String(error);
+  showStatus('خطا در دریافت اطلاعات: '+message,true);
+  if(!lastGoodItems)box.innerHTML='<div class="error">دریافت اطلاعات ناموفق بود.</div>';
  }finally{
   refreshBtn.disabled=false;
   refreshBtn.textContent='↻ بروزرسانی';
