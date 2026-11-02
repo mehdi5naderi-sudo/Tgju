@@ -1,4 +1,4 @@
-const CACHE='tgju-v3-bourse-label';
+const CACHE='tgju-v4-gold24';
 const APP=['./','./index.html','./manifest.json','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(
