@@ -117,6 +117,7 @@ def fetch_prices(chat_id):
         found += 1
         rows.append({
             "name": label,
+            "unit": _unit,
             "price": format_price(item, slug),
             "change": format_change(item) if settings["show_change"] else "",
             "time": format_time(item.get("t")) if settings["show_time"] else "",
@@ -171,21 +172,35 @@ def fetch_widget_data(chat_id):
     }, ensure_ascii=False, separators=(",", ":"))
 
 def widget_html():
-    return """<!doctype html><html><head><meta charset="utf-8"><style>
-body{margin:0;color:var(--tg-theme-text-color);font:14px system-ui,sans-serif}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
-h3{font-size:16px;margin:0}.muted{color:var(--tg-theme-hint-color);font-size:11px}
-.rows{display:grid;grid-template-columns:1fr auto;gap:0 10px}
-.row{display:contents}.name,.value{padding:7px 0;border-bottom:1px solid var(--tg-theme-section-separator-color)}
-.value{text-align:left;font-weight:650;font-variant-numeric:tabular-nums}
-.meta{font-size:10px;color:var(--tg-theme-hint-color);font-weight:400}
-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
-button{border:0;border-radius:9px;padding:8px 12px;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font:inherit}
+    return """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+:root{color-scheme:light dark}
+*{box-sizing:border-box}
+body{margin:0;padding:2px;color:var(--tg-theme-text-color);background:var(--tg-theme-bg-color);font:14px -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 2px 12px}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.logo{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--tg-theme-secondary-bg-color);font-size:19px}
+h3{font-size:16px;line-height:1.2;margin:0;font-weight:750;letter-spacing:-.2px}
+.subtitle{font-size:10px;color:var(--tg-theme-hint-color);margin-top:3px}
+.stamp{font-size:10px;color:var(--tg-theme-hint-color);white-space:nowrap;background:var(--tg-theme-secondary-bg-color);padding:6px 8px;border-radius:20px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.card{min-width:0;padding:10px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color)}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:9px}
+.name{font-size:12px;color:var(--tg-theme-hint-color);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--tg-theme-button-color);flex:none}
+.price{font-size:15px;font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:7px;min-height:16px}
+.change{font-size:10px;font-weight:700;white-space:nowrap}
+.time{font-size:9px;color:var(--tg-theme-hint-color);white-space:nowrap}
+.positive{color:#16a36a}.negative{color:#e05252}.neutral{color:var(--tg-theme-hint-color)}
+.footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:3px 1px 1px}
+.note{font-size:10px;color:var(--tg-theme-hint-color)}
+button{border:0;border-radius:10px;padding:9px 13px;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font:600 12px system-ui,sans-serif;white-space:nowrap}
 button:disabled{opacity:.55}
+@media(max-width:310px){.grid{grid-template-columns:1fr}.price{font-size:16px}}
 </style></head><body>
-<header><h3>📊 قیمت‌های TGJU</h3><span class="muted" id="updated"></span></header>
-<div class="rows" id="rows"></div>
-<footer><span class="muted" id="status">قیمت‌ها از منبع TGJU</span><button id="refresh">↻ به‌روزرسانی</button></footer>
+<div class="top"><div class="brand"><div class="logo">📈</div><div><h3>بازارهای مالی</h3><div class="subtitle">قیمت لحظه‌ای از TGJU</div></div></div><div class="stamp" id="updated">--:--</div></div>
+<div class="grid" id="rows"></div>
+<div class="footer"><span class="note" id="status">آخرین داده دریافتی</span><button id="refresh">↻ تازه‌سازی</button></div>
 <script>
 (function(){
 const W=window.TelegramWidget, rows=document.getElementById('rows'), updated=document.getElementById('updated'), status=document.getElementById('status'), button=document.getElementById('refresh');
@@ -193,17 +208,22 @@ function render(){
  let data={}; try{data=JSON.parse(W.chatData||'{}')}catch(e){}
  rows.textContent='';
  (data.rows||[]).forEach(function(item){
-  const name=document.createElement('div'); name.className='name'; name.textContent=item.name;
-  const value=document.createElement('div'); value.className='value'; value.textContent=item.price;
-  if(item.change||item.time){const meta=document.createElement('div');meta.className='meta';meta.textContent=[item.change,item.time].filter(Boolean).join(' · ');value.appendChild(meta)}
-  rows.appendChild(name);rows.appendChild(value);
+  const card=document.createElement('div');card.className='card';
+  const top=document.createElement('div');top.className='card-top';
+  const name=document.createElement('div');name.className='name';name.textContent=item.name;
+  const dot=document.createElement('span');dot.className='dot';top.append(name,dot);
+  const price=document.createElement('div');price.className='price';price.textContent=item.price+(item.unit?' '+item.unit:'');
+  const bottom=document.createElement('div');bottom.className='bottom';
+  const change=document.createElement('span');change.className='change '+(String(item.change||'').includes('🟢')?'positive':String(item.change||'').includes('🔴')?'negative':'neutral');change.textContent=item.change||'';
+  const time=document.createElement('span');time.className='time';time.textContent=item.time||'';
+  bottom.append(change,time);card.append(top,price,bottom);rows.appendChild(card);
  });
- updated.textContent=data.updated?'بروزرسانی '+data.updated:'';
+ updated.textContent=data.updated?'به‌روز '+data.updated:'—';
 }
 W.onEvent('chatDataChanged',render);render();
 button.addEventListener('click',async function(){
- button.disabled=true;status.textContent='در حال دریافت...';
- try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست انجام شد'}
+ button.disabled=true;status.textContent='در حال دریافت قیمت‌ها…';
+ try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست ارسال شد'}
  catch(e){status.textContent='خطا در دریافت؛ دوباره تلاش کنید'}
  finally{button.disabled=false}
 });
