@@ -89,7 +89,7 @@ def format_change(item):
         marker = "🟢" if direction == "high" else ("🔴" if direction == "low" else "🟡")
     direction = str(item.get("dt", "")).strip().lower()
     sign = "+" if direction == "high" else ("−" if direction == "low" else "")
-    return marker + " " + fa_digits(f"{abs(pct):.2f}")
+    return marker + " " + sign + fa_digits(f"{abs(pct):.2f}") + "%"
 
 def format_time(value):
     text = str(value or "—").strip()
@@ -142,7 +142,7 @@ h3{font-size:var(--font-title,20px);line-height:1.35;margin:0;font-weight:750;le
 .dot{width:6px;height:6px;border-radius:50%;background:var(--tg-theme-button-color);flex:none}
 .price{order:1;font-size:var(--font-price,20px);font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;flex:none;max-width:62%;text-align:left;direction:ltr}
 .bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:7px;min-height:16px}
-.change{font-size:var(--font-change,20px);font-weight:700;white-space:nowrap}
+.change{font-size:var(--font-change,20px);font-weight:700;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:left}
 .time{font-size:var(--font-time,20px);color:var(--tg-theme-link-color, #2f80ed);font-weight:650;white-space:nowrap}
 .positive{color:#16a36a}.negative{color:#e05252}.neutral{color:var(--tg-theme-hint-color)}
 .footer{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:3px 1px 1px}
