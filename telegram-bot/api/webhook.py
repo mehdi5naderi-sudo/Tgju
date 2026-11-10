@@ -250,7 +250,7 @@ render();
 const limits={name:[10,20],price:[12,28],change:[9,20],time:[8,18],title:[12,24]};
 document.querySelectorAll('[data-step][data-font]').forEach(function(control){control.addEventListener('click',function(){const key=control.dataset.font;const current=draftFonts[key]||defaults[key];const value=Math.max(limits[key][0],Math.min(limits[key][1],current+Number(control.dataset.step)));if(value!==current)setFont(key,value);});});
 document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){setFont(key,defaults[key]);});});
-document.getElementById('saveFonts').addEventListener('click',async function(){const saveButton=this;saveButton.disabled=true;isSaving=true;status.textContent='در حال ذخیره تنظیمات…';try{for(const key of Object.keys(defaults)){await W.request('font:'+key+':'+draftFonts[key]);}status.textContent='تنظیمات با موفقیت ذخیره شد';panel.style.display='none';}catch(e){status.textContent='ذخیره کامل نشد؛ دوباره تلاش کنید';}finally{isSaving=false;saveButton.disabled=false;}});
+document.getElementById('saveFonts').addEventListener('click',async function(){const saveButton=this;saveButton.disabled=true;isSaving=true;status.textContent='در حال ذخیره تنظیمات…';panel.style.display='none';try{for(const key of Object.keys(defaults)){await W.request('font:'+key+':'+draftFonts[key]);}status.textContent='تنظیمات با موفقیت ذخیره شد';}catch(e){status.textContent='ذخیره کامل نشد؛ دوباره تلاش کنید';panel.style.display='block';}finally{isSaving=false;saveButton.disabled=false;}});
 button.addEventListener('click',async function(){
  button.disabled=true;status.textContent='در حال دریافت قیمت‌ها…';
  try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست ارسال شد'}
