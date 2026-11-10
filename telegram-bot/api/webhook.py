@@ -216,7 +216,7 @@ def hide_reply_keyboard(chat_id):
     # Telegram removes a persistent reply keyboard after receiving this service message.
     return telegram("sendMessage", {
         "chat_id": chat_id,
-        "text": "\\u2063",
+        "text": "\u2063",
         "reply_markup": {"remove_keyboard": True},
     })
 
@@ -314,18 +314,15 @@ class handler(BaseHTTPRequestHandler):
             elif message:
                 chat_id = message.get("chat", {}).get("id")
                 command = str(message.get("text", "")).strip().lower()
-                if command in ("/start", "/price", "/prices", "/widget", "/settings", "تنظیمات", "داشبورد", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی"):
+                command_name = command.split()[0].split("@")[0] if command else ""
+                if command_name in ("/start", "/price", "/prices", "/widget", "/settings") or command in ("تنظیمات", "داشبورد", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی"):
                     try:
                         hide_reply_keyboard(chat_id)
                         send_price_widget(chat_id)
                     except Exception:
                         reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید.")
                 else:
-                    try:
-                        hide_reply_keyboard(chat_id)
-                        send_price_widget(chat_id)
-                    except Exception:
-                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید.")
+                    reply(chat_id, "برای نمایش داشبورد، دستور /start را بفرستید.")
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"ok")
