@@ -178,10 +178,10 @@ def widget_html():
 *{box-sizing:border-box}
 body{margin:0;padding:2px;color:var(--tg-theme-text-color);background:var(--tg-theme-bg-color);font:14px -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 2px 12px}
-.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand{display:flex;align-items:center;gap:9px;min-width:0;direction:rtl}
 .logo{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--tg-theme-secondary-bg-color);font-size:19px}
-h3{font-size:var(--font-title,16px);line-height:1.2;margin:0;font-weight:750;letter-spacing:-.2px}
-.subtitle{font-size:10px;color:var(--tg-theme-hint-color);margin-top:3px}
+h3{font-size:var(--font-title,16px);line-height:1.35;margin:0;font-weight:750;letter-spacing:0;direction:rtl;text-align:right;unicode-bidi:plaintext}
+.subtitle{font-size:10px;color:var(--tg-theme-hint-color);margin-top:3px;direction:rtl;text-align:right;unicode-bidi:plaintext}
 .stamp{font-size:10px;color:var(--tg-theme-hint-color);white-space:nowrap;background:var(--tg-theme-secondary-bg-color);padding:6px 8px;border-radius:20px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .card{min-width:0;padding:10px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color)}
@@ -204,7 +204,7 @@ button:disabled{opacity:.55}
 .font-control{display:flex;align-items:center;gap:10px}.font-control button{min-width:36px;padding:7px 10px;font-size:17px}.font-control output{min-width:48px;text-align:center}
 .settings-head{font-size:13px;font-weight:700;margin-bottom:8px}.settings-actions{display:flex;gap:8px;margin-top:12px}.settings-actions button{flex:1}
 @media(max-width:310px){.grid{grid-template-columns:1fr}.price{font-size:16px}}
-</style></head><body>
+</style></head><body dir="rtl">
 <div class="top"><div class="brand"><div class="logo">📈</div><div><h3>بازارهای مالی</h3><div class="subtitle">قیمت لحظه‌ای از TGJU</div></div></div><div class="stamp" id="updated">--:--</div></div>
 <div class="grid" id="rows"></div>
 <div id="settings"><div class="settings-head">⚙️ تنظیم اندازه نوشته‌ها</div>
@@ -251,7 +251,7 @@ render();
 const limits={name:[10,20],price:[12,28],change:[9,20],time:[8,18],title:[12,24]};
 document.querySelectorAll('[data-step][data-font]').forEach(function(control){control.addEventListener('click',function(){const key=control.dataset.font;const current=draftFonts[key]||defaults[key];const value=Math.max(limits[key][0],Math.min(limits[key][1],current+Number(control.dataset.step)));if(value!==current)setFont(key,value);});});
 document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){setFont(key,defaults[key]);});});
-document.getElementById('saveFonts').addEventListener('click',async function(){const saveButton=this;saveButton.disabled=true;isSaving=true;status.textContent='در حال ذخیره تنظیمات…';try{for(const key of Object.keys(defaults)){await W.request('font:'+key+':'+draftFonts[key]);}status.textContent='تنظیمات با موفقیت ذخیره شد';}catch(e){status.textContent='ذخیره کامل نشد؛ دوباره تلاش کنید';}finally{isSaving=false;saveButton.disabled=false;}});
+document.getElementById('saveFonts').addEventListener('click',async function(){const saveButton=this;saveButton.disabled=true;isSaving=true;status.textContent='در حال ذخیره تنظیمات…';try{for(const key of Object.keys(defaults)){await W.request('font:'+key+':'+draftFonts[key]);}status.textContent='تنظیمات با موفقیت ذخیره شد';panel.style.display='none';}catch(e){status.textContent='ذخیره کامل نشد؛ دوباره تلاش کنید';}finally{isSaving=false;saveButton.disabled=false;}});
 button.addEventListener('click',async function(){
  button.disabled=true;status.textContent='در حال دریافت قیمت‌ها…';
  try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست ارسال شد'}
