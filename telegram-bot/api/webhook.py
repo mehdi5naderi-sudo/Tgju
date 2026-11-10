@@ -197,7 +197,7 @@ h3{font-size:var(--font-title,16px);line-height:1.2;margin:0;font-weight:750;let
 .note{font-size:10px;color:var(--tg-theme-hint-color)}
 button{border:0;border-radius:10px;padding:9px 13px;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font:600 12px system-ui,sans-serif;white-space:nowrap}
 button:disabled{opacity:.55}
-#settings{display:none;margin-top:10px;padding:12px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color)}
+#settings{display:none;position:fixed;z-index:1000;left:8px;right:8px;top:52px;max-height:calc(100vh - 64px);overflow-y:auto;margin:0;padding:12px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color);box-shadow:0 8px 28px rgba(0,0,0,.28)}
 .setting{display:grid;grid-template-columns:1fr auto;gap:5px 10px;align-items:center;margin:9px 0}
 .setting label{font-size:12px;color:var(--tg-theme-text-color)}
 .setting output{font-size:11px;color:var(--tg-theme-hint-color);font-variant-numeric:tabular-nums}
