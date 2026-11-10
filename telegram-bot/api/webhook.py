@@ -237,8 +237,15 @@ function render(){
  });
  updated.textContent=data.updated?'به‌روز '+data.updated:'—';applyFonts(data.fonts||{});
 }
-W.onEvent('chatDataChanged',render);render();
-document.getElementById('settingsBtn').addEventListener('click',function(){panel.style.display=panel.style.display==='block'?'none':'block';});
+// Attach the settings control before Telegram bridge initialization so it remains usable
+// even if a bridge event is unavailable in a particular Telegram client.
+document.getElementById('settingsBtn').addEventListener('click',function(){
+ const isOpen=panel.style.display==='block';
+ panel.style.display=isOpen?'none':'block';
+ if(!isOpen) panel.scrollTop=0;
+});
+try{if(W && typeof W.onEvent==='function') W.onEvent('chatDataChanged',render);}catch(e){}
+render();
 const limits={name:[10,20],price:[12,28],change:[9,20],time:[8,18],title:[12,24]};
 async function saveFont(key,value){document.documentElement.style.setProperty('--font-'+key,value+'px');document.getElementById('v-'+key).textContent=value+' px';status.textContent='در حال ذخیره…';try{await W.request('font:'+key+':'+value);status.textContent='ذخیره شد';}catch(e){status.textContent='ذخیره ناموفق بود؛ دوباره بزنید';}}
 document.querySelectorAll('[data-step][data-font]').forEach(function(control){control.addEventListener('click',function(){const key=control.dataset.font;const current=parseInt(document.getElementById('v-'+key).textContent,10)||defaults[key];const value=Math.max(limits[key][0],Math.min(limits[key][1],current+Number(control.dataset.step)));if(value!==current)saveFont(key,value);});});
