@@ -185,10 +185,10 @@ h3{font-size:var(--font-title,16px);line-height:1.35;margin:0;font-weight:750;le
 .stamp{font-size:10px;color:var(--tg-theme-hint-color);white-space:nowrap;background:var(--tg-theme-secondary-bg-color);padding:6px 8px;border-radius:20px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .card{min-width:0;padding:10px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color)}
-.card-top{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:9px}
-.name{font-size:var(--font-name,12px);color:var(--tg-theme-hint-color);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;min-width:0}
+.name{font-size:var(--font-name,12px);color:var(--tg-theme-hint-color);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--tg-theme-button-color);flex:none}
-.price{font-size:var(--font-price,15px);font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.price{font-size:var(--font-price,15px);font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;flex:none;max-width:62%}
 .bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:7px;min-height:16px}
 .change{font-size:var(--font-change,10px);font-weight:700;white-space:nowrap}
 .time{font-size:var(--font-time,9px);color:var(--tg-theme-hint-color);white-space:nowrap}
@@ -230,12 +230,11 @@ function render(){
   const card=document.createElement('div');card.className='card';
   const top=document.createElement('div');top.className='card-top';
   const name=document.createElement('div');name.className='name';name.textContent=item.name;
-  const dot=document.createElement('span');dot.className='dot';top.append(name,dot);
-  const price=document.createElement('div');price.className='price';price.textContent=item.price+(item.unit?' '+item.unit:'');
+  const price=document.createElement('div');price.className='price';price.textContent=item.price+(item.unit?' '+item.unit:'');top.append(name,price);
   const bottom=document.createElement('div');bottom.className='bottom';
   const change=document.createElement('span');change.className='change '+(String(item.change||'').includes('🟢')?'positive':String(item.change||'').includes('🔴')?'negative':'neutral');change.textContent=item.change||'';
   const time=document.createElement('span');time.className='time';time.textContent=item.time||'';
-  bottom.append(change,time);card.append(top,price,bottom);rows.appendChild(card);
+  bottom.append(change,time);card.append(top,bottom);rows.appendChild(card);
  });
  updated.textContent=data.updated?'به‌روز '+data.updated:'—';if(!isSaving)applyFonts(data.fonts||{});
 }
