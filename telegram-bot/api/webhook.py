@@ -142,8 +142,106 @@ def fetch_prices(chat_id):
         lines.append(" ".join(html.escape(part) for part in parts))
     return "\n".join(lines)
 
+
+def fetch_widget_data(chat_id):
+    settings = settings_for(chat_id)
+    url = "https://call1.tgju.org/ajax.json?_=" + str(int(time.time() * 1000))
+    data = api_json(url, headers={"Accept": "application/json", "Cache-Control": "no-cache", "Pragma": "no-cache"})
+    current = data.get("current", {}) if isinstance(data, dict) else {}
+    if not isinstance(current, dict):
+        current = {}
+    rows = []
+    found = 0
+    for slug, label, _unit in TGJU_KEYS:
+        item = current.get(slug)
+        if not isinstance(item, dict) or item.get("p") is None:
+            continue
+        found += 1
+        rows.append({
+            "name": label,
+            "price": format_price(item, slug),
+            "change": format_change(item) if settings["show_change"] else "",
+            "time": format_time(item.get("t")) if settings["show_time"] else "",
+        })
+    if not found:
+        raise RuntimeError("TGJU API returned no indicators")
+    return json.dumps({
+        "rows": rows,
+        "updated": fa_digits(datetime.now(ZoneInfo("Asia/Tehran")).strftime("%H:%M")),
+    }, ensure_ascii=False, separators=(",", ":"))
+
+def widget_html():
+    return """<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;color:var(--tg-theme-text-color);font:14px system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+h3{font-size:16px;margin:0}.muted{color:var(--tg-theme-hint-color);font-size:11px}
+.rows{display:grid;grid-template-columns:1fr auto;gap:0 10px}
+.row{display:contents}.name,.value{padding:7px 0;border-bottom:1px solid var(--tg-theme-section-separator-color)}
+.value{text-align:left;font-weight:650;font-variant-numeric:tabular-nums}
+.meta{font-size:10px;color:var(--tg-theme-hint-color);font-weight:400}
+footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+button{border:0;border-radius:9px;padding:8px 12px;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font:inherit}
+button:disabled{opacity:.55}
+</style></head><body>
+<header><h3>📊 قیمت‌های TGJU</h3><span class="muted" id="updated"></span></header>
+<div class="rows" id="rows"></div>
+<footer><span class="muted" id="status">قیمت‌ها از منبع TGJU</span><button id="refresh">↻ به‌روزرسانی</button></footer>
+<script>
+(function(){
+const W=window.TelegramWidget, rows=document.getElementById('rows'), updated=document.getElementById('updated'), status=document.getElementById('status'), button=document.getElementById('refresh');
+function render(){
+ let data={}; try{data=JSON.parse(W.chatData||'{}')}catch(e){}
+ rows.textContent='';
+ (data.rows||[]).forEach(function(item){
+  const name=document.createElement('div'); name.className='name'; name.textContent=item.name;
+  const value=document.createElement('div'); value.className='value'; value.textContent=item.price;
+  if(item.change||item.time){const meta=document.createElement('div');meta.className='meta';meta.textContent=[item.change,item.time].filter(Boolean).join(' · ');value.appendChild(meta)}
+  rows.appendChild(name);rows.appendChild(value);
+ });
+ updated.textContent=data.updated?'بروزرسانی '+data.updated:'';
+}
+W.onEvent('chatDataChanged',render);render();
+button.addEventListener('click',async function(){
+ button.disabled=true;status.textContent='در حال دریافت...';
+ try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست انجام شد'}
+ catch(e){status.textContent='خطا در دریافت؛ دوباره تلاش کنید'}
+ finally{button.disabled=false}
+});
+})();
+</script></body></html>"""
+
+def send_price_widget(chat_id):
+    state = fetch_widget_data(chat_id)
+    return telegram("sendWidget", {
+        "chat_id": chat_id,
+        "html": widget_html(),
+        "caption": "داشبورد قیمت‌های TGJU • برای دریافت قیمت تازه، به‌روزرسانی را بزنید",
+        "allow_queries": True,
+        "chat_data": state,
+    })
+
+def handle_widget_query(query):
+    query_id = query.get("id")
+    chat = query.get("chat") or {}
+    message_id = query.get("message_id")
+    chat_id = chat.get("id")
+    if query.get("data") != "refresh" or not chat_id or not message_id:
+        telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "درخواست نامعتبر است"})
+        return
+    try:
+        state = fetch_widget_data(chat_id)
+        telegram("editMessageWidgetData", {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "chat_data": state,
+        })
+        telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "قیمت‌ها به‌روز شدند"})
+    except Exception:
+        telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "دریافت قیمت‌ها ناموفق بود؛ دوباره تلاش کنید"})
+
 def price_keyboard():
     return {"inline_keyboard": [
+        [{"text": "📊 داشبورد تعاملی", "callback_data": "open_widget"}],
         [{"text": "↻ بروزرسانی قیمت‌ها", "callback_data": "refresh_prices"}],
     ]}
 
@@ -186,12 +284,20 @@ class handler(BaseHTTPRequestHandler):
             update = json.loads(self.rfile.read(length).decode("utf-8"))
             message = update.get("message") or update.get("edited_message")
             callback = update.get("callback_query")
+            widget_query = update.get("widget_query")
             chat_id = None
-            if callback:
+            if widget_query:
+                handle_widget_query(widget_query)
+            elif callback:
                 chat_id = callback.get("message", {}).get("chat", {}).get("id")
                 telegram("answerCallbackQuery", {"callback_query_id": callback.get("id")})
                 action = callback.get("data", "")
-                if action == "open_settings":
+                if action == "open_widget":
+                    try:
+                        send_price_widget(chat_id)
+                    except Exception:
+                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید یا از /price استفاده کنید.")
+                elif action == "open_settings":
                     show_settings(chat_id)
                 elif action == "toggle_change":
                     settings_for(chat_id)["show_change"] = not settings_for(chat_id)["show_change"]
@@ -209,6 +315,11 @@ class handler(BaseHTTPRequestHandler):
                 command = str(message.get("text", "")).strip().lower()
                 if command in ("/settings", "تنظیمات"):
                     show_settings(chat_id)
+                elif command in ("/widget", "داشبورد"):
+                    try:
+                        send_price_widget(chat_id)
+                    except Exception:
+                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید یا از /price استفاده کنید.")
                 elif command in ("/start", "/price", "/prices", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی"):
                     try:
                         reply(chat_id, fetch_prices(chat_id), price_keyboard())
