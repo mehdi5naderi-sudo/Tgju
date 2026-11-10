@@ -143,7 +143,7 @@ h3{font-size:var(--font-title,20px);line-height:1.35;margin:0;font-weight:750;le
 .price{order:1;font-size:var(--font-price,20px);font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;flex:none;max-width:62%;text-align:left;direction:ltr}
 .bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:7px;min-height:16px}
 .change{font-size:var(--font-change,20px);font-weight:700;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:left}
-.time{font-size:var(--font-time,20px);color:var(--tg-theme-link-color, #2f80ed);font-weight:650;white-space:nowrap}
+.time{font-size:var(--font-time,20px);font-weight:650;white-space:nowrap}
 .positive{color:#16a36a}.negative{color:#e05252}.neutral{color:var(--tg-theme-hint-color)}
 .footer{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:3px 1px 1px}
 .note{display:none}
@@ -184,8 +184,9 @@ function render(){
   const name=document.createElement('div');name.className='name';name.textContent=item.name;
   const price=document.createElement('div');price.className='price';price.textContent=item.price+(item.unit?' '+item.unit:'');top.append(name,price);
   const bottom=document.createElement('div');bottom.className='bottom';
-  const change=document.createElement('span');change.className='change '+(String(item.change||'').includes('🟢')?'positive':String(item.change||'').includes('🔴')?'negative':'neutral');change.textContent=item.change||'';
-  const time=document.createElement('span');time.className='time';time.textContent=item.time||'';
+  const tone=String(item.change||'').includes('🟢')?'positive':String(item.change||'').includes('🔴')?'negative':'neutral';
+  const change=document.createElement('span');change.className='change '+tone;change.textContent=item.change||'';
+  const time=document.createElement('span');time.className='time '+tone;time.textContent=item.time||'';
   bottom.append(change,time);card.append(top,bottom);rows.appendChild(card);
  });
  updated.textContent=data.updated?'به‌روز '+data.updated:'—';if(!isSaving)applyFonts(data.fonts||{});
