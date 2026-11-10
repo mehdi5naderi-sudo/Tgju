@@ -26,7 +26,7 @@ TGJU_KEYS = [
 CHAT_SETTINGS = {}
 
 def settings_for(chat_id):
-    return CHAT_SETTINGS.setdefault(str(chat_id), {"show_change": True, "show_time": True})
+    return CHAT_SETTINGS.setdefault(str(chat_id), {"show_change": True, "show_time": True, "fonts": {"name": 12, "price": 15, "change": 10, "time": 9, "title": 16}})
 
 def api_json(url, payload=None, headers=None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -168,6 +168,7 @@ def fetch_widget_data(chat_id):
         raise RuntimeError("TGJU API returned no indicators")
     return json.dumps({
         "rows": rows,
+        "fonts": settings.get("fonts", {}),
         "updated": fa_digits(datetime.now(ZoneInfo("Asia/Tehran")).strftime("%H:%M")),
     }, ensure_ascii=False, separators=(",", ":"))
 
@@ -179,31 +180,47 @@ body{margin:0;padding:2px;color:var(--tg-theme-text-color);background:var(--tg-t
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 2px 12px}
 .brand{display:flex;align-items:center;gap:9px;min-width:0}
 .logo{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--tg-theme-secondary-bg-color);font-size:19px}
-h3{font-size:16px;line-height:1.2;margin:0;font-weight:750;letter-spacing:-.2px}
+h3{font-size:var(--font-title,16px);line-height:1.2;margin:0;font-weight:750;letter-spacing:-.2px}
 .subtitle{font-size:10px;color:var(--tg-theme-hint-color);margin-top:3px}
 .stamp{font-size:10px;color:var(--tg-theme-hint-color);white-space:nowrap;background:var(--tg-theme-secondary-bg-color);padding:6px 8px;border-radius:20px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .card{min-width:0;padding:10px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color)}
 .card-top{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:9px}
-.name{font-size:12px;color:var(--tg-theme-hint-color);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.name{font-size:var(--font-name,12px);color:var(--tg-theme-hint-color);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--tg-theme-button-color);flex:none}
-.price{font-size:15px;font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.price{font-size:var(--font-price,15px);font-weight:800;line-height:1.25;letter-spacing:-.35px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 .bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:7px;min-height:16px}
-.change{font-size:10px;font-weight:700;white-space:nowrap}
-.time{font-size:9px;color:var(--tg-theme-hint-color);white-space:nowrap}
+.change{font-size:var(--font-change,10px);font-weight:700;white-space:nowrap}
+.time{font-size:var(--font-time,9px);color:var(--tg-theme-hint-color);white-space:nowrap}
 .positive{color:#16a36a}.negative{color:#e05252}.neutral{color:var(--tg-theme-hint-color)}
 .footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:3px 1px 1px}
 .note{font-size:10px;color:var(--tg-theme-hint-color)}
 button{border:0;border-radius:10px;padding:9px 13px;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font:600 12px system-ui,sans-serif;white-space:nowrap}
 button:disabled{opacity:.55}
+#settings{display:none;margin-top:10px;padding:12px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color)}
+.setting{display:grid;grid-template-columns:1fr auto;gap:5px 10px;align-items:center;margin:9px 0}
+.setting label{font-size:12px;color:var(--tg-theme-text-color)}
+.setting output{font-size:11px;color:var(--tg-theme-hint-color);font-variant-numeric:tabular-nums}
+.setting input{grid-column:1/3;width:100%;accent-color:var(--tg-theme-button-color);margin:0}
+.settings-head{font-size:13px;font-weight:700;margin-bottom:8px}
 @media(max-width:310px){.grid{grid-template-columns:1fr}.price{font-size:16px}}
 </style></head><body>
 <div class="top"><div class="brand"><div class="logo">📈</div><div><h3>بازارهای مالی</h3><div class="subtitle">قیمت لحظه‌ای از TGJU</div></div></div><div class="stamp" id="updated">--:--</div></div>
 <div class="grid" id="rows"></div>
-<div class="footer"><span class="note" id="status">آخرین داده دریافتی</span><button id="refresh">↻ تازه‌سازی</button></div>
+<div id="settings"><div class="settings-head">⚙️ تنظیم اندازه نوشته‌ها</div>
+<div class="setting"><label for="f-name">نام شاخص‌ها</label><output id="v-name"></output><input id="f-name" type="range" min="10" max="20" step="1" data-font="name"></div>
+<div class="setting"><label for="f-price">قیمت‌ها</label><output id="v-price"></output><input id="f-price" type="range" min="12" max="28" step="1" data-font="price"></div>
+<div class="setting"><label for="f-change">درصد تغییرات</label><output id="v-change"></output><input id="f-change" type="range" min="9" max="20" step="1" data-font="change"></div>
+<div class="setting"><label for="f-time">زمان</label><output id="v-time"></output><input id="f-time" type="range" min="8" max="18" step="1" data-font="time"></div>
+<div class="setting"><label for="f-title">عنوان داشبورد</label><output id="v-title"></output><input id="f-title" type="range" min="12" max="24" step="1" data-font="title"></div>
+<button id="reset" type="button">بازگشت به اندازه پیش‌فرض</button>
+</div>
+<div class="footer"><span class="note" id="status">آخرین داده دریافتی</span><div style="display:flex;gap:6px"><button id="settingsBtn" type="button">⚙️ تنظیمات</button><button id="refresh">↻ تازه‌سازی</button></div></div>
 <script>
 (function(){
-const W=window.TelegramWidget, rows=document.getElementById('rows'), updated=document.getElementById('updated'), status=document.getElementById('status'), button=document.getElementById('refresh');
+const W=window.TelegramWidget, rows=document.getElementById('rows'), updated=document.getElementById('updated'), status=document.getElementById('status'), button=document.getElementById('refresh'), panel=document.getElementById('settings');
+const defaults={name:12,price:15,change:10,time:9,title:16};
+function applyFonts(fonts){Object.keys(defaults).forEach(function(key){const value=Number((fonts||{})[key])||defaults[key];document.documentElement.style.setProperty('--font-'+key,value+'px');const input=document.getElementById('f-'+key);input.value=value;document.getElementById('v-'+key).textContent=value+' px';});}
 function render(){
  let data={}; try{data=JSON.parse(W.chatData||'{}')}catch(e){}
  rows.textContent='';
@@ -218,9 +235,15 @@ function render(){
   const time=document.createElement('span');time.className='time';time.textContent=item.time||'';
   bottom.append(change,time);card.append(top,price,bottom);rows.appendChild(card);
  });
- updated.textContent=data.updated?'به‌روز '+data.updated:'—';
+ updated.textContent=data.updated?'به‌روز '+data.updated:'—';applyFonts(data.fonts||{});
 }
 W.onEvent('chatDataChanged',render);render();
+document.getElementById('settingsBtn').addEventListener('click',function(){panel.style.display=panel.style.display==='block'?'none':'block';});
+document.querySelectorAll('[data-font]').forEach(function(input){
+ input.addEventListener('input',function(){const key=input.dataset.font;document.documentElement.style.setProperty('--font-'+key,input.value+'px');document.getElementById('v-'+key).textContent=input.value+' px';});
+ input.addEventListener('change',async function(){const key=input.dataset.font;status.textContent='در حال ذخیره تنظیمات…';try{await W.request('font:'+key+':'+input.value);status.textContent='اندازه فونت ذخیره شد';}catch(e){status.textContent='ذخیره انجام نشد؛ دوباره تلاش کنید';}});
+});
+document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){const input=document.getElementById('f-'+key);input.value=defaults[key];input.dispatchEvent(new Event('input'));input.dispatchEvent(new Event('change'));});});
 button.addEventListener('click',async function(){
  button.disabled=true;status.textContent='در حال دریافت قیمت‌ها…';
  try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست ارسال شد'}
@@ -245,7 +268,28 @@ def handle_widget_query(query):
     chat = query.get("chat") or {}
     message_id = query.get("message_id")
     chat_id = chat.get("id")
-    if query.get("data") != "refresh" or not chat_id or not message_id:
+    if not chat_id or not message_id:
+        telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "درخواست نامعتبر است"})
+        return
+    request_data = str(query.get("data", ""))
+    if request_data.startswith("font:"):
+        parts = request_data.split(":")
+        limits = {"name": (10, 20), "price": (12, 28), "change": (9, 20), "time": (8, 18), "title": (12, 24)}
+        if len(parts) == 3 and parts[1] in limits:
+            try:
+                value = int(parts[2])
+                low, high = limits[parts[1]]
+                if low <= value <= high:
+                    settings_for(chat_id)["fonts"][parts[1]] = value
+                else:
+                    raise ValueError("font out of range")
+            except ValueError:
+                telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "اندازه فونت نامعتبر است"})
+                return
+        else:
+            telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "تنظیم نامعتبر است"})
+            return
+    elif request_data != "refresh":
         telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "درخواست نامعتبر است"})
         return
     try:
