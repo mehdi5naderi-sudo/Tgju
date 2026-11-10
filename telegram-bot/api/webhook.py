@@ -202,7 +202,7 @@ button:disabled{opacity:.55}
 .setting label{font-size:12px;color:var(--tg-theme-text-color)}
 .setting output{font-size:11px;color:var(--tg-theme-hint-color);font-variant-numeric:tabular-nums}
 .font-control{display:flex;align-items:center;gap:10px}.font-control button{min-width:36px;padding:7px 10px;font-size:17px}.font-control output{min-width:48px;text-align:center}
-.settings-head{font-size:13px;font-weight:700;margin-bottom:8px}
+.settings-head{font-size:13px;font-weight:700;margin-bottom:8px}.settings-actions{display:flex;gap:8px;margin-top:12px}.settings-actions button{flex:1}
 @media(max-width:310px){.grid{grid-template-columns:1fr}.price{font-size:16px}}
 </style></head><body>
 <div class="top"><div class="brand"><div class="logo">📈</div><div><h3>بازارهای مالی</h3><div class="subtitle">قیمت لحظه‌ای از TGJU</div></div></div><div class="stamp" id="updated">--:--</div></div>
@@ -213,14 +213,16 @@ button:disabled{opacity:.55}
 <div class="setting"><label>درصد تغییرات</label><div class="font-control"><button type="button" data-step="-1" data-font="change">−</button><output id="v-change"></output><button type="button" data-step="1" data-font="change">+</button></div></div>
 <div class="setting"><label>زمان</label><div class="font-control"><button type="button" data-step="-1" data-font="time">−</button><output id="v-time"></output><button type="button" data-step="1" data-font="time">+</button></div></div>
 <div class="setting"><label>عنوان داشبورد</label><div class="font-control"><button type="button" data-step="-1" data-font="title">−</button><output id="v-title"></output><button type="button" data-step="1" data-font="title">+</button></div></div>
-<button id="reset" type="button">بازگشت به اندازه پیش‌فرض</button>
+<div class="settings-actions"><button id="saveFonts" type="button">ذخیره تنظیمات</button><button id="reset" type="button">پیش‌فرض</button></div>
 </div>
 <div class="footer"><span class="note" id="status">آخرین داده دریافتی</span><div style="display:flex;gap:6px"><button id="settingsBtn" type="button">⚙️ تنظیمات</button><button id="refresh">↻ تازه‌سازی</button></div></div>
 <script>
 (function(){
 const W=window.TelegramWidget, rows=document.getElementById('rows'), updated=document.getElementById('updated'), status=document.getElementById('status'), button=document.getElementById('refresh'), panel=document.getElementById('settings');
 const defaults={name:12,price:15,change:10,time:9,title:16};
-function applyFonts(fonts){Object.keys(defaults).forEach(function(key){const value=Number((fonts||{})[key])||defaults[key];document.documentElement.style.setProperty('--font-'+key,value+'px');const input=document.getElementById('f-'+key);input.value=value;document.getElementById('v-'+key).textContent=value+' px';});}
+let draftFonts={...defaults},isSaving=false;
+function applyFonts(fonts){Object.keys(defaults).forEach(function(key){const value=Number((fonts||{})[key])||defaults[key];draftFonts[key]=value;document.documentElement.style.setProperty('--font-'+key,value+'px');document.getElementById('v-'+key).textContent=value+' px';});}
+function setFont(key,value){draftFonts[key]=value;document.documentElement.style.setProperty('--font-'+key,value+'px');document.getElementById('v-'+key).textContent=value+' px';status.textContent='تغییرات ذخیره‌نشده است';}
 function render(){
  let data={}; try{data=JSON.parse(W.chatData||'{}')}catch(e){}
  rows.textContent='';
@@ -235,7 +237,7 @@ function render(){
   const time=document.createElement('span');time.className='time';time.textContent=item.time||'';
   bottom.append(change,time);card.append(top,price,bottom);rows.appendChild(card);
  });
- updated.textContent=data.updated?'به‌روز '+data.updated:'—';applyFonts(data.fonts||{});
+ updated.textContent=data.updated?'به‌روز '+data.updated:'—';if(!isSaving)applyFonts(data.fonts||{});
 }
 // Attach the settings control before Telegram bridge initialization so it remains usable
 // even if a bridge event is unavailable in a particular Telegram client.
@@ -247,9 +249,9 @@ document.getElementById('settingsBtn').addEventListener('click',function(){
 try{if(W && typeof W.onEvent==='function') W.onEvent('chatDataChanged',render);}catch(e){}
 render();
 const limits={name:[10,20],price:[12,28],change:[9,20],time:[8,18],title:[12,24]};
-async function saveFont(key,value){document.documentElement.style.setProperty('--font-'+key,value+'px');document.getElementById('v-'+key).textContent=value+' px';status.textContent='در حال ذخیره…';try{await W.request('font:'+key+':'+value);status.textContent='ذخیره شد';}catch(e){status.textContent='ذخیره ناموفق بود؛ دوباره بزنید';}}
-document.querySelectorAll('[data-step][data-font]').forEach(function(control){control.addEventListener('click',function(){const key=control.dataset.font;const current=parseInt(document.getElementById('v-'+key).textContent,10)||defaults[key];const value=Math.max(limits[key][0],Math.min(limits[key][1],current+Number(control.dataset.step)));if(value!==current)saveFont(key,value);});});
-document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){saveFont(key,defaults[key]);});});
+document.querySelectorAll('[data-step][data-font]').forEach(function(control){control.addEventListener('click',function(){const key=control.dataset.font;const current=draftFonts[key]||defaults[key];const value=Math.max(limits[key][0],Math.min(limits[key][1],current+Number(control.dataset.step)));if(value!==current)setFont(key,value);});});
+document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){setFont(key,defaults[key]);});});
+document.getElementById('saveFonts').addEventListener('click',async function(){const saveButton=this;saveButton.disabled=true;isSaving=true;status.textContent='در حال ذخیره تنظیمات…';try{for(const key of Object.keys(defaults)){await W.request('font:'+key+':'+draftFonts[key]);}status.textContent='تنظیمات با موفقیت ذخیره شد';}catch(e){status.textContent='ذخیره کامل نشد؛ دوباره تلاش کنید';}finally{isSaving=false;saveButton.disabled=false;}});
 button.addEventListener('click',async function(){
  button.disabled=true;status.textContent='در حال دریافت قیمت‌ها…';
  try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست ارسال شد'}
