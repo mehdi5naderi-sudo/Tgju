@@ -201,18 +201,18 @@ button:disabled{opacity:.55}
 .setting{display:grid;grid-template-columns:1fr auto;gap:5px 10px;align-items:center;margin:9px 0}
 .setting label{font-size:12px;color:var(--tg-theme-text-color)}
 .setting output{font-size:11px;color:var(--tg-theme-hint-color);font-variant-numeric:tabular-nums}
-.setting input{grid-column:1/3;width:100%;accent-color:var(--tg-theme-button-color);margin:0}
+.font-control{display:flex;align-items:center;gap:10px}.font-control button{min-width:36px;padding:7px 10px;font-size:17px}.font-control output{min-width:48px;text-align:center}
 .settings-head{font-size:13px;font-weight:700;margin-bottom:8px}
 @media(max-width:310px){.grid{grid-template-columns:1fr}.price{font-size:16px}}
 </style></head><body>
 <div class="top"><div class="brand"><div class="logo">📈</div><div><h3>بازارهای مالی</h3><div class="subtitle">قیمت لحظه‌ای از TGJU</div></div></div><div class="stamp" id="updated">--:--</div></div>
 <div class="grid" id="rows"></div>
 <div id="settings"><div class="settings-head">⚙️ تنظیم اندازه نوشته‌ها</div>
-<div class="setting"><label for="f-name">نام شاخص‌ها</label><output id="v-name"></output><input id="f-name" type="range" min="10" max="20" step="1" data-font="name"></div>
-<div class="setting"><label for="f-price">قیمت‌ها</label><output id="v-price"></output><input id="f-price" type="range" min="12" max="28" step="1" data-font="price"></div>
-<div class="setting"><label for="f-change">درصد تغییرات</label><output id="v-change"></output><input id="f-change" type="range" min="9" max="20" step="1" data-font="change"></div>
-<div class="setting"><label for="f-time">زمان</label><output id="v-time"></output><input id="f-time" type="range" min="8" max="18" step="1" data-font="time"></div>
-<div class="setting"><label for="f-title">عنوان داشبورد</label><output id="v-title"></output><input id="f-title" type="range" min="12" max="24" step="1" data-font="title"></div>
+<div class="setting"><label>نام شاخص‌ها</label><div class="font-control"><button type="button" data-step="-1" data-font="name">−</button><output id="v-name"></output><button type="button" data-step="1" data-font="name">+</button></div></div>
+<div class="setting"><label>قیمت‌ها</label><div class="font-control"><button type="button" data-step="-1" data-font="price">−</button><output id="v-price"></output><button type="button" data-step="1" data-font="price">+</button></div></div>
+<div class="setting"><label>درصد تغییرات</label><div class="font-control"><button type="button" data-step="-1" data-font="change">−</button><output id="v-change"></output><button type="button" data-step="1" data-font="change">+</button></div></div>
+<div class="setting"><label>زمان</label><div class="font-control"><button type="button" data-step="-1" data-font="time">−</button><output id="v-time"></output><button type="button" data-step="1" data-font="time">+</button></div></div>
+<div class="setting"><label>عنوان داشبورد</label><div class="font-control"><button type="button" data-step="-1" data-font="title">−</button><output id="v-title"></output><button type="button" data-step="1" data-font="title">+</button></div></div>
 <button id="reset" type="button">بازگشت به اندازه پیش‌فرض</button>
 </div>
 <div class="footer"><span class="note" id="status">آخرین داده دریافتی</span><div style="display:flex;gap:6px"><button id="settingsBtn" type="button">⚙️ تنظیمات</button><button id="refresh">↻ تازه‌سازی</button></div></div>
@@ -239,11 +239,10 @@ function render(){
 }
 W.onEvent('chatDataChanged',render);render();
 document.getElementById('settingsBtn').addEventListener('click',function(){panel.style.display=panel.style.display==='block'?'none':'block';});
-document.querySelectorAll('[data-font]').forEach(function(input){
- input.addEventListener('input',function(){const key=input.dataset.font;document.documentElement.style.setProperty('--font-'+key,input.value+'px');document.getElementById('v-'+key).textContent=input.value+' px';});
- input.addEventListener('change',async function(){const key=input.dataset.font;status.textContent='در حال ذخیره تنظیمات…';try{await W.request('font:'+key+':'+input.value);status.textContent='اندازه فونت ذخیره شد';}catch(e){status.textContent='ذخیره انجام نشد؛ دوباره تلاش کنید';}});
-});
-document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){const input=document.getElementById('f-'+key);input.value=defaults[key];input.dispatchEvent(new Event('input'));input.dispatchEvent(new Event('change'));});});
+const limits={name:[10,20],price:[12,28],change:[9,20],time:[8,18],title:[12,24]};
+async function saveFont(key,value){document.documentElement.style.setProperty('--font-'+key,value+'px');document.getElementById('v-'+key).textContent=value+' px';status.textContent='در حال ذخیره…';try{await W.request('font:'+key+':'+value);status.textContent='ذخیره شد';}catch(e){status.textContent='ذخیره ناموفق بود؛ دوباره بزنید';}}
+document.querySelectorAll('[data-step][data-font]').forEach(function(control){control.addEventListener('click',function(){const key=control.dataset.font;const current=parseInt(document.getElementById('v-'+key).textContent,10)||defaults[key];const value=Math.max(limits[key][0],Math.min(limits[key][1],current+Number(control.dataset.step)));if(value!==current)saveFont(key,value);});});
+document.getElementById('reset').addEventListener('click',function(){Object.keys(defaults).forEach(function(key){saveFont(key,defaults[key]);});});
 button.addEventListener('click',async function(){
  button.disabled=true;status.textContent='در حال دریافت قیمت‌ها…';
  try{const answer=await W.request('refresh');status.textContent=answer.result||'درخواست ارسال شد'}
