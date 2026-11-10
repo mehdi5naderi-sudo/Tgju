@@ -96,54 +96,6 @@ def format_time(value):
     # If the source includes HH:MM:SS, omit seconds.
     return fa_digits(re.sub(r"(\d{1,2}:\d{2}):\d{2}", r"\1", text))
 
-def fetch_prices(chat_id):
-    settings = settings_for(chat_id)
-    # Use the same first-party feed as the Android widget and PWA.
-    # The timestamp query helps avoid a stale shared CDN response.
-    url = "https://call1.tgju.org/ajax.json?_= " + str(int(time.time() * 1000))
-    url = url.replace("?_= ", "?_=")
-    data = api_json(url, headers={"Accept": "application/json", "Cache-Control": "no-cache", "Pragma": "no-cache"})
-    current = data.get("current", {}) if isinstance(data, dict) else {}
-    if not isinstance(current, dict):
-        current = {}
-
-    rows = []
-    found = 0
-    for slug, label, _unit in TGJU_KEYS:
-        item = current.get(slug)
-        if not isinstance(item, dict) or item.get("p") is None:
-            rows.append({"name": label, "price": "—", "change": "", "time": ""})
-            continue
-        found += 1
-        rows.append({
-            "name": label,
-            "unit": _unit,
-            "price": format_price(item, slug),
-            "change": format_change(item) if settings["show_change"] else "",
-            "time": format_time(item.get("t")) if settings["show_time"] else "",
-        })
-    if not found:
-        raise RuntimeError("TGJU API returned no indicators")
-
-    # Restore the previous spacing style, with time and change first.
-    price_width = max(len("قیمت"), max(len(row["price"]) for row in rows))
-    change_width = max([len("تغییر")] + [len(row["change"]) for row in rows]) if settings["show_change"] else 0
-    time_width = max([len("زمان")] + [len(row["time"]) for row in rows]) if settings["show_time"] else 0
-    lines = ["<b>📊 قیمت بازار TGJU</b>"]
-    for row in rows:
-        parts = []
-        if settings["show_time"]:
-            parts.append(row["time"].rjust(time_width))
-        if settings["show_change"]:
-            parts.append(row["change"].rjust(change_width))
-        parts.extend([
-            row["name"],
-            row["price"],
-        ])
-        lines.append(" ".join(html.escape(part) for part in parts))
-    return "\n".join(lines)
-
-
 def fetch_widget_data(chat_id):
     settings = settings_for(chat_id)
     url = "https://call1.tgju.org/ajax.json?_=" + str(int(time.time() * 1000))
@@ -193,8 +145,8 @@ h3{font-size:var(--font-title,20px);line-height:1.35;margin:0;font-weight:750;le
 .change{font-size:var(--font-change,20px);font-weight:700;white-space:nowrap}
 .time{font-size:var(--font-time,20px);color:var(--tg-theme-hint-color);white-space:nowrap}
 .positive{color:#16a36a}.negative{color:#e05252}.neutral{color:var(--tg-theme-hint-color)}
-.footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:3px 1px 1px}
-.note{font-size:10px;color:var(--tg-theme-hint-color)}
+.footer{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:3px 1px 1px}
+.note{display:none}
 button{border:0;border-radius:10px;padding:9px 13px;background:var(--tg-theme-button-color);color:var(--tg-theme-button-text-color);font:600 12px system-ui,sans-serif;white-space:nowrap}
 button:disabled{opacity:.55}
 #settings{display:none;position:fixed;z-index:1000;left:8px;right:8px;top:52px;max-height:calc(100vh - 64px);overflow-y:auto;margin:0;padding:12px;border:1px solid var(--tg-theme-section-separator-color);border-radius:13px;background:var(--tg-theme-secondary-bg-color);box-shadow:0 8px 28px rgba(0,0,0,.28)}
@@ -215,7 +167,7 @@ button:disabled{opacity:.55}
 <div class="setting"><label>عنوان داشبورد</label><div class="font-control"><button type="button" data-step="-1" data-font="title">−</button><output id="v-title"></output><button type="button" data-step="1" data-font="title">+</button></div></div>
 <div class="settings-actions"><button id="saveFonts" type="button">ذخیره تنظیمات</button><button id="reset" type="button">پیش‌فرض</button></div>
 </div>
-<div class="footer"><span class="note" id="status">آخرین داده دریافتی</span><div style="display:flex;gap:6px"><button id="settingsBtn" type="button">⚙️ تنظیمات</button><button id="refresh">↻ تازه‌سازی</button></div></div>
+<div class="footer"><div style="display:flex;justify-content:center;align-items:center;gap:8px;width:100%"><button id="settingsBtn" type="button">⚙️ تنظیمات</button><button id="refresh">↻ بروزرسانی</button></div><span class="note" id="status">آخرین داده دریافتی</span></div>
 <script>
 (function(){
 const W=window.TelegramWidget, rows=document.getElementById('rows'), updated=document.getElementById('updated'), status=document.getElementById('status'), button=document.getElementById('refresh'), panel=document.getElementById('settings');
@@ -259,6 +211,15 @@ button.addEventListener('click',async function(){
 });
 })();
 </script></body></html>"""
+
+def hide_reply_keyboard(chat_id):
+    # Telegram removes a persistent reply keyboard after receiving this service message.
+    return telegram("sendMessage", {
+        "chat_id": chat_id,
+        "text": "\\u2063",
+        "reply_markup": {"remove_keyboard": True},
+    })
+
 
 def send_price_widget(chat_id):
     state = fetch_widget_data(chat_id)
@@ -323,36 +284,11 @@ def handle_widget_query(query):
     except Exception:
         telegram("answerWidgetQuery", {"widget_query_id": query_id, "data": "دریافت قیمت‌ها ناموفق بود؛ دوباره تلاش کنید"})
 
-def price_keyboard():
-    return {"inline_keyboard": [
-        [{"text": "📊 داشبورد تعاملی", "callback_data": "open_widget"}],
-        [{"text": "↻ بروزرسانی قیمت‌ها", "callback_data": "refresh_prices"}],
-    ]}
-
-def settings_keyboard(chat_id):
-    settings = settings_for(chat_id)
-    change_label = ("✅ " if settings["show_change"] else "☐ ") + "نمایش تغییر"
-    time_label = ("✅ " if settings["show_time"] else "☐ ") + "نمایش زمان بروزرسانی"
-    return {"inline_keyboard": [
-        [{"text": change_label, "callback_data": "toggle_change"}],
-        [{"text": time_label, "callback_data": "toggle_time"}],
-        [{"text": "↩️ بازگشت به قیمت‌ها", "callback_data": "back_prices"}],
-    ]}
-
 def reply(chat_id, text, markup=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
     if markup:
         payload["reply_markup"] = markup
     return telegram("sendMessage", payload)
-
-def show_settings(chat_id):
-    settings = settings_for(chat_id)
-    text = (
-        "<b>⚙️ تنظیمات نمایش</b>\n"
-        f"تغییر: {'روشن' if settings['show_change'] else 'خاموش'}\n"
-        f"زمان بروزرسانی: {'روشن' if settings['show_time'] else 'خاموش'}"
-    )
-    return reply(chat_id, text, settings_keyboard(chat_id))
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -373,44 +309,23 @@ class handler(BaseHTTPRequestHandler):
             if widget_query:
                 handle_widget_query(widget_query)
             elif callback:
-                chat_id = callback.get("message", {}).get("chat", {}).get("id")
+                # Old inline-keyboard actions are no longer part of the dashboard flow.
                 telegram("answerCallbackQuery", {"callback_query_id": callback.get("id")})
-                action = callback.get("data", "")
-                if action == "open_widget":
-                    try:
-                        send_price_widget(chat_id)
-                    except Exception:
-                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید یا از /price استفاده کنید.")
-                elif action == "open_settings":
-                    show_settings(chat_id)
-                elif action == "toggle_change":
-                    settings_for(chat_id)["show_change"] = not settings_for(chat_id)["show_change"]
-                    show_settings(chat_id)
-                elif action == "toggle_time":
-                    settings_for(chat_id)["show_time"] = not settings_for(chat_id)["show_time"]
-                    show_settings(chat_id)
-                elif action in ("refresh_prices", "back_prices"):
-                    try:
-                        reply(chat_id, fetch_prices(chat_id), price_keyboard())
-                    except Exception:
-                        reply(chat_id, "⚠️ دریافت قیمت‌ها از TGJU ناموفق بود. کمی بعد دوباره تلاش کنید.")
             elif message:
                 chat_id = message.get("chat", {}).get("id")
                 command = str(message.get("text", "")).strip().lower()
-                if command in ("/settings", "تنظیمات"):
-                    show_settings(chat_id)
-                elif command in ("/widget", "داشبورد"):
+                if command in ("/start", "/price", "/prices", "/widget", "/settings", "تنظیمات", "داشبورد", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی"):
                     try:
+                        hide_reply_keyboard(chat_id)
                         send_price_widget(chat_id)
                     except Exception:
-                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید یا از /price استفاده کنید.")
-                elif command in ("/start", "/price", "/prices", "قیمت", "قیمت‌ها", "قیمت ها", "بروزرسانی"):
-                    try:
-                        reply(chat_id, fetch_prices(chat_id), price_keyboard())
-                    except Exception:
-                        reply(chat_id, "⚠️ دریافت قیمت‌ها از TGJU ناموفق بود. کمی بعد دوباره تلاش کنید.")
+                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید.")
                 else:
-                    reply(chat_id, "برای قیمت‌ها /price و برای تنظیمات /settings را بفرستید.")
+                    try:
+                        hide_reply_keyboard(chat_id)
+                        send_price_widget(chat_id)
+                    except Exception:
+                        reply(chat_id, "⚠️ ارسال داشبورد تعاملی ممکن نشد. لطفاً تلگرام را به‌روز کنید.")
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"ok")
