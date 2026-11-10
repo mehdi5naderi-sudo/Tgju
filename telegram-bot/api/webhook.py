@@ -258,7 +258,6 @@ def send_price_widget(chat_id):
     return telegram("sendWidget", {
         "chat_id": chat_id,
         "html": widget_html(),
-        "caption": "داشبورد قیمت‌های TGJU • برای دریافت قیمت تازه، به‌روزرسانی را بزنید",
         "allow_queries": True,
         "chat_data": state,
     })
