@@ -182,9 +182,9 @@ function render(){
   const card=document.createElement('div');card.className='card';
   const top=document.createElement('div');top.className='card-top';
   const name=document.createElement('div');name.className='name';name.textContent=item.name;
-  const price=document.createElement('div');price.className='price';price.textContent=item.price+(item.unit?' '+item.unit:'');top.append(name,price);
-  const bottom=document.createElement('div');bottom.className='bottom';
   const tone=String(item.change||'').includes('🟢')?'positive':String(item.change||'').includes('🔴')?'negative':'neutral';
+  const price=document.createElement('div');price.className='price '+tone;price.textContent=item.price+(item.unit?' '+item.unit:'');top.append(name,price);
+  const bottom=document.createElement('div');bottom.className='bottom';
   const change=document.createElement('span');change.className='change '+tone;change.textContent=item.change||'';
   const time=document.createElement('span');time.className='time '+tone;time.textContent=item.time||'';
   bottom.append(change,time);card.append(top,bottom);rows.appendChild(card);
