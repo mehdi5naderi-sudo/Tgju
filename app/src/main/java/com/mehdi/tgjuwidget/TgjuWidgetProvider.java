@@ -44,6 +44,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     private static final int[] TIME_IDS = {R.id.time1,R.id.time2,R.id.time3,R.id.time4,R.id.time5,R.id.time6,R.id.time7,R.id.time8,R.id.time9};
     private static final int[] META_IDS = {R.id.meta1,R.id.meta2,R.id.meta3,R.id.meta4,R.id.meta5,R.id.meta6,R.id.meta7,R.id.meta8,R.id.meta9};
     private static final int[] ROW_IDS = {R.id.row1,R.id.row2,R.id.row3,R.id.row4,R.id.row5,R.id.row6,R.id.row7,R.id.row8,R.id.row9};
+    private static final int REFRESH_PROGRESS_ID = R.id.refreshProgress;
     private static final int GREEN=Color.rgb(85,200,120), RED=Color.rgb(239,102,102), YELLOW=Color.rgb(229,192,74);
 
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids){
@@ -132,6 +133,18 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
 
     private void refresh(Context c,int[] ids){
         if(ids==null||ids.length==0)return;
+        // Show an immediate, unmistakable loading state before the network request starts.
+        AppWidgetManager manager=AppWidgetManager.getInstance(c);
+        for(int id:ids){
+            RemoteViews loading=buildViews(c,id);
+            android.content.SharedPreferences prefs=c.getSharedPreferences("widget_"+id,Context.MODE_PRIVATE);
+            boolean en="en".equals(prefs.getString("lang","fa"));
+            loading.setViewVisibility(REFRESH_PROGRESS_ID,View.VISIBLE);
+            loading.setTextViewText(R.id.requestTime,en?"⟳ Refreshing...":"⟳ در حال بروزرسانی...");
+            loading.setTextColor(R.id.requestTime,Color.rgb(77,208,225));
+            loading.setTextViewTextSize(R.id.requestTime,2,8);
+            manager.updateAppWidget(id,loading);
+        }
         new Thread(()->{
             android.content.SharedPreferences p=c.getSharedPreferences("widget_"+ids[0],Context.MODE_PRIVATE);
             String[] keys=new String[SLOT_COUNT];
@@ -227,8 +240,10 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(PCT_IDS[i],digits(pct,en)); v.setTextColor(PCT_IDS[i],timeTextColor);
             v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],timeTextColor);
         }
-        v.setTextViewText(R.id.requestTime,digits(request,en));
+        v.setViewVisibility(REFRESH_PROGRESS_ID,View.GONE);
+        v.setTextViewText(R.id.requestTime,ok?digits(request,en):(en?"Update failed":"خطا در بروزرسانی"));
         v.setTextColor(R.id.requestTime,ok?p.getInt("mutedColor",Color.LTGRAY):RED);
+        v.setTextViewTextSize(R.id.requestTime,2,ok?p.getInt("refreshSize",7):8);
         setListItems(c,v,id,d);
         m.updateAppWidget(id,v);
     }
