@@ -126,6 +126,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         Intent s=new Intent(c,WidgetSettingsActivity.class).setAction("com.mehdi.tgjuwidget.SETTINGS").setData(Uri.parse("tgju://settings/"+id)).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id);
         PendingIntent sp=PendingIntent.getActivity(c,id+10000,s,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         v.setOnClickPendingIntent(R.id.settingsButton,sp);
+        // The bottom timestamp opens settings; it must not inherit the root refresh action.
+        v.setOnClickPendingIntent(R.id.requestTime,sp);
         v.setTextViewText(R.id.settingsButton,"⚙");
         setListItems(c,v,id,null);
         return v;
