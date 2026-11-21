@@ -68,6 +68,8 @@ const catalog=[
  {key:'sekee',name:'سکه امامی',unit:'تومان',rial:true,maxAge:30},
  {key:'ime_fund_kahroba',name:'کهربا',unit:'تومان',rial:true,maxAge:1440},
  {key:'ime_fund_ayar',name:'عیار',unit:'تومان',rial:true,maxAge:1440},
+ {key:'ime_fund_kahroba_tsetmc',name:'کهربا (TSETMC)',unit:'تومان',rial:true,maxAge:30},
+ {key:'ime_fund_ayar_tsetmc',name:'عیار (TSETMC)',unit:'تومان',rial:true,maxAge:30},
  {key:'ons',name:'انس',unit:'USD',rial:false,maxAge:720,decimals:2},
  {key:'oil_brent',name:'نفت برنت',unit:'USD',rial:false,maxAge:720,decimals:2},
  {key:'gc30',name:'بورس',unit:'',rial:false,maxAge:720},
@@ -126,7 +128,8 @@ function render(current){
  box.innerHTML=catalog.map(definition=>{
   const item=current[definition.key];
   if(!item||item.p===undefined){
-   return '<div class="row"><div class="name">'+definition.name+'</div><div class="price">—</div><div class="meta">داده موجود نیست</div></div>';
+   const reason=item&&item.error?'خطا: '+item.error:'داده موجود نیست';
+   return '<div class="row"><div class="name">'+definition.name+'</div><div class="price">—</div><div class="meta">'+escapeHtml(reason)+'</div></div>';
   }
   const change=getChange(item);
   const percent=Number(item.dp);
@@ -136,6 +139,28 @@ function render(current){
   const timeClass='time '+freshnessClass;
   return '<div class="row"><div class="name">'+definition.name+'</div><div class="price '+change.className+'">'+priceText(item,definition)+' <span style="font-size:12px;color:#aaa">'+definition.unit+'</span></div><div class="meta"><span class="'+freshnessClass+'">'+change.symbol+' '+percentText+'</span><span class="'+timeClass+'">'+time+'</span></div></div>';
  }).join('');
+}
+async function fetchTsetmc(insCode){
+ const url='https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/'+insCode;
+ try{
+  const response=await fetch(url+'?_='+Date.now(),{cache:'no-store',headers:{'Accept':'application/json, text/plain, */*'}});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const payload=await response.json();
+  const info=payload&&payload.closingPriceInfo?payload.closingPriceInfo:payload;
+  const price=Number(info&&info.pDrCotVal);
+  const yesterday=Number(info&&info.priceYesterday);
+  if(!Number.isFinite(price)||price<=0)throw new Error('فیلد pDrCotVal معتبر نیست');
+  const change=Number.isFinite(yesterday)&&yesterday>0?(price-yesterday)/yesterday*100:0;
+  const seconds=Number(info.lastHEven);
+  let time='—';
+  if(Number.isFinite(seconds)&&seconds>=0){
+   const h=Math.floor(seconds/10000),m=Math.floor(seconds/100)%100,sec=seconds%100;
+   if(h<24&&m<60&&sec<60)time=[h,m,sec].map(v=>String(v).padStart(2,'0')).join(':');
+  }
+  return {p:String(price),dp:String(change),dt:change>0?'high':change<0?'low':'',t:time};
+ }catch(error){
+  return {error:error&&error.message?error.message:String(error)};
+ }
 }
 async function load(){
  refreshBtn.disabled=true;
@@ -150,6 +175,9 @@ async function load(){
   const data=await response.json();
   const current=data&&data.current;
   if(!current||typeof current!=='object')throw new Error('ساختار current در پاسخ پیدا نشد');
+  const [kahrobaTsetmc,ayarTsetmc]=await Promise.all([fetchTsetmc('25559236668122210'),fetchTsetmc('34144395039913458')]);
+  current.ime_fund_kahroba_tsetmc=kahrobaTsetmc;
+  current.ime_fund_ayar_tsetmc=ayarTsetmc;
   const available=catalog.filter(x=>current[x.key]&&current[x.key].p!==undefined);
   if(!available.length)throw new Error('هیچ‌یک از شاخص‌های موردنیاز در پاسخ وجود ندارد');
   render(current);
