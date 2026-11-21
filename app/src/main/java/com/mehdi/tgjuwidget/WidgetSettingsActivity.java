@@ -77,68 +77,122 @@ public class WidgetSettingsActivity extends Activity {
 
     private String runTsetmcDiagnostics(){
         StringBuilder out=new StringBuilder();
-        out.append("گزارش آزمایش مستقیم TSETMC\\n");
+        out.append("گزارش چندحالته اتصال مستقیم\\n");
         out.append("زمان گوشی: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new java.util.Date())).append("\\n");
         out.append("Android: ").append(android.os.Build.VERSION.RELEASE).append(" (API ").append(android.os.Build.VERSION.SDK_INT).append(")\\n");
-        out.append("================================\\n");
-        testOneTsetmc(out,"کهربا","25559236668122210");
-        out.append("\\n================================\\n");
-        testOneTsetmc(out,"عیار","34144395039913458");
-        out.append("\\n================================\\n");
-        out.append("پایان آزمایش. متن کامل این گزارش را کپی یا عکس بگیرید و برای من بفرستید.");
+        out.append("اعتبارسنجی گواهی در تمام حالت‌ها روشن است؛ هیچ گواهی نامعتبری پذیرفته نمی‌شود.\\n");
+        out.append("================================================\\n");
+        testTsetmcModes(out,"کهربا","25559236668122210");
+        out.append("\\n================================================\\n");
+        testTsetmcModes(out,"عیار","34144395039913458");
+        out.append("\\n================================================\\nکنترل سلامت مسیر TGJU\\n");
+        testEndpoint(out,"TGJU ajax.json","https://call1.tgju.org/ajax.json?_"+System.currentTimeMillis(),0);
+        out.append("\\nپایان آزمایش. گزارش کامل را ارسال کنید.");
         return out.toString();
     }
 
-    private void testOneTsetmc(StringBuilder out,String name,String insCode){
-        String host="cdn.tsetmc.com";
-        out.append("\\n").append(name).append(" | InsCode: ").append(insCode).append("\\n");
-        try{
-            long dnsStart=System.currentTimeMillis();
-            InetAddress[] addresses=InetAddress.getAllByName(host);
-            out.append("1) DNS: موفق (").append(System.currentTimeMillis()-dnsStart).append(" ms) ");
-            for(int i=0;i<addresses.length;i++){if(i>0)out.append(", ");out.append(addresses[i].getHostAddress());}
-            out.append("\\n");
-        }catch(Exception e){out.append("1) DNS: خطا: ").append(errorText(e)).append("\\n");return;}
-        HttpURLConnection con=null;
-        try{
-            String address="https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/"+insCode;
-            out.append("2) URL: ").append(address).append("\\n");
-            long start=System.currentTimeMillis();
-            con=(HttpURLConnection)new URL(address).openConnection();
-            con.setRequestMethod("GET");
-            con.setConnectTimeout(15000);con.setReadTimeout(15000);
-            con.setUseCaches(false);con.setInstanceFollowRedirects(true);
-            con.setRequestProperty("Accept","application/json, text/plain, */*");
-            con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36");
-            con.setRequestProperty("Referer","https://www.tsetmc.com/");
-            con.setRequestProperty("Origin","https://www.tsetmc.com");
-            con.setRequestProperty("Cache-Control","no-cache");
-            int status=con.getResponseCode();
-            out.append("3) HTTP: ").append(status).append(" ").append(con.getResponseMessage()).append(" (").append(System.currentTimeMillis()-start).append(" ms)\\n");
-            out.append("4) Content-Type: ").append(con.getContentType()).append("\\n");
-            out.append("5) Final URL: ").append(con.getURL()).append("\\n");
-            java.io.InputStream stream=status>=200&&status<400?con.getInputStream():con.getErrorStream();
-            if(stream==null){out.append("6) بدنه پاسخ خالی است.\\n");return;}
-            BufferedReader reader=new BufferedReader(new InputStreamReader(stream,"UTF-8"));
-            StringBuilder body=new StringBuilder();String line;while((line=reader.readLine())!=null)body.append(line);reader.close();
-            out.append("6) حجم پاسخ: ").append(body.length()).append(" کاراکتر\\n");
-            if(status!=200){out.append("7) پاسخ غیر 200؛ ابتدای بدنه: ").append(body.substring(0,Math.min(350,body.length()))).append("\\n");return;}
-            JSONObject response=new JSONObject(body.toString());
-            JSONObject root=response.optJSONObject("closingPriceInfo");if(root==null)root=response;
-            out.append("7) JSON: معتبر\\n");
-            out.append("8) pDrCotVal (ریال): ").append(root.opt("pDrCotVal")).append("\\n");
-            out.append("9) priceYesterday (ریال): ").append(root.opt("priceYesterday")).append("\\n");
-            out.append("10) lastHEven: ").append(root.opt("lastHEven")).append("\\n");
-            double rial=root.optDouble("pDrCotVal",0);
-            if(rial>0)out.append("11) قیمت تبدیل‌شده به تومان: ").append(new java.text.DecimalFormat("#,##0").format(rial/10.0)).append("\\n");
-            else out.append("11) خطای داده: pDrCotVal صفر یا ناموجود است.\\n");
-            out.append("نتیجه این نماد: ").append(rial>0?"دریافت و تجزیه داده موفق":"پاسخ دریافت شد ولی قیمت قابل استفاده نیست").append("\\n");
-        }catch(Exception e){out.append("خطای درخواست/خواندن/JSON: ").append(errorText(e)).append("\\n");}
-        finally{if(con!=null)con.disconnect();}
+    private void testTsetmcModes(StringBuilder out,String name,String insCode){
+        String address="https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/"+insCode;
+        out.append("\\nنماد: ").append(name).append(" | InsCode: ").append(insCode).append("\\n");
+        out.append("نشانی: ").append(address).append("\\n");
+        out.append("حالت 1: تنظیمات پیش‌فرض Android/HTTPS و هدرهای مرورگر\\n");
+        testEndpoint(out,"حالت 1 - پیش‌فرض",address,0);
+        out.append("حالت 2: TLS 1.2 اجباری با همان گواهی‌های مورد اعتماد Android\\n");
+        testEndpoint(out,"حالت 2 - TLS 1.2",address,12);
+        if(android.os.Build.VERSION.SDK_INT>=29){
+            out.append("حالت 3: TLS 1.3 اجباری با همان گواهی‌های مورد اعتماد Android\\n");
+            testEndpoint(out,"حالت 3 - TLS 1.3",address,13);
+        }else{
+            out.append("حالت 3: رد شد؛ این نسخه Android از TLS 1.3 پشتیبانی نمی‌کند.\\n");
+        }
+        out.append("حالت 4: تنظیمات پیش‌فرض و هدرهای حداقلی (بدون Origin/Referer)\\n");
+        testEndpoint(out,"حالت 4 - هدر حداقلی",address,4);
     }
 
-    private String errorText(Exception e){
-        String message=e.getMessage();return e.getClass().getName()+(message==null?"":": "+message);
+    // mode: 0=default browser-like headers, 12=TLS1.2, 13=TLS1.3, 4=minimal headers
+    private void testEndpoint(StringBuilder out,String label,String address,int mode){
+        javax.net.ssl.HttpsURLConnection con=null;
+        long started=System.currentTimeMillis();
+        try{
+            URL url=new URL(address);
+            con=(javax.net.ssl.HttpsURLConnection)url.openConnection();
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(9000);
+            con.setReadTimeout(9000);
+            con.setUseCaches(false);
+            con.setInstanceFollowRedirects(true);
+            con.setRequestProperty("Accept","application/json, text/plain, */*");
+            con.setRequestProperty("Cache-Control","no-cache");
+            if(mode!=4){
+                con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                con.setRequestProperty("Referer","https://www.tsetmc.com/");
+                con.setRequestProperty("Origin","https://www.tsetmc.com");
+            }
+            if(mode==12||mode==13){
+                String protocol=mode==12?"TLSv1.2":"TLSv1.3";
+                javax.net.ssl.TrustManagerFactory tmf=javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init((java.security.KeyStore)null);
+                javax.net.ssl.SSLContext context=javax.net.ssl.SSLContext.getInstance(protocol);
+                context.init(null,tmf.getTrustManagers(),null);
+                con.setSSLSocketFactory(context.getSocketFactory());
+            }
+            int status=con.getResponseCode();
+            long elapsed=System.currentTimeMillis()-started;
+            out.append("  ").append(label).append(": HTTP ").append(status)
+                    .append(" | ").append(elapsed).append(" ms")
+                    .append(" | TLS=").append(con.getCipherSuite()).append("\\n");
+            java.security.cert.Certificate[] certs=con.getServerCertificates();
+            if(certs.length>0&&certs[0] instanceof java.security.cert.X509Certificate){
+                java.security.cert.X509Certificate cert=(java.security.cert.X509Certificate)certs[0];
+                out.append("    گواهی سرور: ").append(cert.getSubjectX500Principal().getName()).append("\\n");
+                out.append("    صادرکننده: ").append(cert.getIssuerX500Principal().getName()).append("\\n");
+                out.append("    اعتبار: ").append(cert.getNotBefore()).append(" تا ").append(cert.getNotAfter()).append("\\n");
+            }
+            java.io.InputStream stream=status>=200&&status<400?con.getInputStream():con.getErrorStream();
+            if(stream==null){out.append("    بدنه پاسخ خالی است.\\n");return;}
+            BufferedReader reader=new BufferedReader(new InputStreamReader(stream,"UTF-8"));
+            StringBuilder body=new StringBuilder();String line;
+            while((line=reader.readLine())!=null)body.append(line);
+            reader.close();
+            out.append("    Content-Type: ").append(con.getContentType()).append(" | حجم: ").append(body.length()).append(" کاراکتر\\n");
+            if(address.contains("GetClosingPriceInfo")&&status==200){
+                JSONObject response=new JSONObject(body.toString());
+                JSONObject root=response.optJSONObject("closingPriceInfo");
+                if(root==null)root=response;
+                long rial=Math.round(root.optDouble("pDrCotVal",0));
+                out.append("    JSON معتبر | pDrCotVal=").append(rial)
+                        .append(" | priceYesterday=").append(root.opt("priceYesterday"))
+                        .append(" | lastHEven=").append(root.opt("lastHEven"));
+                if(rial>0)out.append(" | تومان=").append(new java.text.DecimalFormat("#,##0").format(rial/10.0));
+                out.append("\\n");
+            }else if(address.contains("ajax.json")&&status==200){
+                JSONObject root=new JSONObject(body.toString());
+                JSONObject current=root.optJSONObject("current");
+                out.append("    JSON معتبر | current=").append(current==null?"وجود ندارد":"وجود دارد")
+                        .append(" | کهربا TGJU=").append(current!=null&&current.optJSONObject("ime_fund_kahroba")!=null?"موجود":"ناموجود")
+                        .append(" | عیار TGJU=").append(current!=null&&current.optJSONObject("ime_fund_ayar")!=null?"موجود":"ناموجود").append("\\n");
+            }else{
+                out.append("    ابتدای پاسخ: ").append(body.substring(0,Math.min(180,body.length()))).append("\\n");
+            }
+        }catch(Exception e){
+            out.append("  ").append(label).append(": شکست پس از ").append(System.currentTimeMillis()-started)
+                    .append(" ms | ").append(errorChain(e)).append("\\n");
+        }finally{
+            if(con!=null)con.disconnect();
+        }
+    }
+
+    private String errorChain(Throwable error){
+        StringBuilder b=new StringBuilder();
+        Throwable t=error;
+        int depth=0;
+        while(t!=null&&depth<6){
+            if(depth>0)b.append(" -> ");
+            b.append(t.getClass().getSimpleName());
+            if(t.getMessage()!=null)b.append(": ").append(t.getMessage());
+            t=t.getCause();depth++;
+        }
+        return b.toString();
     }
 
     private Spinner spinner(LinearLayout root,String[] values){Spinner s=new Spinner(this);s.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));root.addView(s,lp());return s;}
