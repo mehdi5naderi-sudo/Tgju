@@ -98,6 +98,8 @@ public class WidgetSettingsActivity extends Activity {
         AppWidgetManager manager=AppWidgetManager.getInstance(this);
         if(launchedFromIcon){int[] ids=getWidgetIds();for(int id:ids){if(id!=widgetId)copySettings(widgetId,id);manager.updateAppWidget(id,TgjuWidgetProvider.buildViews(this,id));}}
         else if(widgetId!=0)manager.updateAppWidget(widgetId,TgjuWidgetProvider.buildViews(this,widgetId));
+        // Refresh immediately after saving new data-source selections.
+        sendBroadcast(new Intent(this,TgjuWidgetProvider.class).setAction("com.mehdi.tgjuwidget.REFRESH"));
         Intent result=new Intent();result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,widgetId);setResult(RESULT_OK,result);finish();
     }
 
