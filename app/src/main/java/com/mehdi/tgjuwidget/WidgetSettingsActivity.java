@@ -16,6 +16,12 @@ import android.widget.TextView;
 import android.widget.Spinner;
 import android.widget.Switch;
 import java.util.HashMap;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URL;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import org.json.JSONObject;
 import java.util.Locale;
 import java.util.Map;
 
@@ -61,8 +67,80 @@ public class WidgetSettingsActivity extends Activity {
         bgColor=field(root,"رنگ پس‌زمینه (HEX)","#000000");bgAlpha=field(root,"شفافیت پس‌زمینه (%)","100");mutedColor=field(root,"رنگ متن ساعت/نام/رفرش (HEX)","#AAAAAA");
         rowSpace=field(root,"فاصله ردیف‌ها (dp)","0");metaGap=field(root,"فاصله درصد و تاریخ آپدیت (dp)","0");padding=field(root,"فاصله داخلی ویجت (dp)","4");
         root.addView(label("رنگ افزایش/کاهش ثابت است: سبز، قرمز، زرد"),lpTop());
+        root.addView(heading("آزمایش کامل اتصال مستقیم به TSETMC"),lpTop());
+        root.addView(label("این آزمایش روی خود گوشی اجرا می‌شود و مسیر دریافت قیمت ویجت را تغییر نمی‌دهد."),lp());
+        Button test=new Button(this);test.setText("شروع آزمایش اتصال TSETMC");root.addView(test,lpTop());
+        TextView testOutput=new TextView(this);testOutput.setText("هنوز آزمایشی اجرا نشده است.");testOutput.setTextTextIsSelectable(true);testOutput.setTextSize(13);testOutput.setTextColor(Color.WHITE);root.addView(testOutput,lpTop());
+        test.setOnClickListener(v->{test.setEnabled(false);test.setText("در حال آزمایش...");testOutput.setText("آزمایش روی گوشی در حال اجراست؛ لطفاً چند لحظه صبر کنید...");new Thread(()->{String report=runTsetmcDiagnostics();runOnUiThread(()->{testOutput.setText(report);test.setEnabled(true);test.setText("تکرار آزمایش");});}).start();});
         Button save=new Button(this);save.setText("ذخیره");save.setOnClickListener(v->save());root.addView(save,lpTop());setContentView(scroll);
     }
+
+    private String runTsetmcDiagnostics(){
+        StringBuilder out=new StringBuilder();
+        out.append("گزارش آزمایش مستقیم TSETMC\\n");
+        out.append("زمان گوشی: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new java.util.Date())).append("\\n");
+        out.append("Android: ").append(android.os.Build.VERSION.RELEASE).append(" (API ").append(android.os.Build.VERSION.SDK_INT).append(")\\n");
+        out.append("================================\\n");
+        testOneTsetmc(out,"کهربا","25559236668122210");
+        out.append("\\n================================\\n");
+        testOneTsetmc(out,"عیار","34144395039913458");
+        out.append("\\n================================\\n");
+        out.append("پایان آزمایش. متن کامل این گزارش را کپی یا عکس بگیرید و برای من بفرستید.");
+        return out.toString();
+    }
+
+    private void testOneTsetmc(StringBuilder out,String name,String insCode){
+        String host="cdn.tsetmc.com";
+        out.append("\\n").append(name).append(" | InsCode: ").append(insCode).append("\\n");
+        try{
+            long dnsStart=System.currentTimeMillis();
+            InetAddress[] addresses=InetAddress.getAllByName(host);
+            out.append("1) DNS: موفق (").append(System.currentTimeMillis()-dnsStart).append(" ms) ");
+            for(int i=0;i<addresses.length;i++){if(i>0)out.append(", ");out.append(addresses[i].getHostAddress());}
+            out.append("\\n");
+        }catch(Exception e){out.append("1) DNS: خطا: ").append(errorText(e)).append("\\n");return;}
+        HttpURLConnection con=null;
+        try{
+            String address="https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/"+insCode;
+            out.append("2) URL: ").append(address).append("\\n");
+            long start=System.currentTimeMillis();
+            con=(HttpURLConnection)new URL(address).openConnection();
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(15000);con.setReadTimeout(15000);
+            con.setUseCaches(false);con.setInstanceFollowRedirects(true);
+            con.setRequestProperty("Accept","application/json, text/plain, */*");
+            con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36");
+            con.setRequestProperty("Referer","https://www.tsetmc.com/");
+            con.setRequestProperty("Origin","https://www.tsetmc.com");
+            con.setRequestProperty("Cache-Control","no-cache");
+            int status=con.getResponseCode();
+            out.append("3) HTTP: ").append(status).append(" ").append(con.getResponseMessage()).append(" (").append(System.currentTimeMillis()-start).append(" ms)\\n");
+            out.append("4) Content-Type: ").append(con.getContentType()).append("\\n");
+            out.append("5) Final URL: ").append(con.getURL()).append("\\n");
+            java.io.InputStream stream=status>=200&&status<400?con.getInputStream():con.getErrorStream();
+            if(stream==null){out.append("6) بدنه پاسخ خالی است.\\n");return;}
+            BufferedReader reader=new BufferedReader(new InputStreamReader(stream,"UTF-8"));
+            StringBuilder body=new StringBuilder();String line;while((line=reader.readLine())!=null)body.append(line);reader.close();
+            out.append("6) حجم پاسخ: ").append(body.length()).append(" کاراکتر\\n");
+            if(status!=200){out.append("7) پاسخ غیر 200؛ ابتدای بدنه: ").append(body.substring(0,Math.min(350,body.length()))).append("\\n");return;}
+            JSONObject response=new JSONObject(body.toString());
+            JSONObject root=response.optJSONObject("closingPriceInfo");if(root==null)root=response;
+            out.append("7) JSON: معتبر\\n");
+            out.append("8) pDrCotVal (ریال): ").append(root.opt("pDrCotVal")).append("\\n");
+            out.append("9) priceYesterday (ریال): ").append(root.opt("priceYesterday")).append("\\n");
+            out.append("10) lastHEven: ").append(root.opt("lastHEven")).append("\\n");
+            double rial=root.optDouble("pDrCotVal",0);
+            if(rial>0)out.append("11) قیمت تبدیل‌شده به تومان: ").append(new java.text.DecimalFormat("#,##0").format(rial/10.0)).append("\\n");
+            else out.append("11) خطای داده: pDrCotVal صفر یا ناموجود است.\\n");
+            out.append("نتیجه این نماد: ").append(rial>0?"دریافت و تجزیه داده موفق":"پاسخ دریافت شد ولی قیمت قابل استفاده نیست").append("\\n");
+        }catch(Exception e){out.append("خطای درخواست/خواندن/JSON: ").append(errorText(e)).append("\\n");}
+        finally{if(con!=null)con.disconnect();}
+    }
+
+    private String errorText(Exception e){
+        String message=e.getMessage();return e.getClass().getName()+(message==null?"":": "+message);
+    }
+
     private Spinner spinner(LinearLayout root,String[] values){Spinner s=new Spinner(this);s.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));root.addView(s,lp());return s;}
     private Switch sw(LinearLayout root,String text,boolean val){Switch s=new Switch(this);s.setText(text);s.setChecked(val);root.addView(s,lp());return s;}
     private EditText field(LinearLayout root,String hint,String val){root.addView(label(hint),lp());EditText e=new EditText(this);e.setSingleLine(true);e.setText(val);e.setSelectAllOnFocus(true);root.addView(e,lp());return e;}
