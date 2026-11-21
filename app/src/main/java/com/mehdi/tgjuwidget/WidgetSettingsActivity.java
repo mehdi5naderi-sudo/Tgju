@@ -131,30 +131,7 @@ public class WidgetSettingsActivity extends Activity {
                 con.setRequestProperty("Referer","https://www.tsetmc.com/");
                 con.setRequestProperty("Origin","https://www.tsetmc.com");
             }
-            if(mode==5){
-                javax.net.ssl.TrustManagerFactory tmf=javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
-                tmf.init((java.security.KeyStore)null);
-                javax.net.ssl.X509TrustManager base=null;
-                for(javax.net.ssl.TrustManager manager:tmf.getTrustManagers()){
-                    if(manager instanceof javax.net.ssl.X509TrustManager){base=(javax.net.ssl.X509TrustManager)manager;break;}
-                }
-                if(base==null)throw new java.security.GeneralSecurityException("Android X509TrustManager not found");
-                final javax.net.ssl.X509TrustManager delegate=base;
-                javax.net.ssl.X509TrustManager loggingManager=new javax.net.ssl.X509TrustManager(){
-                    @Override public void checkClientTrusted(java.security.cert.X509Certificate[] chain,String authType) throws java.security.cert.CertificateException{
-                        delegate.checkClientTrusted(chain,authType);
-                    }
-                    @Override public void checkServerTrusted(java.security.cert.X509Certificate[] chain,String authType) throws java.security.cert.CertificateException{
-                        certificateTrace.append(describeCertificateChain(chain));
-                        try{delegate.checkServerTrusted(chain,authType);certificateTrace.append("  نتیجه اعتبارسنجی Android: موفق\\n");}
-                        catch(java.security.cert.CertificateException e){certificateTrace.append("  نتیجه اعتبارسنجی Android: رد شد - ").append(errorChain(e)).append("\\n");throw e;}
-                    }
-                    @Override public java.security.cert.X509Certificate[] getAcceptedIssuers(){return delegate.getAcceptedIssuers();}
-                };
-                javax.net.ssl.SSLContext context=javax.net.ssl.SSLContext.getInstance("TLS");
-                context.init(null,new javax.net.ssl.TrustManager[]{loggingManager},null);
-                con.setSSLSocketFactory(context.getSocketFactory());
-            }else if(mode==12||mode==13){
+            if(mode==12||mode==13){
                 String protocol=mode==12?"TLSv1.2":"TLSv1.3";
                 javax.net.ssl.TrustManagerFactory tmf=javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init((java.security.KeyStore)null);
@@ -168,6 +145,14 @@ public class WidgetSettingsActivity extends Activity {
                     .append(" | ").append(elapsed).append(" ms")
                     .append(" | TLS=").append(con.getCipherSuite()).append("\n");
             java.security.cert.Certificate[] certs=con.getServerCertificates();
+            if(mode==5){
+                java.util.ArrayList<java.security.cert.X509Certificate> chain=new java.util.ArrayList<>();
+                for(java.security.cert.Certificate item:certs){
+                    if(item instanceof java.security.cert.X509Certificate)chain.add((java.security.cert.X509Certificate)item);
+                }
+                certificateTrace.append(describeCertificateChain(chain.toArray(new java.security.cert.X509Certificate[0])));
+                certificateTrace.append("  نتیجه اعتبارسنجی Android: موفق؛ اتصال HTTPS با تنظیمات دامنه‌ای Android برقرار شد.\\n");
+            }
             if(certs.length>0&&certs[0] instanceof java.security.cert.X509Certificate){
                 java.security.cert.X509Certificate cert=(java.security.cert.X509Certificate)certs[0];
                 out.append("    گواهی سرور: ").append(cert.getSubjectX500Principal().getName()).append("\n");
