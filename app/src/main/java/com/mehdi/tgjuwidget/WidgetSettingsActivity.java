@@ -21,8 +21,8 @@ import java.util.Map;
 
 public class WidgetSettingsActivity extends Activity {
     private static final int SLOT_COUNT=9;
-    private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","gc30","sekee","crypto-bitcoin"};
-    private static final String[] NAMES={"تتر","دلار","گرم ۱۸","کهربا","عیار","انس","برنت","بورس","امامی","بیت‌کوین"};
+    private static final String[] KEYS={"crypto-tether-irr","price_dollar_rl","geram18","ime_fund_kahroba","ime_fund_ayar","ons","oil_brent","gc30","sekee","crypto-bitcoin","ime_fund_kahroba_tsetmc","ime_fund_ayar_tsetmc"};
+    private static final String[] NAMES={"تتر","دلار","گرم ۱۸","کهربا (قدیمی)","عیار (قدیمی)","انس","برنت","بورس","امامی","بیت‌کوین","کهربا (TSETMC)","عیار (TSETMC)"};
     private int widgetId=AppWidgetManager.INVALID_APPWIDGET_ID;
     private boolean launchedFromIcon=false;
     private Spinner[] spinners=new Spinner[SLOT_COUNT];
@@ -41,7 +41,7 @@ public class WidgetSettingsActivity extends Activity {
     private void buildUi(){
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(20));scroll.addView(root);
-        root.addView(label("منبع داده‌ها: tgju.org"),lpTop());TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);title.setTextColor(Color.rgb(64,196,255));root.addView(title,lp());
+        root.addView(label("منبع داده‌ها: TGJU و TSETMC"),lpTop());TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);title.setTextColor(Color.rgb(64,196,255));root.addView(title,lp());
         root.addView(label("۵ شاخص اصلی؛ تا ۹ شاخص قابل انتخاب"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
         for(int i=0;i<SLOT_COUNT;i++){spinners[i]=new Spinner(this);if(i>=5){String[] optional=new String[NAMES.length+1];optional[0]="هیچ‌کدام";System.arraycopy(NAMES,0,optional,1,NAMES.length);spinners[i].setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,optional));}else spinners[i].setAdapter(adapter);root.addView(spinners[i],lp());if(i==4)root.addView(heading("شاخص‌های ۶ تا ۹ (اختیاری)"),lpTop());}
