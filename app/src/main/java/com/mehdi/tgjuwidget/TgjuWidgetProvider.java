@@ -196,7 +196,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if(!isTsetmcKey(key))continue;
             try{
                 String insCode="ime_fund_kahroba_tsetmc".equals(key)
-                        ?"25559236668122210":findInstrumentCode("عیار");
+                        ?"25559236668122210":"34144395039913458";
                 if(insCode!=null){
                     JSONObject item=fetchTsetmcPrice(insCode);
                     if(item!=null)data.put(key,item);
@@ -208,28 +208,6 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
 
     private static boolean isTsetmcKey(String key){
         return "ime_fund_kahroba_tsetmc".equals(key)||"ime_fund_ayar_tsetmc".equals(key);
-    }
-
-    private static String findInstrumentCode(String symbol)throws Exception{
-        HttpURLConnection con=null;
-        try{
-            URL url=new URL("https://cdn.tsetmc.com/api/Instrument/GetInstrumentSearch/"+Uri.encode(symbol));
-            con=(HttpURLConnection)url.openConnection();
-            con.setRequestMethod("GET");con.setConnectTimeout(10000);con.setReadTimeout(10000);
-            con.setRequestProperty("Accept","application/json");
-            if(con.getResponseCode()!=200)return null;
-            JSONObject root=new JSONObject(read(con));
-            org.json.JSONArray arr=root.optJSONArray("instrumentSearch");
-            if(arr==null)return null;
-            for(int i=0;i<arr.length();i++){
-                JSONObject item=arr.optJSONObject(i);if(item==null)continue;
-                String shortName=item.optString("lVal18AFC","");
-                String fullName=item.optString("lVal30","");
-                if("عیار".equals(shortName)||fullName.contains("صندوق طلای عیار")||fullName.contains("صندوق س.كالاي عيار"))
-                    return item.optString("insCode",null);
-            }
-            return null;
-        }finally{if(con!=null)con.disconnect();}
     }
 
     private static JSONObject fetchTsetmcPrice(String insCode)throws Exception{
