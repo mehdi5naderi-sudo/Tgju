@@ -166,9 +166,9 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
     }
 
     private static boolean fetchCurrent(String[] keys,Map<String,JSONObject> data){
+        // Keep the original TGJU source for the existing selections.
         HttpURLConnection con=null;
         try{
-            // TGJU's own feed. A unique query value avoids the CDN's shared cached copy.
             URL url=new URL("https://call1.tgju.org/ajax.json?_="+System.currentTimeMillis());
             con=(HttpURLConnection)url.openConnection();
             con.setRequestMethod("GET");
@@ -178,17 +178,82 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             con.setRequestProperty("Accept","application/json");
             con.setRequestProperty("Cache-Control","no-cache, no-store, max-age=0");
             con.setRequestProperty("Pragma","no-cache");
-            if(con.getResponseCode()!=200)return false;
-            JSONObject root=new JSONObject(read(con));
-            JSONObject current=root.optJSONObject("current");
-            if(current==null)return false;
-            for(String key:keys){
-                if(key==null||key.isEmpty())continue;
-                JSONObject item=current.optJSONObject(key);
-                if(item!=null)data.put(key,item);
+            if(con.getResponseCode()==200){
+                JSONObject root=new JSONObject(read(con));
+                JSONObject current=root.optJSONObject("current");
+                if(current!=null){
+                    for(String key:keys){
+                        if(key==null||key.isEmpty()||isTsetmcKey(key))continue;
+                        JSONObject item=current.optJSONObject(key);
+                        if(item!=null)data.put(key,item);
+                    }
+                }
             }
-            return hasAny(keys,data);
-        }catch(Exception e){return false;}finally{if(con!=null)con.disconnect();}
+        }catch(Exception ignored){}finally{if(con!=null)con.disconnect();}
+
+        // New alternatives use TSETMC; old TGJU selections remain unchanged.
+        for(String key:keys){
+            if(!isTsetmcKey(key))continue;
+            try{
+                String insCode="ime_fund_kahroba_tsetmc".equals(key)
+                        ?"25559236668122210":findInstrumentCode("عیار");
+                if(insCode!=null){
+                    JSONObject item=fetchTsetmcPrice(insCode);
+                    if(item!=null)data.put(key,item);
+                }
+            }catch(Exception ignored){}
+        }
+        return hasAny(keys,data);
+    }
+
+    private static boolean isTsetmcKey(String key){
+        return "ime_fund_kahroba_tsetmc".equals(key)||"ime_fund_ayar_tsetmc".equals(key);
+    }
+
+    private static String findInstrumentCode(String symbol)throws Exception{
+        HttpURLConnection con=null;
+        try{
+            URL url=new URL("https://cdn.tsetmc.com/api/Instrument/GetInstrumentSearch/"+Uri.encode(symbol));
+            con=(HttpURLConnection)url.openConnection();
+            con.setRequestMethod("GET");con.setConnectTimeout(10000);con.setReadTimeout(10000);
+            con.setRequestProperty("Accept","application/json");
+            if(con.getResponseCode()!=200)return null;
+            JSONObject root=new JSONObject(read(con));
+            org.json.JSONArray arr=root.optJSONArray("instrumentSearch");
+            if(arr==null)return null;
+            for(int i=0;i<arr.length();i++){
+                JSONObject item=arr.optJSONObject(i);if(item==null)continue;
+                String shortName=item.optString("lVal18AFC","");
+                String fullName=item.optString("lVal30","");
+                if("عیار".equals(shortName)||fullName.contains("صندوق طلای عیار")||fullName.contains("صندوق س.كالاي عيار"))
+                    return item.optString("insCode",null);
+            }
+            return null;
+        }finally{if(con!=null)con.disconnect();}
+    }
+
+    private static JSONObject fetchTsetmcPrice(String insCode)throws Exception{
+        HttpURLConnection con=null;
+        try{
+            URL url=new URL("https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/"+insCode);
+            con=(HttpURLConnection)url.openConnection();
+            con.setRequestMethod("GET");con.setConnectTimeout(10000);con.setReadTimeout(10000);
+            con.setRequestProperty("Accept","application/json");
+            if(con.getResponseCode()!=200)return null;
+            JSONObject root=new JSONObject(read(con)).optJSONObject("closingPriceInfo");
+            if(root==null)return null;
+            long last=root.optLong("pDrCotVal",0),yesterday=root.optLong("priceYesterday",0);
+            if(last<=0)return null;
+            double change=yesterday>0?((last-yesterday)*100.0/yesterday):0.0;
+            JSONObject item=new JSONObject();
+            item.put("p",String.valueOf(last));
+            item.put("dp",Math.abs(change));
+            item.put("dt",change>0?"high":change<0?"low":"");
+            int rawTime=root.optInt("lastHEven",root.optInt("hEven",0));
+            String clock=String.format(Locale.US,"%06d",rawTime);
+            item.put("t",clock.substring(0,2)+":"+clock.substring(2,4)+":"+clock.substring(4,6));
+            return item;
+        }finally{if(con!=null)con.disconnect();}
     }
 
     private static String read(HttpURLConnection con)throws Exception{
@@ -255,8 +320,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if("crypto-tether-irr".equals(k))return "Tether";
             if("price_dollar_rl".equals(k))return "Dollar";
             if("geram18".equals(k))return "Gold 18";
-            if("ime_fund_kahroba".equals(k))return "Kahroba";
-            if("ime_fund_ayar".equals(k))return "Ayar";
+            if("ime_fund_kahroba".equals(k)||"ime_fund_kahroba_tsetmc".equals(k))return "Kahroba";
+            if("ime_fund_ayar".equals(k)||"ime_fund_ayar_tsetmc".equals(k))return "Ayar";
             if("ons".equals(k))return "Ounce";
             if("oil_brent".equals(k))return "Brent";
             if("gc30".equals(k))return "gc30";
@@ -267,7 +332,9 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if("price_dollar_rl".equals(k))return "دلار";
         if("geram18".equals(k))return "گرم ۱۸";
         if("ime_fund_kahroba".equals(k))return "کهربا";
+        if("ime_fund_kahroba_tsetmc".equals(k))return "کهربا (TSETMC)";
         if("ime_fund_ayar".equals(k))return "عیار";
+        if("ime_fund_ayar_tsetmc".equals(k))return "عیار (TSETMC)";
         if("ons".equals(k))return "انس";
         if("oil_brent".equals(k))return "برنت";
         if("gc30".equals(k))return "بورس";
