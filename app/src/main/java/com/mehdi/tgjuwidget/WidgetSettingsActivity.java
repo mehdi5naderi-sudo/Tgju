@@ -77,35 +77,35 @@ public class WidgetSettingsActivity extends Activity {
 
     private String runTsetmcDiagnostics(){
         StringBuilder out=new StringBuilder();
-        out.append("گزارش چندحالته اتصال مستقیم\\n");
-        out.append("زمان گوشی: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new java.util.Date())).append("\\n");
-        out.append("Android: ").append(android.os.Build.VERSION.RELEASE).append(" (API ").append(android.os.Build.VERSION.SDK_INT).append(")\\n");
-        out.append("اعتبارسنجی گواهی در تمام حالت‌ها روشن است؛ هیچ گواهی نامعتبری پذیرفته نمی‌شود.\\n");
-        out.append("================================================\\n");
+        out.append("گزارش چندحالته اتصال مستقیم\n");
+        out.append("زمان گوشی: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new java.util.Date())).append("\n");
+        out.append("Android: ").append(android.os.Build.VERSION.RELEASE).append(" (API ").append(android.os.Build.VERSION.SDK_INT).append(")\n");
+        out.append("اعتبارسنجی گواهی در تمام حالت‌ها روشن است؛ هیچ گواهی نامعتبری پذیرفته نمی‌شود.\n");
+        out.append("================================================\n");
         testTsetmcModes(out,"کهربا","25559236668122210");
-        out.append("\\n================================================\\n");
+        out.append("\n================================================\n");
         testTsetmcModes(out,"عیار","34144395039913458");
-        out.append("\\n================================================\\nکنترل سلامت مسیر TGJU\\n");
+        out.append("\n================================================\nکنترل سلامت مسیر TGJU\n");
         testEndpoint(out,"TGJU ajax.json","https://call1.tgju.org/ajax.json?_"+System.currentTimeMillis(),0);
-        out.append("\\nپایان آزمایش. گزارش کامل را ارسال کنید.");
+        out.append("\nپایان آزمایش. گزارش کامل را ارسال کنید.");
         return out.toString();
     }
 
     private void testTsetmcModes(StringBuilder out,String name,String insCode){
         String address="https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/"+insCode;
-        out.append("\\nنماد: ").append(name).append(" | InsCode: ").append(insCode).append("\\n");
-        out.append("نشانی: ").append(address).append("\\n");
-        out.append("حالت 1: تنظیمات پیش‌فرض Android/HTTPS و هدرهای مرورگر\\n");
+        out.append("\nنماد: ").append(name).append(" | InsCode: ").append(insCode).append("\n");
+        out.append("نشانی: ").append(address).append("\n");
+        out.append("حالت 1: تنظیمات پیش‌فرض Android/HTTPS و هدرهای مرورگر\n");
         testEndpoint(out,"حالت 1 - پیش‌فرض",address,0);
-        out.append("حالت 2: TLS 1.2 اجباری با همان گواهی‌های مورد اعتماد Android\\n");
+        out.append("حالت 2: TLS 1.2 اجباری با همان گواهی‌های مورد اعتماد Android\n");
         testEndpoint(out,"حالت 2 - TLS 1.2",address,12);
         if(android.os.Build.VERSION.SDK_INT>=29){
-            out.append("حالت 3: TLS 1.3 اجباری با همان گواهی‌های مورد اعتماد Android\\n");
+            out.append("حالت 3: TLS 1.3 اجباری با همان گواهی‌های مورد اعتماد Android\n");
             testEndpoint(out,"حالت 3 - TLS 1.3",address,13);
         }else{
-            out.append("حالت 3: رد شد؛ این نسخه Android از TLS 1.3 پشتیبانی نمی‌کند.\\n");
+            out.append("حالت 3: رد شد؛ این نسخه Android از TLS 1.3 پشتیبانی نمی‌کند.\n");
         }
-        out.append("حالت 4: تنظیمات پیش‌فرض و هدرهای حداقلی (بدون Origin/Referer)\\n");
+        out.append("حالت 4: تنظیمات پیش‌فرض و هدرهای حداقلی (بدون Origin/Referer)\n");
         testEndpoint(out,"حالت 4 - هدر حداقلی",address,4);
     }
 
@@ -140,21 +140,21 @@ public class WidgetSettingsActivity extends Activity {
             long elapsed=System.currentTimeMillis()-started;
             out.append("  ").append(label).append(": HTTP ").append(status)
                     .append(" | ").append(elapsed).append(" ms")
-                    .append(" | TLS=").append(con.getCipherSuite()).append("\\n");
+                    .append(" | TLS=").append(con.getCipherSuite()).append("\n");
             java.security.cert.Certificate[] certs=con.getServerCertificates();
             if(certs.length>0&&certs[0] instanceof java.security.cert.X509Certificate){
                 java.security.cert.X509Certificate cert=(java.security.cert.X509Certificate)certs[0];
-                out.append("    گواهی سرور: ").append(cert.getSubjectX500Principal().getName()).append("\\n");
-                out.append("    صادرکننده: ").append(cert.getIssuerX500Principal().getName()).append("\\n");
-                out.append("    اعتبار: ").append(cert.getNotBefore()).append(" تا ").append(cert.getNotAfter()).append("\\n");
+                out.append("    گواهی سرور: ").append(cert.getSubjectX500Principal().getName()).append("\n");
+                out.append("    صادرکننده: ").append(cert.getIssuerX500Principal().getName()).append("\n");
+                out.append("    اعتبار: ").append(cert.getNotBefore()).append(" تا ").append(cert.getNotAfter()).append("\n");
             }
             java.io.InputStream stream=status>=200&&status<400?con.getInputStream():con.getErrorStream();
-            if(stream==null){out.append("    بدنه پاسخ خالی است.\\n");return;}
+            if(stream==null){out.append("    بدنه پاسخ خالی است.\n");return;}
             BufferedReader reader=new BufferedReader(new InputStreamReader(stream,"UTF-8"));
             StringBuilder body=new StringBuilder();String line;
             while((line=reader.readLine())!=null)body.append(line);
             reader.close();
-            out.append("    Content-Type: ").append(con.getContentType()).append(" | حجم: ").append(body.length()).append(" کاراکتر\\n");
+            out.append("    Content-Type: ").append(con.getContentType()).append(" | حجم: ").append(body.length()).append(" کاراکتر\n");
             if(address.contains("GetClosingPriceInfo")&&status==200){
                 JSONObject response=new JSONObject(body.toString());
                 JSONObject root=response.optJSONObject("closingPriceInfo");
@@ -164,19 +164,19 @@ public class WidgetSettingsActivity extends Activity {
                         .append(" | priceYesterday=").append(root.opt("priceYesterday"))
                         .append(" | lastHEven=").append(root.opt("lastHEven"));
                 if(rial>0)out.append(" | تومان=").append(new java.text.DecimalFormat("#,##0").format(rial/10.0));
-                out.append("\\n");
+                out.append("\n");
             }else if(address.contains("ajax.json")&&status==200){
                 JSONObject root=new JSONObject(body.toString());
                 JSONObject current=root.optJSONObject("current");
                 out.append("    JSON معتبر | current=").append(current==null?"وجود ندارد":"وجود دارد")
                         .append(" | کهربا TGJU=").append(current!=null&&current.optJSONObject("ime_fund_kahroba")!=null?"موجود":"ناموجود")
-                        .append(" | عیار TGJU=").append(current!=null&&current.optJSONObject("ime_fund_ayar")!=null?"موجود":"ناموجود").append("\\n");
+                        .append(" | عیار TGJU=").append(current!=null&&current.optJSONObject("ime_fund_ayar")!=null?"موجود":"ناموجود").append("\n");
             }else{
-                out.append("    ابتدای پاسخ: ").append(body.substring(0,Math.min(180,body.length()))).append("\\n");
+                out.append("    ابتدای پاسخ: ").append(body.substring(0,Math.min(180,body.length()))).append("\n");
             }
         }catch(Exception e){
             out.append("  ").append(label).append(": شکست پس از ").append(System.currentTimeMillis()-started)
-                    .append(" ms | ").append(errorChain(e)).append("\\n");
+                    .append(" ms | ").append(errorChain(e)).append("\n");
         }finally{
             if(con!=null)con.disconnect();
         }
