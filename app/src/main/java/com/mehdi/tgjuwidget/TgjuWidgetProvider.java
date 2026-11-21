@@ -215,12 +215,22 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         try{
             URL url=new URL("https://cdn.tsetmc.com/api/ClosingPrice/GetClosingPriceInfo/"+insCode);
             con=(HttpURLConnection)url.openConnection();
-            con.setRequestMethod("GET");con.setConnectTimeout(10000);con.setReadTimeout(10000);
-            con.setRequestProperty("Accept","application/json");
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(15000);
+            con.setReadTimeout(15000);
+            con.setUseCaches(false);
+            con.setInstanceFollowRedirects(true);
+            con.setRequestProperty("Accept","application/json, text/plain, */*");
+            con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36");
+            con.setRequestProperty("Referer","https://www.tsetmc.com/");
+            con.setRequestProperty("Origin","https://www.tsetmc.com");
+            con.setRequestProperty("Cache-Control","no-cache");
             if(con.getResponseCode()!=200)return null;
-            JSONObject root=new JSONObject(read(con)).optJSONObject("closingPriceInfo");
-            if(root==null)return null;
-            long last=root.optLong("pDrCotVal",0),yesterday=root.optLong("priceYesterday",0);
+            JSONObject response=new JSONObject(read(con));
+            JSONObject root=response.optJSONObject("closingPriceInfo");
+            if(root==null)root=response;
+            long last=Math.round(root.optDouble("pDrCotVal",0));
+            long yesterday=Math.round(root.optDouble("priceYesterday",0));
             if(last<=0)return null;
             double change=yesterday>0?((last-yesterday)*100.0/yesterday):0.0;
             JSONObject item=new JSONObject();
