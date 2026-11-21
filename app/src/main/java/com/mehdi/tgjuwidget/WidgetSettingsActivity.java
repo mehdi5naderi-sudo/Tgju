@@ -70,7 +70,7 @@ public class WidgetSettingsActivity extends Activity {
         root.addView(heading("آزمایش کامل اتصال مستقیم به TSETMC"),lpTop());
         root.addView(label("این آزمایش روی خود گوشی اجرا می‌شود و مسیر دریافت قیمت ویجت را تغییر نمی‌دهد."),lp());
         Button test=new Button(this);test.setText("شروع آزمایش اتصال TSETMC");root.addView(test,lpTop());
-        TextView testOutput=new TextView(this);testOutput.setText("هنوز آزمایشی اجرا نشده است.");testOutput.setTextTextIsSelectable(true);testOutput.setTextSize(13);testOutput.setTextColor(Color.WHITE);root.addView(testOutput,lpTop());
+        TextView testOutput=new TextView(this);testOutput.setText("هنوز آزمایشی اجرا نشده است.");testOutput.setTextIsSelectable(true);testOutput.setTextSize(13);testOutput.setTextColor(Color.WHITE);root.addView(testOutput,lpTop());
         test.setOnClickListener(v->{test.setEnabled(false);test.setText("در حال آزمایش...");testOutput.setText("آزمایش روی گوشی در حال اجراست؛ لطفاً چند لحظه صبر کنید...");new Thread(()->{String report=runTsetmcDiagnostics();runOnUiThread(()->{testOutput.setText(report);test.setEnabled(true);test.setText("تکرار آزمایش");});}).start();});
         Button save=new Button(this);save.setText("ذخیره");save.setOnClickListener(v->save());root.addView(save,lpTop());setContentView(scroll);
     }
