@@ -107,12 +107,15 @@ public class WidgetSettingsActivity extends Activity {
         }
         out.append("حالت 4: تنظیمات پیش‌فرض و هدرهای حداقلی (بدون Origin/Referer)\n");
         testEndpoint(out,"حالت 4 - هدر حداقلی",address,4);
+        out.append("حالت 5: ثبت زنجیره گواهی دریافتی، با اعتبارسنجی واقعی Android\n");
+        testEndpoint(out,"حالت 5 - ثبت زنجیره گواهی",address,5);
     }
 
     // mode: 0=default browser-like headers, 12=TLS1.2, 13=TLS1.3, 4=minimal headers
     private void testEndpoint(StringBuilder out,String label,String address,int mode){
         javax.net.ssl.HttpsURLConnection con=null;
         long started=System.currentTimeMillis();
+        final StringBuilder certificateTrace=new StringBuilder();
         try{
             URL url=new URL(address);
             con=(javax.net.ssl.HttpsURLConnection)url.openConnection();
@@ -128,7 +131,30 @@ public class WidgetSettingsActivity extends Activity {
                 con.setRequestProperty("Referer","https://www.tsetmc.com/");
                 con.setRequestProperty("Origin","https://www.tsetmc.com");
             }
-            if(mode==12||mode==13){
+            if(mode==5){
+                javax.net.ssl.TrustManagerFactory tmf=javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init((java.security.KeyStore)null);
+                javax.net.ssl.X509TrustManager base=null;
+                for(javax.net.ssl.TrustManager manager:tmf.getTrustManagers()){
+                    if(manager instanceof javax.net.ssl.X509TrustManager){base=(javax.net.ssl.X509TrustManager)manager;break;}
+                }
+                if(base==null)throw new java.security.GeneralSecurityException("Android X509TrustManager not found");
+                final javax.net.ssl.X509TrustManager delegate=base;
+                javax.net.ssl.X509TrustManager loggingManager=new javax.net.ssl.X509TrustManager(){
+                    @Override public void checkClientTrusted(java.security.cert.X509Certificate[] chain,String authType) throws java.security.cert.CertificateException{
+                        delegate.checkClientTrusted(chain,authType);
+                    }
+                    @Override public void checkServerTrusted(java.security.cert.X509Certificate[] chain,String authType) throws java.security.cert.CertificateException{
+                        certificateTrace.append(describeCertificateChain(chain));
+                        try{delegate.checkServerTrusted(chain,authType);certificateTrace.append("  نتیجه اعتبارسنجی Android: موفق\\n");}
+                        catch(java.security.cert.CertificateException e){certificateTrace.append("  نتیجه اعتبارسنجی Android: رد شد - ").append(errorChain(e)).append("\\n");throw e;}
+                    }
+                    @Override public java.security.cert.X509Certificate[] getAcceptedIssuers(){return delegate.getAcceptedIssuers();}
+                };
+                javax.net.ssl.SSLContext context=javax.net.ssl.SSLContext.getInstance("TLS");
+                context.init(null,new javax.net.ssl.TrustManager[]{loggingManager},null);
+                con.setSSLSocketFactory(context.getSocketFactory());
+            }else if(mode==12||mode==13){
                 String protocol=mode==12?"TLSv1.2":"TLSv1.3";
                 javax.net.ssl.TrustManagerFactory tmf=javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init((java.security.KeyStore)null);
@@ -177,9 +203,30 @@ public class WidgetSettingsActivity extends Activity {
         }catch(Exception e){
             out.append("  ").append(label).append(": شکست پس از ").append(System.currentTimeMillis()-started)
                     .append(" ms | ").append(errorChain(e)).append("\n");
+            if(mode==5&&certificateTrace.length()>0)out.append(certificateTrace);
         }finally{
             if(con!=null)con.disconnect();
         }
+    }
+
+
+    private String describeCertificateChain(java.security.cert.X509Certificate[] chain){
+        StringBuilder b=new StringBuilder();
+        if(chain==null){b.append("  سرور زنجیره گواهی خالی فرستاد.\\n");return b.toString();}
+        b.append("  تعداد گواهی‌های دریافتی: ").append(chain.length).append("\\n");
+        for(int i=0;i<chain.length;i++){
+            java.security.cert.X509Certificate cert=chain[i];
+            b.append("  گواهی ").append(i+1).append(" subject: ").append(cert.getSubjectX500Principal().getName()).append("\\n");
+            b.append("    issuer: ").append(cert.getIssuerX500Principal().getName()).append("\\n");
+            b.append("    اعتبار: ").append(cert.getNotBefore()).append(" تا ").append(cert.getNotAfter()).append("\\n");
+            try{
+                byte[] digest=java.security.MessageDigest.getInstance("SHA-256").digest(cert.getEncoded());
+                StringBuilder hex=new StringBuilder();
+                for(byte value:digest)hex.append(String.format(Locale.US,"%02X",value&0xff));
+                b.append("    SHA-256: ").append(hex).append("\\n");
+            }catch(Exception ignored){}
+        }
+        return b.toString();
     }
 
     private String errorChain(Throwable error){
