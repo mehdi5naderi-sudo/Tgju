@@ -47,6 +47,7 @@ public class WidgetSettingsActivity extends Activity {
     private void buildUi(){
         ScrollView scroll=new ScrollView(this);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(20));scroll.addView(root);
+        root.addView(label("شماره بیلد: "+BuildConfig.BUILD_NUMBER),lpTop());
         root.addView(label("منبع داده‌ها: TGJU و TSETMC"),lpTop());TextView title=label("تنظیمات ویجت TGJU");title.setTextSize(22);title.setTextColor(Color.rgb(64,196,255));root.addView(title,lp());
         root.addView(label("۵ شاخص اصلی؛ تا ۹ شاخص قابل انتخاب"),lpTop());
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,NAMES);
