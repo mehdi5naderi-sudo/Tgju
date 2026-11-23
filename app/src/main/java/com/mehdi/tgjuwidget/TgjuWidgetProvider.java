@@ -195,19 +195,65 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         for(String key:keys){
             if(!isTsetmcKey(key))continue;
             try{
-                String insCode="ime_fund_kahroba_tsetmc".equals(key)
-                        ?"25559236668122210":"34144395039913458";
-                if(insCode!=null){
-                    JSONObject item=fetchTsetmcPrice(insCode);
-                    if(item!=null)data.put(key,item);
+                JSONObject item;
+                if("tsetmc_index_total".equals(key)){
+                    item=fetchTsetmcIndex();
+                }else{
+                    String insCode="ime_fund_kahroba_tsetmc".equals(key)
+                            ?"25559236668122210":"34144395039913458";
+                    item=fetchTsetmcPrice(insCode);
                 }
+                if(item!=null)data.put(key,item);
             }catch(Exception ignored){}
         }
         return hasAny(keys,data);
     }
 
     private static boolean isTsetmcKey(String key){
-        return "ime_fund_kahroba_tsetmc".equals(key)||"ime_fund_ayar_tsetmc".equals(key);
+        return "ime_fund_kahroba_tsetmc".equals(key)
+                ||"ime_fund_ayar_tsetmc".equals(key)
+                ||"tsetmc_index_total".equals(key);
+    }
+
+    private static JSONObject fetchTsetmcIndex()throws Exception{
+        HttpURLConnection con=null;
+        try{
+            URL url=new URL("https://cdn.tsetmc.com/api/Index/GetIndexB1LastAll/SelectedIndexes/1?_="+System.currentTimeMillis());
+            con=(HttpURLConnection)url.openConnection();
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(15000);
+            con.setReadTimeout(15000);
+            con.setUseCaches(false);
+            con.setInstanceFollowRedirects(true);
+            con.setRequestProperty("Accept","application/json, text/plain, */*");
+            con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36");
+            con.setRequestProperty("Referer","https://www.tsetmc.com/");
+            con.setRequestProperty("Origin","https://www.tsetmc.com");
+            con.setRequestProperty("Cache-Control","no-cache");
+            if(con.getResponseCode()!=200)return null;
+            JSONObject response=new JSONObject(read(con));
+            JSONArray indexes=response.optJSONArray("indexB1");
+            if(indexes==null)return null;
+            for(int i=0;i<indexes.length();i++){
+                JSONObject root=indexes.optJSONObject(i);
+                if(root==null||!"32097828799138957".equals(root.optString("insCode","")))continue;
+                double value=root.optDouble("xDrNivJIdx004",0);
+                if(value<=0)return null;
+                double change=root.optDouble("indexChange",0);
+                double pct=root.optDouble("xVarIdxJRfV",0);
+                JSONObject item=new JSONObject();
+                item.put("p",String.valueOf(value));
+                item.put("dp",Math.abs(pct));
+                item.put("dt",change>0?"high":change<0?"low":"");
+                int rawTime=root.optInt("hEven",0);
+                String clock=String.format(Locale.US,"%06d",rawTime);
+                item.put("t",clock.substring(0,2)+":"+clock.substring(2,4)+":"+clock.substring(4,6));
+                item.put("indexChange",change);
+                item.put("dEven",root.optInt("dEven",0));
+                return item;
+            }
+            return null;
+        }finally{if(con!=null)con.disconnect();}
     }
 
     private static JSONObject fetchTsetmcPrice(String insCode)throws Exception{
@@ -338,6 +384,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if("gc30".equals(k))return "gc30";
             if("sekee".equals(k))return "Imami";
             if("crypto-bitcoin".equals(k))return "Bitcoin";
+            if("tsetmc_index_total".equals(k))return "Total Index";
         }
         if("crypto-tether-irr".equals(k))return "تتر";
         if("price_dollar_rl".equals(k))return "دلار";
@@ -351,16 +398,18 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         if("gc30".equals(k))return "بورس";
         if("sekee".equals(k))return "امامی";
         if("crypto-bitcoin".equals(k))return "بیت‌کوین";
+        if("tsetmc_index_total".equals(k))return "شاخص کل بورس";
         return k;
     }
 
     private static String price(JSONObject o,String k){
         try{
             double n;
-            if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k)||"crypto-bitcoin".equals(k))
+            if("ons".equals(k)||"oil_brent".equals(k)||"gc30".equals(k)||"crypto-bitcoin".equals(k)||"tsetmc_index_total".equals(k))
                 n=Double.parseDouble(o.optString("p","0").replace(",",""));
             else
                 n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;
+            if("tsetmc_index_total".equals(k))return new DecimalFormat("#,##0.##").format(n);
             return new DecimalFormat("#,##0").format(n);
         }catch(Exception e){return "—";}
     }
