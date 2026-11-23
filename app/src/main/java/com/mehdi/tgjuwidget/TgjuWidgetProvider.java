@@ -237,6 +237,12 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             item.put("p",String.valueOf(last));
             item.put("dp",Math.abs(change));
             item.put("dt",change>0?"high":change<0?"low":"");
+            int day=root.optInt("dEven",0);
+            int lastTradeDay=root.optInt("finalLastDate",0);
+            boolean validDates=validTsetmcDate(day)&&validTsetmcDate(lastTradeDay);
+            item.put("dEven",day);
+            item.put("finalLastDate",lastTradeDay);
+            item.put("stale",validDates&&day!=lastTradeDay);
             int rawTime=root.optInt("lastHEven",root.optInt("hEven",0));
             String clock=String.format(Locale.US,"%06d",rawTime);
             item.put("t",clock.substring(0,2)+":"+clock.substring(2,4)+":"+clock.substring(4,6));
@@ -267,9 +273,11 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if(o!=null){
                 price=price(o,k); double dp=o.optDouble("dp",Double.NaN); String dt=o.optString("dt","");
                 if(!Double.isNaN(dp)){pct=percent(dp,en);color="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
+                boolean stale=isTsetmcKey(k)&&o.optBoolean("stale",false);
+                if(stale)color=YELLOW;
                 String rawTime=o.optString("t","—");
                 time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);
-                timeTextColor=timeColor(rawTime,color);
+                timeTextColor=stale?YELLOW:timeColor(rawTime,color);
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time)
                         .putInt("lastColor"+i,color).putInt("lastTimeColor"+i,timeTextColor).apply();
             } else {
@@ -284,10 +292,11 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(NAME_INLINE_IDS[i],name);
             v.setTextViewText(NAME_VERTICAL_IDS[i],name);
             v.setTextViewText(NAME_RIGHT_IDS[i],name);
-            v.setTextColor(NAME_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
-            v.setTextColor(NAME_INLINE_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
-            v.setTextColor(NAME_VERTICAL_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
-            v.setTextColor(NAME_RIGHT_IDS[i],p.getInt("mutedColor",Color.LTGRAY));
+            int nameColor=o!=null&&isTsetmcKey(k)&&o.optBoolean("stale",false)?YELLOW:p.getInt("mutedColor",Color.LTGRAY);
+            v.setTextColor(NAME_IDS[i],nameColor);
+            v.setTextColor(NAME_INLINE_IDS[i],nameColor);
+            v.setTextColor(NAME_VERTICAL_IDS[i],nameColor);
+            v.setTextColor(NAME_RIGHT_IDS[i],nameColor);
             v.setTextViewText(PRICE_IDS[i],digits(price,en)); v.setTextColor(PRICE_IDS[i],color);
             v.setTextViewText(PRICE_INLINE_IDS[i],digits(price,en)); v.setTextColor(PRICE_INLINE_IDS[i],color);
             v.setTextViewText(PRICE_VERTICAL_IDS[i],digits(price,en)); v.setTextColor(PRICE_VERTICAL_IDS[i],color);
@@ -296,7 +305,21 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(TIME_IDS[i],digits(time,en)); v.setTextColor(TIME_IDS[i],timeTextColor);
         }
         v.setViewVisibility(REFRESH_PROGRESS_ID,View.GONE);
-        v.setTextViewText(R.id.requestTime,ok?digits(request,en):(en?"Update failed":"خطا در بروزرسانی"));
+        String refreshLabel=request;
+        if(ok){
+            for(int i=0;i<SLOT_COUNT;i++){
+                String key=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"");
+                JSONObject item=d.get(key);
+                if(isTsetmcKey(key)&&item!=null&&item.optBoolean("stale",false)){
+                    String tradeDate=item.optString("finalLastDate","");
+                    String formatted=formatTsetmcDate(tradeDate,p.getInt("dateFormat",0),p.getInt("dateOrder",0));
+                    if(!formatted.isEmpty())refreshLabel=formatted;
+                    else refreshLabel="";
+                    break;
+                }
+            }
+        }
+        v.setTextViewText(R.id.requestTime,ok?digits(refreshLabel,en):(en?"Update failed":"خطا در بروزرسانی"));
         v.setTextColor(R.id.requestTime,ok?p.getInt("mutedColor",Color.LTGRAY):RED);
         v.setTextViewTextSize(R.id.requestTime,2,ok?p.getInt("refreshSize",7):8);
         setListItems(c,v,id,d);
@@ -374,6 +397,46 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         return age>=0&&age<=5*60*1000?changeColor:Color.WHITE;
     }
 
+    private static boolean validTsetmcDate(int value){
+        String s=String.valueOf(value);
+        if(s.length()!=8)return false;
+        try{
+            int y=Integer.parseInt(s.substring(0,4)),m=Integer.parseInt(s.substring(4,6)),d=Integer.parseInt(s.substring(6,8));
+            java.util.GregorianCalendar c=new java.util.GregorianCalendar();
+            c.setLenient(false);c.clear();c.set(y,m-1,d);c.getTime();
+            return y>=1900&&m>=1&&m<=12&&d>=1;
+        }catch(Exception e){return false;}
+    }
+
+    private static String formatTsetmcDate(String raw,int fmt,int dateOrder){
+        if(fmt==5)return "";
+        try{
+            String value=raw==null?"":raw.trim();
+            if(value.length()!=8)return "";
+            int gy=Integer.parseInt(value.substring(0,4)),gm=Integer.parseInt(value.substring(4,6)),gd=Integer.parseInt(value.substring(6,8));
+            if(!validTsetmcDate(Integer.parseInt(value)))return "";
+            int[] gdm={0,31,59,90,120,151,181,212,243,273,304,334};
+            int gy2=gm>2?gy+1:gy;
+            int days=355666+365*gy+(gy2+3)/4-(gy2+99)/100+(gy2+399)/400+gd+gdm[gm-1];
+            int jy=-1595+33*(days/12053);days%=12053;
+            jy+=4*(days/1461);days%=1461;
+            if(days>365){jy+=(days-1)/365;days=(days-1)%365;}
+            int jm,jd;
+            if(days<186){jm=1+days/31;jd=1+days%31;}
+            else{jm=7+(days-186)/30;jd=1+(days-186)%30;}
+            String d=String.format(Locale.US,"%02d",jd),m=String.format(Locale.US,"%02d",jm);
+            switch(fmt){
+                case 1:return dateOrder==1?d+" - "+m:m+"-"+d;
+                case 2:return dateOrder==1?d+"."+m:m+"."+d;
+                case 3:return jy+"/"+m+"/"+d;
+                case 4:
+                    String[] months={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};
+                    return d+" "+months[jm-1];
+                default:return dateOrder==1?d+"/"+m:m+"/"+d;
+            }
+        }catch(Exception e){return "";}
+    }
+
     private static String formatTimeOrDate(String t,int fmt,int dateOrder,boolean en){
         if(t==null||t.isEmpty()||"—".equals(t))return "—";
         if(t.contains(":")){String[] parts=t.trim().split("\\s+");String clock=parts[0];String[] hm=clock.split(":");if(hm.length>=2)return hm[0]+":"+hm[1];}
@@ -405,7 +468,9 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if(o!=null){
                 price=price(o,k);double dp=o.optDouble("dp",Double.NaN);String dt=o.optString("dt","");
                 if(!Double.isNaN(dp)){pct=percent(dp,en);valueColor="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
-                String rawTime=o.optString("t","—");time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);timeTextColor=timeColor(rawTime,valueColor);
+                boolean stale=isTsetmcKey(k)&&o.optBoolean("stale",false);
+                if(stale)valueColor=YELLOW;
+                String rawTime=o.optString("t","—");time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);timeTextColor=stale?YELLOW:timeColor(rawTime,valueColor);
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,valueColor).putInt("lastTimeColor"+i,timeTextColor).apply();
             }
             RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_item);
@@ -420,7 +485,8 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             if(metaGap!=0)row.setViewLayoutMargin(R.id.pct,RemoteViews.MARGIN_BOTTOM,metaGap,android.util.TypedValue.COMPLEX_UNIT_DIP);
             String name=showNames?nameFor(k,en):"";
             row.setTextViewText(R.id.name,name);row.setTextViewText(R.id.nameInline,name);row.setTextViewText(R.id.nameVertical,name);row.setTextViewText(R.id.nameRight,name);
-            row.setTextColor(R.id.name,muted);row.setTextColor(R.id.nameInline,muted);row.setTextColor(R.id.nameVertical,muted);row.setTextColor(R.id.nameRight,muted);row.setTextColor(R.id.time,timeTextColor);
+            int nameColor=o!=null&&isTsetmcKey(k)&&o.optBoolean("stale",false)?YELLOW:muted;
+            row.setTextColor(R.id.name,nameColor);row.setTextColor(R.id.nameInline,nameColor);row.setTextColor(R.id.nameVertical,nameColor);row.setTextColor(R.id.nameRight,nameColor);row.setTextColor(R.id.time,timeTextColor);
             row.setTextViewText(R.id.price,digits(price,en));row.setTextColor(R.id.price,valueColor);
             row.setTextViewText(R.id.priceInline,digits(price,en));row.setTextColor(R.id.priceInline,valueColor);
             row.setTextViewText(R.id.priceVertical,digits(price,en));row.setTextColor(R.id.priceVertical,valueColor);
