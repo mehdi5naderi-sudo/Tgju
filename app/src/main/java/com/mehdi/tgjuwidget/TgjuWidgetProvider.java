@@ -153,10 +153,10 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             for(int i=0;i<SLOT_COUNT;i++)keys[i]=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"");
             Map<String,JSONObject> data=new HashMap<>();
             boolean success=false;
-            String requestTime=now();
             try{
                 success=fetchCurrent(keys,data);
             }catch(Exception ignored){}
+            final String requestTime=now();
             final boolean ok=success;
             new Handler(Looper.getMainLooper()).post(()->{
                 AppWidgetManager m=AppWidgetManager.getInstance(c);
