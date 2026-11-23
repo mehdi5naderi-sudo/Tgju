@@ -246,14 +246,62 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 item.put("dp",Math.abs(pct));
                 item.put("dt",change>0?"high":change<0?"low":"");
                 int rawTime=root.optInt("hEven",0);
+                int lastChangeTime=fetchTsetmcIndexLastChangeTime();
+                if(lastChangeTime>0)rawTime=lastChangeTime;
                 String clock=String.format(Locale.US,"%06d",rawTime);
                 item.put("t",clock.substring(0,2)+":"+clock.substring(2,4)+":"+clock.substring(4,6));
                 item.put("indexChange",change);
+                item.put("lastChangeTime",rawTime);
                 item.put("dEven",root.optInt("dEven",0));
                 return item;
             }
             return null;
         }finally{if(con!=null)con.disconnect();}
+    }
+
+    // Returns the time of the latest actual change in the total-index value,
+    // not merely the timestamp of the last scheduled five-minute record.
+    private static int fetchTsetmcIndexLastChangeTime(){
+        HttpURLConnection con=null;
+        try{
+            URL url=new URL("https://cdn.tsetmc.com/api/Index/GetIndexB1LastDay/32097828799138957?_="+System.currentTimeMillis());
+            con=(HttpURLConnection)url.openConnection();
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(15000);
+            con.setReadTimeout(15000);
+            con.setUseCaches(false);
+            con.setInstanceFollowRedirects(true);
+            con.setRequestProperty("Accept","application/json, text/plain, */*");
+            con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36");
+            con.setRequestProperty("Referer","https://www.tsetmc.com/");
+            con.setRequestProperty("Origin","https://www.tsetmc.com");
+            con.setRequestProperty("Cache-Control","no-cache");
+            if(con.getResponseCode()!=200)return 0;
+            JSONObject response=new JSONObject(read(con));
+            JSONArray records=response.optJSONArray("indexB1");
+            if(records==null||records.length()<2)return 0;
+            int latestDate=0;
+            for(int i=0;i<records.length();i++){
+                JSONObject record=records.optJSONObject(i);
+                if(record!=null)latestDate=Math.max(latestDate,record.optInt("dEven",0));
+            }
+            double previous=Double.NaN;
+            int lastChangeTime=0;
+            for(int i=0;i<records.length();i++){
+                JSONObject record=records.optJSONObject(i);
+                if(record==null||record.optInt("dEven",0)!=latestDate)continue;
+                double value=record.optDouble("xDrNivJIdx004",Double.NaN);
+                int time=record.optInt("hEven",0);
+                if(Double.isNaN(value)||time<=0)continue;
+                if(!Double.isNaN(previous)&&Double.compare(value,previous)!=0)lastChangeTime=time;
+                previous=value;
+            }
+            return lastChangeTime;
+        }catch(Exception ignored){
+            return 0;
+        }finally{
+            if(con!=null)con.disconnect();
+        }
     }
 
     private static JSONObject fetchTsetmcPrice(String insCode)throws Exception{
