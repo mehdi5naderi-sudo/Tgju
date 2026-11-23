@@ -4,7 +4,10 @@ android {
     namespace 'com.mehdi.tgjuwidget'
     compileSdk 35
 
+    buildFeatures { buildConfig true }
+
     defaultConfig {
+        buildConfigField "String", "BUILD_NUMBER", "\"${providers.gradleProperty('buildNumber').getOrElse('local')}\""
         applicationId 'com.mehdi.tgjuwidget'
         minSdk 23
         targetSdk 35
