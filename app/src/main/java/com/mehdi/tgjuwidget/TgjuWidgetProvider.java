@@ -409,7 +409,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 n=Double.parseDouble(o.optString("p","0").replace(",",""));
             else
                 n=Double.parseDouble(o.optString("p","0").replace(",",""))/10.0;
-            if("tsetmc_index_total".equals(k))return new DecimalFormat("#,##0.##").format(n);
+            if("tsetmc_index_total".equals(k))return new DecimalFormat("#,##0").format(n);
             return new DecimalFormat("#,##0").format(n);
         }catch(Exception e){return "—";}
     }
