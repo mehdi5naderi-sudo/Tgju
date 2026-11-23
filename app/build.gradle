@@ -7,7 +7,7 @@ android {
     buildFeatures { buildConfig true }
 
     defaultConfig {
-        buildConfigField "String", "BUILD_NUMBER", "\"${providers.gradleProperty('buildNumber').getOrElse('local')}\""
+        buildConfigField "int", "BUILD_NUMBER", "${providers.gradleProperty('buildNumber').getOrElse('0')}"
         applicationId 'com.mehdi.tgjuwidget'
         minSdk 23
         targetSdk 35
