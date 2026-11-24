@@ -154,7 +154,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             Map<String,JSONObject> data=new HashMap<>();
             boolean success=false;
             try{
-                success=fetchCurrent(keys,data);
+                success=fetchCurrent(c,keys,data);
             }catch(Exception ignored){}
             final String requestTime=now();
             final boolean ok=success;
@@ -165,7 +165,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         }).start();
     }
 
-    private static boolean fetchCurrent(String[] keys,Map<String,JSONObject> data){
+    private static boolean fetchCurrent(Context c,String[] keys,Map<String,JSONObject> data){
         // Keep the original TGJU source for the existing selections.
         HttpURLConnection con=null;
         try{
@@ -197,7 +197,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             try{
                 JSONObject item;
                 if("tsetmc_index_total".equals(key)){
-                    item=fetchTsetmcIndex();
+                    item=fetchTsetmcIndexForDay(c);
                 }else{
                     String insCode="ime_fund_kahroba_tsetmc".equals(key)
                             ?"25559236668122210":"34144395039913458";
@@ -246,12 +246,9 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 item.put("dp",Math.abs(pct));
                 item.put("dt",change>0?"high":change<0?"low":"");
                 int rawTime=root.optInt("hEven",0);
-                int lastChangeTime=fetchTsetmcIndexLastChangeTime();
-                if(lastChangeTime>0)rawTime=lastChangeTime;
                 String clock=String.format(Locale.US,"%06d",rawTime);
                 item.put("t",clock.substring(0,2)+":"+clock.substring(2,4)+":"+clock.substring(4,6));
                 item.put("indexChange",change);
-                item.put("lastChangeTime",rawTime);
                 item.put("dEven",root.optInt("dEven",0));
                 return item;
             }
@@ -259,49 +256,38 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         }finally{if(con!=null)con.disconnect();}
     }
 
-    // Returns the time of the latest actual change in the total-index value,
-    // not merely the timestamp of the last scheduled five-minute record.
-    private static int fetchTsetmcIndexLastChangeTime(){
-        HttpURLConnection con=null;
-        try{
-            URL url=new URL("https://cdn.tsetmc.com/api/Index/GetIndexB1LastDay/32097828799138957?_="+System.currentTimeMillis());
-            con=(HttpURLConnection)url.openConnection();
-            con.setRequestMethod("GET");
-            con.setConnectTimeout(15000);
-            con.setReadTimeout(15000);
-            con.setUseCaches(false);
-            con.setInstanceFollowRedirects(true);
-            con.setRequestProperty("Accept","application/json, text/plain, */*");
-            con.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36");
-            con.setRequestProperty("Referer","https://www.tsetmc.com/");
-            con.setRequestProperty("Origin","https://www.tsetmc.com");
-            con.setRequestProperty("Cache-Control","no-cache");
-            if(con.getResponseCode()!=200)return 0;
-            JSONObject response=new JSONObject(read(con));
-            JSONArray records=response.optJSONArray("indexB1");
-            if(records==null||records.length()<2)return 0;
-            int latestDate=0;
-            for(int i=0;i<records.length();i++){
-                JSONObject record=records.optJSONObject(i);
-                if(record!=null)latestDate=Math.max(latestDate,record.optInt("dEven",0));
-            }
-            double previous=Double.NaN;
-            int lastChangeTime=0;
-            for(int i=0;i<records.length();i++){
-                JSONObject record=records.optJSONObject(i);
-                if(record==null||record.optInt("dEven",0)!=latestDate)continue;
-                double value=record.optDouble("xDrNivJIdx004",Double.NaN);
-                int time=record.optInt("hEven",0);
-                if(Double.isNaN(value)||time<=0)continue;
-                if(!Double.isNaN(previous)&&Double.compare(value,previous)!=0)lastChangeTime=time;
-                previous=value;
-            }
-            return lastChangeTime;
-        }catch(Exception ignored){
-            return 0;
-        }finally{
-            if(con!=null)con.disconnect();
+    // Refresh the index until 12:30 Tehran time, then freeze one value for the rest of the day.
+    private static JSONObject fetchTsetmcIndexForDay(Context c)throws Exception{
+        java.text.SimpleDateFormat dayFormat=new java.text.SimpleDateFormat("yyyyMMdd",Locale.US);
+        dayFormat.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Tehran"));
+        String today=dayFormat.format(new java.util.Date());
+        java.util.Calendar tehran=java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Tehran"));
+        int minuteOfDay=tehran.get(java.util.Calendar.HOUR_OF_DAY)*60+tehran.get(java.util.Calendar.MINUTE);
+        boolean afterCutoff=minuteOfDay>=12*60+30;
+        android.content.SharedPreferences cache=c.getSharedPreferences("tsetmc_index_cache",Context.MODE_PRIVATE);
+        if(afterCutoff&&today.equals(cache.getString("frozenDay",""))){
+            String saved=cache.getString("data","");
+            if(!saved.isEmpty())return new JSONObject(saved);
         }
+        JSONObject fresh=null;
+        try{fresh=fetchTsetmcIndex();}catch(Exception ignored){}
+        if(fresh!=null){
+            android.content.SharedPreferences.Editor edit=cache.edit();
+            edit.putString("data",fresh.toString());
+            edit.putString("dataDay",today);
+            if(afterCutoff)edit.putString("frozenDay",today);
+            edit.apply();
+            return fresh;
+        }
+        // If the final request fails after 12:30, retain the last successful value from today.
+        if(afterCutoff&&today.equals(cache.getString("dataDay",""))){
+            String saved=cache.getString("data","");
+            if(!saved.isEmpty()){
+                cache.edit().putString("frozenDay",today).apply();
+                return new JSONObject(saved);
+            }
+        }
+        return null;
     }
 
     private static JSONObject fetchTsetmcPrice(String insCode)throws Exception{
