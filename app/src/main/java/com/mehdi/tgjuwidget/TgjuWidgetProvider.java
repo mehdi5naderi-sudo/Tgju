@@ -362,7 +362,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 if(stale)color=YELLOW;
                 String rawTime=o.optString("t","—");
                 if("tsetmc_index_total".equals(k)&&stale){
-                    time=formatTsetmcDate(o.optString("dEven",""),p.getInt("dateFormat",0),p.getInt("dateOrder",0));
+                    time=formatTsetmcDate(o.optString("dEven",""),3,p.getInt("dateOrder",0));
                     if(time.isEmpty())time="—";
                 }else{
                     time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);
