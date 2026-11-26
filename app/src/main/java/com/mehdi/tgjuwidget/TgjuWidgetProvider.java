@@ -267,7 +267,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
         android.content.SharedPreferences cache=c.getSharedPreferences("tsetmc_index_cache",Context.MODE_PRIVATE);
         if(afterCutoff&&today.equals(cache.getString("frozenDay",""))){
             String saved=cache.getString("data","");
-            if(!saved.isEmpty())return new JSONObject(saved);
+            if(!saved.isEmpty())return decorateIndexDate(new JSONObject(saved),today);
         }
         JSONObject fresh=null;
         try{fresh=fetchTsetmcIndex();}catch(Exception ignored){}
@@ -277,17 +277,22 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             edit.putString("dataDay",today);
             if(afterCutoff)edit.putString("frozenDay",today);
             edit.apply();
-            return fresh;
+            return decorateIndexDate(fresh,today);
         }
-        // If the final request fails after 12:30, retain the last successful value from today.
-        if(afterCutoff&&today.equals(cache.getString("dataDay",""))){
-            String saved=cache.getString("data","");
-            if(!saved.isEmpty()){
-                cache.edit().putString("frozenDay",today).apply();
-                return new JSONObject(saved);
-            }
+        // Keep the previous value if TSETMC has not published a new index date yet.
+        String saved=cache.getString("data","");
+        if(!saved.isEmpty()){
+            if(afterCutoff)cache.edit().putString("frozenDay",today).apply();
+            return decorateIndexDate(new JSONObject(saved),today);
         }
         return null;
+    }
+
+    private static JSONObject decorateIndexDate(JSONObject item,String today)throws Exception{
+        int dataDate=item.optInt("dEven",0);
+        boolean stale=!validTsetmcDate(dataDate)||!String.valueOf(dataDate).equals(today);
+        item.put("stale",stale);
+        return item;
     }
 
     private static JSONObject fetchTsetmcPrice(String insCode)throws Exception{
@@ -356,7 +361,12 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 boolean stale=isTsetmcKey(k)&&o.optBoolean("stale",false);
                 if(stale)color=YELLOW;
                 String rawTime=o.optString("t","—");
-                time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);
+                if("tsetmc_index_total".equals(k)&&stale){
+                    time=formatTsetmcDate(o.optString("dEven",""),p.getInt("dateFormat",0),p.getInt("dateOrder",0));
+                    if(time.isEmpty())time="—";
+                }else{
+                    time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);
+                }
                 timeTextColor=stale?YELLOW:timeColor(rawTime,color);
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time)
                         .putInt("lastColor"+i,color).putInt("lastTimeColor"+i,timeTextColor).apply();
@@ -390,7 +400,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
             for(int i=0;i<SLOT_COUNT;i++){
                 String key=p.getString("key"+i,i<5?DEFAULT_KEYS[i]:"");
                 JSONObject item=d.get(key);
-                if(isTsetmcKey(key)&&item!=null&&item.optBoolean("stale",false)){
+                if(isTsetmcKey(key)&&!"tsetmc_index_total".equals(key)&&item!=null&&item.optBoolean("stale",false)){
                     String tradeDate=item.optString("finalLastDate","");
                     String formatted=formatTsetmcDate(tradeDate,p.getInt("dateFormat",0),p.getInt("dateOrder",0));
                     if(!formatted.isEmpty())refreshLabel=formatted;
@@ -553,7 +563,7 @@ public class TgjuWidgetProvider extends AppWidgetProvider {
                 if(!Double.isNaN(dp)){pct=percent(dp,en);valueColor="high".equalsIgnoreCase(dt)?GREEN:"low".equalsIgnoreCase(dt)?RED:YELLOW;}
                 boolean stale=isTsetmcKey(k)&&o.optBoolean("stale",false);
                 if(stale)valueColor=YELLOW;
-                String rawTime=o.optString("t","—");time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);timeTextColor=stale?YELLOW:timeColor(rawTime,valueColor);
+                String rawTime=o.optString("t","—");if("tsetmc_index_total".equals(k)&&stale){time=formatTsetmcDate(o.optString("dEven",""),p.getInt("dateFormat",0),p.getInt("dateOrder",0));if(time.isEmpty())time="—";}else{time=formatTimeOrDate(rawTime,p.getInt("dateFormat",0),p.getInt("dateOrder",0),en);}timeTextColor=stale?YELLOW:timeColor(rawTime,valueColor);
                 p.edit().putString("lastPrice"+i,price).putString("lastPct"+i,pct).putString("lastTime"+i,time).putInt("lastColor"+i,valueColor).putInt("lastTimeColor"+i,timeTextColor).apply();
             }
             RemoteViews row=new RemoteViews(c.getPackageName(),R.layout.widget_item);
